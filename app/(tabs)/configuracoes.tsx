@@ -3,12 +3,14 @@ import * as FileSystem from 'expo-file-system';
 import { router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useState } from 'react';
-import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { buscarTodosLancamentos, restaurarLancamentos, zerarLancamentos } from '../database';
 
 export default function ConfiguracoesScreen() {
   const [modalZerar, setModalZerar] = useState(false);
   const [modalRestaurar, setModalRestaurar] = useState(false);
+  const [modalSobre, setModalSobre] = useState(false);
+  const [modalAjuda, setModalAjuda] = useState(false);
   const [backupInfo, setBackupInfo] = useState<any>(null);
 
   async function resetPin() {
@@ -105,6 +107,17 @@ export default function ConfiguracoesScreen() {
     return `${data.getDate().toString().padStart(2,'0')}/${(data.getMonth()+1).toString().padStart(2,'0')}/${data.getFullYear()} ${data.getHours().toString().padStart(2,'0')}:${data.getMinutes().toString().padStart(2,'0')}`;
   };
 
+  const ajudaItens = [
+    { ico: '📋', titulo: 'Lançamentos', desc: 'Toque em + para adicionar. Toque para editar, pressione e segure para excluir.' },
+    { ico: '💳', titulo: 'Parcelamento', desc: 'Selecione Crédito, escolha o cartão e as parcelas. O app calcula os vencimentos automaticamente.' },
+    { ico: '📊', titulo: 'Orçamento', desc: 'Define o limite mensal de gastos. Só despesas são descontadas — receitas não interferem.' },
+    { ico: '🔔', titulo: 'Alertas', desc: 'Na tela inicial toque no banner verde para configurar o prazo de aviso de vencimentos.' },
+    { ico: '💾', titulo: 'Backup', desc: 'Em Configurações → Dados → Fazer Backup. Guarde o arquivo em local seguro.' },
+    { ico: '🔐', titulo: 'PIN', desc: 'Em Configurações → Alterar PIN. Anote seu PIN em local seguro.' },
+    { ico: '🏷️', titulo: 'Categorias', desc: 'Personalize suas categorias em Configurações → Gerenciar Categorias.' },
+    { ico: '📈', titulo: 'Relatórios', desc: 'Use as setas para navegar entre meses e ver comparativos de gastos por categoria.' },
+  ];
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -189,17 +202,45 @@ export default function ConfiguracoesScreen() {
 
       <Text style={styles.sectionTitle}>SOBRE</Text>
       <View style={styles.group}>
+        <TouchableOpacity style={styles.row} onPress={() => setModalAjuda(true)}>
+          <Text style={styles.rowIco}>❓</Text>
+          <View style={styles.rowInfo}>
+            <Text style={styles.rowTitle}>Ajuda</Text>
+            <Text style={styles.rowSub}>Como usar o FinançasPRO</Text>
+          </View>
+          <Text style={styles.rowArrow}>›</Text>
+        </TouchableOpacity>
+        <View style={styles.divider} />
+        <TouchableOpacity style={styles.row} onPress={() => Linking.openURL('mailto:contato@tatriapps.com.br')}>
+          <Text style={styles.rowIco}>📧</Text>
+          <View style={styles.rowInfo}>
+            <Text style={styles.rowTitle}>Contato / Suporte</Text>
+            <Text style={styles.rowSub}>contato@tatriapps.com.br</Text>
+          </View>
+          <Text style={styles.rowArrow}>›</Text>
+        </TouchableOpacity>
+        <View style={styles.divider} />
+        <TouchableOpacity style={styles.row} onPress={() => setModalSobre(true)}>
+          <Text style={styles.rowIco}>🔒</Text>
+          <View style={styles.rowInfo}>
+            <Text style={styles.rowTitle}>Política de Privacidade</Text>
+            <Text style={styles.rowSub}>Como tratamos seus dados</Text>
+          </View>
+          <Text style={styles.rowArrow}>›</Text>
+        </TouchableOpacity>
+        <View style={styles.divider} />
         <View style={styles.row}>
           <Text style={styles.rowIco}>💰</Text>
           <View style={styles.rowInfo}>
             <Text style={styles.rowTitle}>FinançasPRO</Text>
-            <Text style={styles.rowSub}>Versão 1.0.0</Text>
+            <Text style={styles.rowSub}>Versão 1.0.0 · TaTri Apps © 2026</Text>
           </View>
         </View>
       </View>
 
       <View style={{ height: 40 }} />
 
+      {/* Modal Zerar */}
       <Modal visible={modalZerar} transparent animationType="fade">
         <View style={styles.modalBg}>
           <View style={styles.modalBox}>
@@ -219,6 +260,7 @@ export default function ConfiguracoesScreen() {
         </View>
       </Modal>
 
+      {/* Modal Restaurar */}
       <Modal visible={modalRestaurar} transparent animationType="fade">
         <View style={styles.modalBg}>
           <View style={styles.modalBox}>
@@ -242,6 +284,61 @@ export default function ConfiguracoesScreen() {
                 <Text style={styles.btnSaveTxt}>Restaurar</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Política de Privacidade */}
+      <Modal visible={modalSobre} transparent animationType="slide">
+        <View style={styles.modalBg}>
+          <View style={[styles.modalBox, { maxHeight: '85%' }]}>
+            <Text style={styles.modalIco}>🔒</Text>
+            <Text style={styles.modalTitle}>Política de Privacidade</Text>
+            <ScrollView style={{ marginBottom: 16 }} showsVerticalScrollIndicator={false}>
+              <Text style={styles.politicaTxt}>
+                <Text style={styles.politicaTitulo}>Seus dados ficam no seu dispositivo{'\n'}</Text>
+                O FinançasPRO armazena todos os dados localmente no seu dispositivo. Não coletamos, transmitimos nem armazenamos seus dados financeiros em servidores externos.{'\n\n'}
+                <Text style={styles.politicaTitulo}>O que NÃO coletamos{'\n'}</Text>
+                • Dados financeiros pessoais{'\n'}
+                • Informações de cartões ou contas bancárias{'\n'}
+                • Localização geográfica{'\n'}
+                • Contatos do dispositivo{'\n\n'}
+                <Text style={styles.politicaTitulo}>Pagamento in-app{'\n'}</Text>
+                Processado pelo Google Play Billing. Não temos acesso aos dados de pagamento.{'\n\n'}
+                <Text style={styles.politicaTitulo}>Backup{'\n'}</Text>
+                O backup é salvo localmente no seu dispositivo. Você tem total controle sobre o arquivo.{'\n\n'}
+                <Text style={styles.politicaTitulo}>Contato{'\n'}</Text>
+                contato@tatriapps.com.br{'\n\n'}
+                <Text style={styles.politicaSub}>TaTri Apps © 2026 · Versão 1.0.0</Text>
+              </Text>
+            </ScrollView>
+            <TouchableOpacity style={styles.btnSave} onPress={() => setModalSobre(false)}>
+              <Text style={styles.btnSaveTxt}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Ajuda */}
+      <Modal visible={modalAjuda} transparent animationType="slide">
+        <View style={styles.modalBg}>
+          <View style={[styles.modalBox, { maxHeight: '90%' }]}>
+            <Text style={styles.modalIco}>❓</Text>
+            <Text style={styles.modalTitle}>Ajuda Rápida</Text>
+            <ScrollView style={{ marginBottom: 16 }} showsVerticalScrollIndicator={false}>
+              {ajudaItens.map((item, i) => (
+                <View key={i} style={styles.ajudaRow}>
+                  <Text style={styles.ajudaIco}>{item.ico}</Text>
+                  <View style={styles.ajudaInfo}>
+                    <Text style={styles.ajudaTitulo}>{item.titulo}</Text>
+                    <Text style={styles.ajudaDesc}>{item.desc}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={styles.btnSave} onPress={() => setModalAjuda(false)}>
+              <Text style={styles.btnSaveTxt}>Fechar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -272,8 +369,16 @@ const styles = StyleSheet.create({
   modalBtns: { flexDirection:'row', gap:10 },
   btnCancel: { flex:1, padding:13, backgroundColor:'#2a3148', borderRadius:11, alignItems:'center', borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
   btnCancelTxt: { color:'#aab4d0', fontWeight:'600', fontSize:14 },
-  btnSave: { flex:1, padding:13, backgroundColor:'#5294ff', borderRadius:11, alignItems:'center' },
+  btnSave: { padding:13, backgroundColor:'#5294ff', borderRadius:11, alignItems:'center' },
   btnSaveTxt: { color:'#fff', fontWeight:'600', fontSize:14 },
   btnDanger: { flex:1, padding:13, backgroundColor:'#f25555', borderRadius:11, alignItems:'center' },
   btnDangerTxt: { color:'#fff', fontWeight:'600', fontSize:14 },
+  politicaTxt: { fontSize:13, color:'#aab4d0', lineHeight:20 },
+  politicaTitulo: { fontSize:13, color:'#f0f3ff', fontWeight:'700' },
+  politicaSub: { fontSize:11, color:'#6b779a', fontStyle:'italic' },
+  ajudaRow: { flexDirection:'row', paddingVertical:12, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.06)' },
+  ajudaIco: { fontSize:24, marginRight:14, width:32 },
+  ajudaInfo: { flex:1 },
+  ajudaTitulo: { fontSize:13, fontWeight:'700', color:'#f0f3ff', marginBottom:3 },
+  ajudaDesc: { fontSize:12, color:'#aab4d0', lineHeight:18 },
 });

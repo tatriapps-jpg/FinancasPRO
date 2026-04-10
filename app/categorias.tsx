@@ -123,7 +123,7 @@ export default function CategoriasScreen() {
             </TouchableOpacity>
           </View>
         ))}
-        <View style={{ height: 80 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
 
       <TouchableOpacity style={styles.fab} onPress={abrirNova}>
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   catNome: { flex: 1, fontSize: 14, color: '#f0f3ff', fontWeight: '500' },
   iconBtn: { padding: 8 },
   iconTxt: { fontSize: 16 },
-  fab: { position: 'absolute', bottom: 20, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#5294ff', alignItems: 'center', justifyContent: 'center', elevation: 8 },
+  fab: { position: 'absolute', bottom: 100, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#5294ff', alignItems: 'center', justifyContent: 'center', elevation: 8 },
   fabText: { fontSize: 28, color: '#fff', lineHeight: 32 },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 24 },
   modalBox: { backgroundColor: '#1c2133', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },

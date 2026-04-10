@@ -4,12 +4,14 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { carregarCategorias } from './categorias';
+import { buscarContas, debitarConta } from './contas';
 import { inserirLancamento, inserirLancamentosParcelados } from './database';
 
 const CARTOES_KEY = '@financaspro:cartoes';
 const FORMAS_PAG = ['Credito','Debito','Pix','Dinheiro','Boleto','Outro'];
 
 type Cartao = { id: string; apelido: string; bandeira: string; ultimos4: string; fechamento: string; vencimento: string; limite: string; };
+type Conta = { id: string; nome: string; banco: string; tipo: string; saldo: string; };
 
 export default function NovoLancamentoScreen() {
   const params = useLocalSearchParams();
@@ -24,9 +26,15 @@ export default function NovoLancamentoScreen() {
   const [data, setData] = useState(hoje());
   const [dataObj, setDataObj] = useState(new Date());
   const [mostrarCalendario, setMostrarCalendario] = useState(false);
+  const [dataVencBoleto, setDataVencBoleto] = useState(hoje());
+  const [dataVencBoletoObj, setDataVencBoletoObj] = useState(new Date());
+  const [mostrarCalendarioBoleto, setMostrarCalendarioBoleto] = useState(false);
+  const [parcelasBoleto, setParcelasBoleto] = useState('1');
   const [status, setStatus] = useState('pago');
   const [obs, setObs] = useState('');
   const [cartoes, setCartoes] = useState<Cartao[]>([]);
+  const [contas, setContas] = useState<Conta[]>([]);
+  const [contaSel, setContaSel] = useState<Conta | null>(null);
   const [previewDatas, setPreviewDatas] = useState<string[]>([]);
   const [categoriasDesp, setCategoriasDesp] = useState<string[]>([]);
   const [categoriasRec, setCategoriasRec] = useState<string[]>([]);
@@ -47,8 +55,20 @@ export default function NovoLancamentoScreen() {
 
   useEffect(() => {
     if (parseInt(parcelas) > 1) setStatus('parcelado');
-    else setStatus('pago');
+    else if (formaPag !== 'Boleto') setStatus('pago');
   }, [parcelas]);
+
+  useEffect(() => {
+    if (formaPag === 'Boleto') {
+      const n = parseInt(parcelasBoleto) || 1;
+      if (n > 1) setStatus('parcelado');
+      else setStatus('pendente');
+    }
+    // Limpa conta selecionada se mudar para forma que não usa conta
+    if (formaPag !== 'Debito' && formaPag !== 'Pix') {
+      setContaSel(null);
+    }
+  }, [parcelasBoleto, formaPag]);
 
   function hoje() {
     const d = new Date();
@@ -59,6 +79,14 @@ export default function NovoLancamentoScreen() {
     return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
   }
 
+  function addMes(dataStr: string, meses: number): string {
+    const [dia, mes, ano] = dataStr.split('/').map(Number);
+    let novoMes = mes - 1 + meses;
+    let novoAno = ano;
+    while (novoMes > 11) { novoMes -= 12; novoAno++; }
+    return `${String(dia).padStart(2,'0')}/${String(novoMes+1).padStart(2,'0')}/${novoAno}`;
+  }
+
   async function loadDados() {
     const savedCartoes = await AsyncStorage.getItem(CARTOES_KEY);
     if (savedCartoes) setCartoes(JSON.parse(savedCartoes));
@@ -66,6 +94,8 @@ export default function NovoLancamentoScreen() {
     const rec = await carregarCategorias('receita');
     setCategoriasDesp(desp);
     setCategoriasRec(rec);
+    const contasCarregadas = await buscarContas();
+    setContas(contasCarregadas);
   }
 
   function onDataCalendario(event: any, selectedDate?: Date) {
@@ -85,6 +115,14 @@ export default function NovoLancamentoScreen() {
         setDataObj(selectedDate);
         setData(dateToStr(selectedDate));
       }
+    }
+  }
+
+  function onDataCalendarioBoleto(event: any, selectedDate?: Date) {
+    setMostrarCalendarioBoleto(false);
+    if (selectedDate) {
+      setDataVencBoletoObj(selectedDate);
+      setDataVencBoleto(dateToStr(selectedDate));
     }
   }
 
@@ -120,6 +158,7 @@ export default function NovoLancamentoScreen() {
 
     const valorNum = parseFloat(valor.replace(',','.'));
     const totalParcelas = parseInt(parcelas) || 1;
+    const totalParcelasBoleto = parseInt(parcelasBoleto) || 1;
 
     if (formaPag === 'Credito' && cartaoSel && totalParcelas > 1) {
       inserirLancamentosParcelados({
@@ -129,18 +168,45 @@ export default function NovoLancamentoScreen() {
         diaFechamento: parseInt(cartaoSel.fechamento) || 10,
         status, obs, tipo,
       });
+    } else if (formaPag === 'Boleto' && totalParcelasBoleto > 1) {
+      const grupoId = Date.now().toString();
+      const valorParcela = valorNum / totalParcelasBoleto;
+      for (let i = 0; i < totalParcelasBoleto; i++) {
+        const dataVenc = addMes(dataVencBoleto, i);
+        inserirLancamento({
+          id: `${grupoId}_${i+1}`,
+          tipo, descricao: `${descricao} (${i+1}/${totalParcelasBoleto})`,
+          valor: valorParcela, categoria, formaPag,
+          cartaoId: '', parcelas: totalParcelasBoleto,
+          parcelaAtual: i + 1, totalParcelas: totalParcelasBoleto,
+          data, dataVencimento: dataVenc,
+          status: 'parcelado', obs, grupoId,
+        });
+      }
     } else {
+      const dataVenc = formaPag === 'Boleto' ? dataVencBoleto : data;
+      const statusFinal = formaPag === 'Boleto' ? 'pendente' : status;
       inserirLancamento({
         id: Date.now().toString(), tipo, descricao, valor: valorNum,
         categoria, formaPag, cartaoId: cartaoSel?.id || '',
         parcelas: totalParcelas, parcelaAtual: 1, totalParcelas,
-        data, dataVencimento: data, status, obs, grupoId: '',
+        data, dataVencimento: dataVenc,
+        status: statusFinal, obs, grupoId: '',
       });
+    }
+
+    // Debita da conta se Débito ou Pix e conta selecionada
+    if (contaSel && (formaPag === 'Debito' || formaPag === 'Pix') && tipo === 'despesa') {
+      await debitarConta(contaSel.id, valorNum);
     }
 
     alert('Lancamento salvo!');
     router.back();
   }
+
+  const mostraSelecaoConta = tipo === 'despesa' &&
+    (formaPag === 'Debito' || formaPag === 'Pix') &&
+    contas.length > 0;
 
   return (
     <View style={styles.container}>
@@ -149,17 +215,9 @@ export default function NovoLancamentoScreen() {
           <Text style={styles.backTxt}>Voltar</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Novo Lancamento</Text>
-        <View style={{ flexDirection:'row', gap:8 }}>
-          <TouchableOpacity onPress={() => router.push('/voz')} style={styles.cameraBtn}>
-            <Text style={{ fontSize: 22 }}>🎤</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/camera')} style={styles.cameraBtn}>
-            <Text style={{ fontSize: 22 }}>📷</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/qrcode')} style={styles.cameraBtn}>
-            <Text style={{ fontSize: 22 }}>📲</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={() => router.push('/voz')} style={styles.cameraBtn}>
+          <Text style={{ fontSize: 26 }}>🎤</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.tabs}>
@@ -183,15 +241,8 @@ export default function NovoLancamentoScreen() {
           <Text style={styles.dataBtnIco}>📅</Text>
           <Text style={styles.dataBtnTxt}>{data}</Text>
         </TouchableOpacity>
-
         {mostrarCalendario && (
-          <DateTimePicker
-            value={dataObj}
-            mode="date"
-            display="calendar"
-            onChange={onDataCalendario}
-            locale="pt-BR"
-          />
+          <DateTimePicker value={dataObj} mode="date" display="calendar" onChange={onDataCalendario} locale="pt-BR" />
         )}
 
         <Text style={styles.lbl}>Categoria *</Text>
@@ -209,12 +260,81 @@ export default function NovoLancamentoScreen() {
           <Text style={styles.lbl}>Forma de pagamento *</Text>
           <View style={styles.payGrid}>
             {FORMAS_PAG.map(f => (
-              <TouchableOpacity key={f} style={[styles.payBtn, formaPag===f && styles.payBtnOn]} onPress={() => { setFormaPag(f); if (f !== 'Credito') setCartaoSel(null); }}>
+              <TouchableOpacity key={f} style={[styles.payBtn, formaPag===f && styles.payBtnOn]} onPress={() => {
+                setFormaPag(f);
+                if (f !== 'Credito') setCartaoSel(null);
+                if (f !== 'Boleto') setParcelasBoleto('1');
+                if (f !== 'Debito' && f !== 'Pix') setContaSel(null);
+              }}>
                 <Text style={[styles.payTxt, formaPag===f && styles.payTxtOn]}>{f}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
+          {/* DÉBITO / PIX — seleção de conta */}
+          {mostraSelecaoConta && <>
+            <Text style={styles.lbl}>Débitar da conta (opcional)</Text>
+            <View style={styles.chipRow}>
+              <TouchableOpacity
+                style={[styles.chip, contaSel === null && styles.chipOn]}
+                onPress={() => setContaSel(null)}
+              >
+                <Text style={[styles.chipTxt, contaSel === null && styles.chipTxtOn]}>Nenhuma</Text>
+              </TouchableOpacity>
+              {contas.map(c => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[styles.chip, contaSel?.id === c.id && styles.chipOn]}
+                  onPress={() => setContaSel(c)}
+                >
+                  <Text style={[styles.chipTxt, contaSel?.id === c.id && styles.chipTxtOn]}>
+                    {c.nome}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {contaSel && (
+              <View style={styles.contaInfo}>
+                <Text style={styles.contaInfoTxt}>
+                  💳 O valor será debitado de: {contaSel.nome} · {contaSel.banco}
+                </Text>
+              </View>
+            )}
+          </>}
+
+          {/* BOLETO */}
+          {formaPag === 'Boleto' && <>
+            <Text style={styles.lbl}>Data de vencimento do boleto</Text>
+            <TouchableOpacity style={styles.dataBtn} onPress={() => setMostrarCalendarioBoleto(true)}>
+              <Text style={styles.dataBtnIco}>📅</Text>
+              <Text style={styles.dataBtnTxt}>{dataVencBoleto}</Text>
+            </TouchableOpacity>
+            {mostrarCalendarioBoleto && (
+              <DateTimePicker value={dataVencBoletoObj} mode="date" display="calendar" onChange={onDataCalendarioBoleto} locale="pt-BR" />
+            )}
+            <Text style={styles.lbl}>Parcelas do boleto</Text>
+            <View style={styles.payGrid}>
+              {['1','2','3','4','5','6','7','8','9','10','11','12'].map(p => (
+                <TouchableOpacity key={p} style={[styles.payBtn, parcelasBoleto===p && styles.payBtnOn]} onPress={() => setParcelasBoleto(p)}>
+                  <Text style={[styles.payTxt, parcelasBoleto===p && styles.payTxtOn]}>{p==='1' ? 'Único' : p+'x'}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {parseInt(parcelasBoleto) > 1 && valor && (
+              <View style={styles.previewCard}>
+                <Text style={styles.previewTitle}>Previsão de vencimentos do boleto</Text>
+                {Array.from({ length: parseInt(parcelasBoleto) }).map((_, i) => (
+                  <View key={i} style={styles.previewRow}>
+                    <Text style={styles.previewParc}>{i+1}/{parcelasBoleto}</Text>
+                    <Text style={styles.previewData}>{addMes(dataVencBoleto, i)}</Text>
+                    <Text style={styles.previewVal}>R$ {(parseFloat(valor.replace(',','.')) / parseInt(parcelasBoleto)).toFixed(2).replace('.',',')}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </>}
+
+          {/* CREDITO */}
           {formaPag === 'Credito' && <>
             <Text style={styles.lbl}>Cartao * {cartoes.length === 0 ? '(Nenhum cadastrado)' : ''}</Text>
             {cartoes.length === 0 ? (
@@ -232,14 +352,12 @@ export default function NovoLancamentoScreen() {
                 </View>
               </ScrollView>
             )}
-
             {cartaoSel && (
               <View style={styles.cartaoInfo}>
                 <Text style={styles.cartaoInfoTxt}>Fecha dia {cartaoSel.fechamento} · Vence dia {cartaoSel.vencimento}</Text>
                 {cartaoSel.limite ? <Text style={styles.cartaoInfoTxt}>Limite: R$ {cartaoSel.limite}</Text> : null}
               </View>
             )}
-
             <Text style={styles.lbl}>Parcelas</Text>
             <View style={styles.payGrid}>
               {['1','2','3','4','5','6','7','8','9','10','11','12','15','18','24'].map(p => (
@@ -248,7 +366,6 @@ export default function NovoLancamentoScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-
             {previewDatas.length > 1 && valor && (
               <View style={styles.previewCard}>
                 <Text style={styles.previewTitle}>Previsao de vencimentos</Text>
@@ -263,7 +380,8 @@ export default function NovoLancamentoScreen() {
             )}
           </>}
 
-          {formaPag !== 'Credito' && formaPag !== '' && <>
+          {/* STATUS para formas que não são crédito nem boleto */}
+          {formaPag !== 'Credito' && formaPag !== 'Boleto' && formaPag !== '' && <>
             <Text style={styles.lbl}>Status</Text>
             <View style={styles.payGrid}>
               {[['pago','✅ Pago'],['pendente','⏳ Pendente']].map(([v,l]) => (
@@ -312,7 +430,7 @@ const styles = StyleSheet.create({
   dataBtnIco: { fontSize:18 },
   dataBtnTxt: { fontSize:14, color:'#f0f3ff', fontWeight:'500' },
   chipScroll: { marginBottom:4 },
-  chipRow: { flexDirection:'row', gap:8, paddingVertical:4 },
+  chipRow: { flexDirection:'row', flexWrap:'wrap', gap:8, paddingVertical:4 },
   chip: { paddingHorizontal:14, paddingVertical:8, backgroundColor:'#2a3148', borderRadius:16, borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
   chipOn: { backgroundColor:'rgba(82,148,255,0.18)', borderColor:'#5294ff' },
   chipTxt: { fontSize:12.5, color:'#aab4d0', fontWeight:'500' },
@@ -326,6 +444,8 @@ const styles = StyleSheet.create({
   alertaCartaoTxt: { fontSize:13, color:'#f25555', fontWeight:'500' },
   cartaoInfo: { backgroundColor:'#2a3148', borderRadius:11, padding:12, marginBottom:8, borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
   cartaoInfoTxt: { fontSize:12, color:'#aab4d0', marginBottom:2 },
+  contaInfo: { backgroundColor:'rgba(37,208,126,0.08)', borderRadius:11, padding:12, marginBottom:8, borderWidth:1, borderColor:'rgba(37,208,126,0.25)' },
+  contaInfoTxt: { fontSize:12, color:'#25d07e', fontWeight:'500' },
   previewCard: { backgroundColor:'#1c2133', borderRadius:11, padding:14, marginTop:8, marginBottom:4, borderWidth:1, borderColor:'rgba(82,148,255,0.3)' },
   previewTitle: { fontSize:11, fontWeight:'700', color:'#5294ff', marginBottom:10, letterSpacing:0.5 },
   previewRow: { flexDirection:'row', justifyContent:'space-between', paddingVertical:6, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.06)' },

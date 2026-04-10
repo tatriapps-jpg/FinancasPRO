@@ -45,9 +45,7 @@ export function initDB() {
 
   try {
     db.execSync(`ALTER TABLE lancamentos ADD COLUMN dataPagamento TEXT`);
-  } catch (e) {
-    // Coluna ja existe, ignorar
-  }
+  } catch (e) {}
 }
 
 export function inserirLancamento(item: {
@@ -90,28 +88,18 @@ export function inserirLancamentosParcelados(dados: {
 }) {
   const grupoId = Date.now().toString();
   const valorParcela = dados.valorTotal / dados.totalParcelas;
-
   const [dia, mes, ano] = dados.dataCompra.split('/').map(Number);
   const dataCompraObj = new Date(ano, mes - 1, dia);
 
   for (let i = 0; i < dados.totalParcelas; i++) {
     const dataVenc = calcularVencimento(dataCompraObj, i, dados.diaFechamento, dados.diaVencimento);
     const id = `${grupoId}_${i+1}`;
-
     db.runSync(
       `INSERT INTO lancamentos (id, tipo, descricao, valor, categoria, formaPag, cartaoId, parcelas, parcelaAtual, totalParcelas, data, dataVencimento, status, obs, grupoId)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id, dados.tipo,
-        `${dados.descricao} (${i+1}/${dados.totalParcelas})`,
-        valorParcela,
-        dados.categoria, dados.formaPag, dados.cartaoId,
-        dados.totalParcelas, i + 1, dados.totalParcelas,
-        dados.dataCompra,
-        dataVenc,
-        'parcelado',
-        dados.obs, grupoId
-      ]
+      [id, dados.tipo, `${dados.descricao} (${i+1}/${dados.totalParcelas})`, valorParcela,
+       dados.categoria, dados.formaPag, dados.cartaoId, dados.totalParcelas, i + 1, dados.totalParcelas,
+       dados.dataCompra, dataVenc, 'parcelado', dados.obs, grupoId]
     );
   }
 }
@@ -120,33 +108,25 @@ function calcularVencimento(dataCompra: Date, indiceParcela: number, diaFechamen
   const diaCompra = dataCompra.getDate();
   const mesCompra = dataCompra.getMonth();
   const anoCompra = dataCompra.getFullYear();
-
   let mesBase = mesCompra;
   let anoBase = anoCompra;
-
-  if (diaCompra > diaFechamento) {
-    mesBase += 1;
-  }
-
+  if (diaCompra > diaFechamento) mesBase += 1;
   mesBase += indiceParcela;
-
-  while (mesBase > 11) {
-    mesBase -= 12;
-    anoBase += 1;
-  }
-
+  while (mesBase > 11) { mesBase -= 12; anoBase += 1; }
   const dia = String(diaVencimento).padStart(2, '0');
   const mes = String(mesBase + 1).padStart(2, '0');
   return `${dia}/${mes}/${anoBase}`;
 }
 
 export function buscarLancamentos(): any[] {
-  return db.getAllSync('SELECT * FROM lancamentos ORDER BY createdAt DESC');
+  return db.getAllSync(`SELECT * FROM lancamentos ORDER BY createdAt DESC`);
 }
 
 export function buscarLancamentosPorMes(mes: number, ano: number): any[] {
   return db.getAllSync(
-    `SELECT * FROM lancamentos WHERE dataVencimento LIKE ? OR (dataVencimento = '' AND data LIKE ?) ORDER BY createdAt DESC`,
+    `SELECT * FROM lancamentos
+     WHERE dataVencimento LIKE ? OR (dataVencimento = '' AND data LIKE ?)
+     ORDER BY createdAt DESC`,
     [`%/${String(mes).padStart(2,'0')}/${ano}`, `%/${String(mes).padStart(2,'0')}/${ano}`]
   );
 }
@@ -163,6 +143,26 @@ export function atualizarLancamento(id: string, descricao: string, valor: number
   db.runSync(
     'UPDATE lancamentos SET descricao = ?, valor = ?, categoria = ?, status = ?, dataPagamento = ? WHERE id = ?',
     [descricao, valor, categoria, status, dataPagamento, id]
+  );
+}
+
+// Marca todos os lançamentos de um cartão/mês como pagos de uma vez
+export function pagarFaturaCartao(cartaoId: string, mes: number, ano: number, dataPagamento: string): number {
+  const mesStr = String(mes).padStart(2, '0');
+  const result = db.runSync(
+    `UPDATE lancamentos SET status = 'pago', dataPagamento = ?
+     WHERE cartaoId = ? AND dataVencimento LIKE ? AND status != 'pago'`,
+    [dataPagamento, cartaoId, `%/${mesStr}/${ano}`]
+  );
+  return result.changes;
+}
+
+// Busca lançamentos de fatura para exibir resumo antes de pagar
+export function buscarFaturaCartao(cartaoId: string, mes: number, ano: number): any[] {
+  const mesStr = String(mes).padStart(2, '0');
+  return db.getAllSync(
+    `SELECT * FROM lancamentos WHERE cartaoId = ? AND dataVencimento LIKE ? ORDER BY parcelaAtual ASC`,
+    [cartaoId, `%/${mesStr}/${ano}`]
   );
 }
 

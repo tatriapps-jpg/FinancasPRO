@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const CONTAS_KEY = '@financaspro:contas';
 
@@ -18,6 +18,27 @@ type Conta = {
   tipo: string;
   saldo: string;
 };
+
+// Função utilitária exportada para debitar saldo de uma conta
+export async function debitarConta(contaId: string, valor: number): Promise<void> {
+  const saved = await AsyncStorage.getItem(CONTAS_KEY);
+  if (!saved) return;
+  const lista: Conta[] = JSON.parse(saved);
+  const novas = lista.map(c => {
+    if (c.id === contaId) {
+      const novoSaldo = (parseFloat(c.saldo) || 0) - valor;
+      return { ...c, saldo: String(novoSaldo) };
+    }
+    return c;
+  });
+  await AsyncStorage.setItem(CONTAS_KEY, JSON.stringify(novas));
+}
+
+// Função utilitária exportada para buscar contas
+export async function buscarContas(): Promise<Conta[]> {
+  const saved = await AsyncStorage.getItem(CONTAS_KEY);
+  return saved ? JSON.parse(saved) : [];
+}
 
 export default function ContasScreen() {
   const [contas, setContas] = useState<Conta[]>([]);
@@ -39,36 +60,31 @@ export default function ContasScreen() {
   }
 
   async function salvarConta() {
-    if (!nome.trim()) {
-      alert('Digite o nome da conta.');
-      return;
-    }
-    if (!banco.trim()) {
-      alert('Digite o nome do banco.');
-      return;
-    }
+    if (!nome.trim()) { alert('Digite o nome da conta.'); return; }
+    if (!banco.trim()) { alert('Digite o nome do banco.'); return; }
     const saved = await AsyncStorage.getItem(CONTAS_KEY);
     const lista: Conta[] = saved ? JSON.parse(saved) : [];
-    const nova: Conta = {
-      id: Date.now().toString(),
-      nome,
-      banco,
-      tipo,
-      saldo,
-    };
-    const novas = [...lista, nova];
-    await AsyncStorage.setItem(CONTAS_KEY, JSON.stringify(novas));
+    const nova: Conta = { id: Date.now().toString(), nome, banco, tipo, saldo };
+    await AsyncStorage.setItem(CONTAS_KEY, JSON.stringify([...lista, nova]));
     setModal(false);
     limparForm();
     loadContas();
   }
 
   async function excluirConta(id: string) {
-    const saved = await AsyncStorage.getItem(CONTAS_KEY);
-    const lista: Conta[] = saved ? JSON.parse(saved) : [];
-    const novas = lista.filter(c => c.id !== id);
-    await AsyncStorage.setItem(CONTAS_KEY, JSON.stringify(novas));
-    loadContas();
+    Alert.alert(
+      'Excluir conta',
+      'Deseja excluir esta conta? O saldo será removido.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Excluir', style: 'destructive', onPress: async () => {
+          const saved = await AsyncStorage.getItem(CONTAS_KEY);
+          const lista: Conta[] = saved ? JSON.parse(saved) : [];
+          await AsyncStorage.setItem(CONTAS_KEY, JSON.stringify(lista.filter(c => c.id !== id)));
+          loadContas();
+        }}
+      ]
+    );
   }
 
   function limparForm() {
@@ -109,7 +125,6 @@ export default function ContasScreen() {
             <Text style={styles.emptySub}>Toque no + para adicionar</Text>
           </View>
         )}
-
         {contas.map(c => (
           <View key={c.id} style={styles.contaCard}>
             <Text style={styles.contaIco}>{TIPO_ICON[c.tipo]}</Text>
@@ -127,8 +142,7 @@ export default function ContasScreen() {
             </TouchableOpacity>
           </View>
         ))}
-
-        <View style={{ height: 80 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
 
       <TouchableOpacity style={styles.fab} onPress={() => setModal(true)}>
@@ -139,7 +153,6 @@ export default function ContasScreen() {
         <View style={styles.modalBg}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>Nova Conta</Text>
-
             <Text style={styles.lbl}>Tipo de conta</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -150,16 +163,12 @@ export default function ContasScreen() {
                 ))}
               </View>
             </ScrollView>
-
             <Text style={styles.lbl}>Nome da conta *</Text>
             <TextInput style={styles.input} placeholder="ex: Conta Principal" placeholderTextColor="#6b779a" value={nome} onChangeText={setNome} />
-
             <Text style={styles.lbl}>Banco *</Text>
             <TextInput style={styles.input} placeholder="ex: Nubank, Itaú, Inter..." placeholderTextColor="#6b779a" value={banco} onChangeText={setBanco} />
-
             <Text style={styles.lbl}>Saldo inicial R$ (opcional)</Text>
             <TextInput style={styles.input} placeholder="ex: 1500,00" placeholderTextColor="#6b779a" keyboardType="numeric" value={saldo} onChangeText={setSaldo} />
-
             <View style={styles.modalBtns}>
               <TouchableOpacity style={styles.btnCancel} onPress={() => { setModal(false); limparForm(); }}>
                 <Text style={styles.btnCancelTxt}>Cancelar</Text>
@@ -196,7 +205,7 @@ const styles = StyleSheet.create({
   contaSaldo: { fontSize: 14, fontWeight: '700', marginTop: 4 },
   delBtn: { padding: 8 },
   delTxt: { fontSize: 18 },
-  fab: { position: 'absolute', bottom: 20, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#5294ff', alignItems: 'center', justifyContent: 'center', elevation: 8 },
+  fab: { position: 'absolute', bottom: 100, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#5294ff', alignItems: 'center', justifyContent: 'center', elevation: 8 },
   fabText: { fontSize: 28, color: '#fff', lineHeight: 32 },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
   modalBox: { backgroundColor: '#1c2133', borderRadius: 24, padding: 24, paddingBottom: 40, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },

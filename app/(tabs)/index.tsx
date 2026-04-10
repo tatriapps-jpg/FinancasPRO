@@ -5,6 +5,7 @@ import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View 
 import { buscarLancamentos, buscarTotaisMes } from '../database';
 
 const ALERTA_KEY = '@financaspro:diasAlerta';
+const ORC_KEY = '@financaspro:orcamento';
 
 export default function HomeScreen() {
   const [totais, setTotais] = useState({ totalGasto: 0, totalReceita: 0, saldo: 0 });
@@ -29,6 +30,9 @@ export default function HomeScreen() {
     setDiasAlerta(dias);
     setDiasInput(String(dias));
 
+    const savedOrc = await AsyncStorage.getItem(ORC_KEY);
+    if (savedOrc) setOrcamento(parseFloat(savedOrc));
+
     const t = buscarTotaisMes(mesAtual, anoAtual);
     setTotais(t);
 
@@ -44,7 +48,6 @@ export default function HomeScreen() {
       .map(([cat, val]) => ({ cat, val }));
     setTopGastos(top);
 
-    // Checar vencimentos próximos
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
     const limite = new Date(hoje);
@@ -75,7 +78,7 @@ export default function HomeScreen() {
   }
 
   const fmt = (v: number) => 'R$' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const disponivel = orcamento - totais.totalGasto;
+  const saldoOrcamento = orcamento - totais.totalGasto;
   const pct = Math.min(100, (totais.totalGasto / orcamento) * 100);
   const barCor = pct < 70 ? '#25d07e' : pct < 90 ? '#f7b731' : '#f25555';
 
@@ -103,7 +106,6 @@ export default function HomeScreen() {
         <Text style={styles.headerSub}>{meses[mesAtual-1]} {anoAtual}</Text>
       </View>
 
-      {/* Banner de alertas */}
       {vencimentos.length > 0 && (
         <View style={styles.alertaBox}>
           <View style={styles.alertaHeader}>
@@ -132,37 +134,41 @@ export default function HomeScreen() {
       )}
 
       <View style={styles.cardsGrid}>
+        {/* 1 - RECEITAS */}
+        <View style={[styles.card, styles.cardGreen]}>
+          <Text style={styles.cardLabel}>RECEITAS</Text>
+          <Text style={[styles.cardValue, {color:'#25d07e'}]}>{fmt(totais.totalReceita)}</Text>
+          <Text style={styles.cardChange}>no mês atual</Text>
+        </View>
+        {/* 2 - DESPESAS */}
         <View style={[styles.card, styles.cardRed]}>
-          <Text style={styles.cardLabel}>GASTO</Text>
+          <Text style={styles.cardLabel}>DESPESAS</Text>
           <Text style={[styles.cardValue, {color:'#f25555'}]}>{fmt(totais.totalGasto)}</Text>
           <Text style={styles.cardChange}>{diasRestantes} dias restantes</Text>
         </View>
-        <View style={[styles.card, styles.cardGreen]}>
-          <Text style={styles.cardLabel}>RECEBIDO</Text>
-          <Text style={[styles.cardValue, {color:'#25d07e'}]}>{fmt(totais.totalReceita)}</Text>
-          <Text style={styles.cardChange}>no mes atual</Text>
-        </View>
+        {/* 3 - SALDO REAL */}
         <View style={[styles.card, styles.cardBlue]}>
-          <Text style={styles.cardLabel}>SALDO</Text>
+          <Text style={styles.cardLabel}>SALDO REAL</Text>
           <Text style={[styles.cardValue, {color: totais.saldo >= 0 ? '#5294ff' : '#f25555'}]}>{fmt(totais.saldo)}</Text>
-          <Text style={styles.cardChange}>receita - gastos</Text>
+          <Text style={styles.cardChange}>receitas - despesas</Text>
         </View>
+        {/* 4 - SALDO ORÇAMENTO */}
         <View style={[styles.card, styles.cardAmber]}>
-          <Text style={styles.cardLabel}>DISPONIVEL</Text>
-          <Text style={[styles.cardValue, {color: disponivel >= 0 ? '#f7b731' : '#f25555'}]}>{fmt(disponivel)}</Text>
-          <Text style={styles.cardChange}>do orcamento</Text>
+          <Text style={styles.cardLabel}>SALDO ORÇAMENTO</Text>
+          <Text style={[styles.cardValue, {color: saldoOrcamento >= 0 ? '#f7b731' : '#f25555'}]}>{fmt(saldoOrcamento)}</Text>
+          <Text style={styles.cardChange}>do orçamento</Text>
         </View>
       </View>
 
       <View style={styles.budgetCard}>
         <View style={styles.budgetHeader}>
           <View>
-            <Text style={styles.budgetTitle}>Orcamento de {meses[mesAtual-1]}</Text>
+            <Text style={styles.budgetTitle}>Orçamento de {meses[mesAtual-1]}</Text>
             <Text style={styles.budgetLimit}>Limite: {fmt(orcamento)}</Text>
           </View>
           <View>
-            <Text style={styles.budgetAvail}>{fmt(disponivel)}</Text>
-            <Text style={styles.budgetSub}>disponivel</Text>
+            <Text style={[styles.budgetAvail, {color: saldoOrcamento >= 0 ? '#f7b731' : '#f25555'}]}>{fmt(saldoOrcamento)}</Text>
+            <Text style={styles.budgetSub}>disponível</Text>
           </View>
         </View>
         <View style={styles.barTrack}>
@@ -199,7 +205,6 @@ export default function HomeScreen() {
 
       <View style={{ height: 20 }} />
 
-      {/* Modal configurar prazo */}
       <Modal visible={modalAlerta} animationType="fade" transparent>
         <View style={styles.modalBg}>
           <View style={styles.modalBox}>
@@ -234,7 +239,6 @@ const styles = StyleSheet.create({
   header: { padding:22, paddingTop:50 },
   headerTitle: { fontSize:22, fontWeight:'700', color:'#f0f3ff' },
   headerSub: { fontSize:13, color:'#6b779a', marginTop:2 },
-
   alertaBox: { marginHorizontal:16, marginBottom:12, backgroundColor:'rgba(247,183,49,0.08)', borderRadius:14, padding:14, borderWidth:1, borderColor:'rgba(247,183,49,0.3)' },
   alertaHeader: { flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:10 },
   alertaTitle: { fontSize:12, fontWeight:'700', color:'#f7b731' },
@@ -244,25 +248,23 @@ const styles = StyleSheet.create({
   alertaDesc: { fontSize:13, color:'#f0f3ff', fontWeight:'500' },
   alertaData: { fontSize:11, color:'#f7b731', marginTop:2 },
   alertaVal: { fontSize:13, color:'#f25555', fontWeight:'700' },
-
   alertaVazio: { marginHorizontal:16, marginBottom:12, backgroundColor:'rgba(37,208,126,0.06)', borderRadius:14, padding:14, borderWidth:1, borderColor:'rgba(37,208,126,0.2)', alignItems:'center' },
   alertaVazioTxt: { fontSize:12, color:'#25d07e', fontWeight:'600' },
   alertaVazioSub: { fontSize:11, color:'#6b779a', marginTop:3 },
-
   cardsGrid: { flexDirection:'row', flexWrap:'wrap', paddingHorizontal:16, gap:10 },
   card: { width:'47%', backgroundColor:'#1c2133', borderRadius:16, padding:16, borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
   cardRed: { borderTopWidth:3, borderTopColor:'#f25555' },
   cardGreen: { borderTopWidth:3, borderTopColor:'#25d07e' },
   cardBlue: { borderTopWidth:3, borderTopColor:'#5294ff' },
   cardAmber: { borderTopWidth:3, borderTopColor:'#f7b731' },
-  cardLabel: { fontSize:10, fontWeight:'600', color:'#aab4d0', letterSpacing:0.8, marginBottom:8 },
-  cardValue: { fontSize:16, fontWeight:'700' },
-  cardChange: { fontSize:10, color:'#6b779a', marginTop:4 },
+  cardLabel: { fontSize:9, fontWeight:'600', color:'#aab4d0', letterSpacing:0.8, marginBottom:8 },
+  cardValue: { fontSize:15, fontWeight:'700' },
+  cardChange: { fontSize:9, color:'#6b779a', marginTop:4 },
   budgetCard: { margin:16, backgroundColor:'#1c2133', borderRadius:16, padding:18, borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
   budgetHeader: { flexDirection:'row', justifyContent:'space-between', marginBottom:14 },
   budgetTitle: { fontSize:14, fontWeight:'600', color:'#f0f3ff' },
   budgetLimit: { fontSize:11, color:'#6b779a', marginTop:2 },
-  budgetAvail: { fontSize:16, fontWeight:'700', color:'#f7b731', textAlign:'right' },
+  budgetAvail: { fontSize:16, fontWeight:'700', textAlign:'right' },
   budgetSub: { fontSize:11, color:'#6b779a', textAlign:'right' },
   barTrack: { height:8, backgroundColor:'#344060', borderRadius:10, overflow:'hidden', marginBottom:6 },
   barFill: { height:8, borderRadius:10 },
@@ -280,7 +282,6 @@ const styles = StyleSheet.create({
   emptyIco: { fontSize:48, marginBottom:12 },
   emptyTxt: { fontSize:15, color:'#aab4d0', fontWeight:'600' },
   emptySub: { fontSize:13, color:'#6b779a', marginTop:4, textAlign:'center' },
-
   modalBg: { flex:1, backgroundColor:'rgba(0,0,0,0.75)', justifyContent:'center', alignItems:'center' },
   modalBox: { backgroundColor:'#1c2133', borderRadius:20, padding:24, width:'80%', borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
   modalTitle: { fontSize:16, fontWeight:'700', color:'#f0f3ff', marginBottom:6 },
