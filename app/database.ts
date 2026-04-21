@@ -2,6 +2,10 @@ import * as SQLite from 'expo-sqlite';
 
 const db = SQLite.openDatabaseSync('financaspro.db');
 
+export function gerarId(): string {
+  return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
 export function initDB() {
   db.execSync(`
     CREATE TABLE IF NOT EXISTS lancamentos (
@@ -46,6 +50,40 @@ export function initDB() {
   try {
     db.execSync(`ALTER TABLE lancamentos ADD COLUMN dataPagamento TEXT`);
   } catch (e) {}
+
+  try {
+    db.execSync(`ALTER TABLE lancamentos ADD COLUMN contaId TEXT DEFAULT ''`);
+  } catch (e) {}
+
+  migrarCategorias();
+}
+
+function migrarCategorias() {
+  try {
+    const correcoes = [
+      ['Alimentacao', 'Supermercado'],
+      ['Alimentação', 'Supermercado'],
+      ['Mercado', 'Supermercado'],
+      ['Lazer', 'Lazer e Entretenimento'],
+      ['Entretenimento', 'Lazer e Entretenimento'],
+      ['Combustivel', 'Combustível'],
+      ['Educacao', 'Educação'],
+      ['Farmacia', 'Farmácia'],
+      ['Manutencao', 'Manutenção'],
+      ['Reformas', 'Manutenção'],
+      ['Saude', 'Saúde'],
+      ['Vestuario', 'Vestuário'],
+      ['Salario', 'Salário'],
+      ['Pro-labore', 'Pró-labore'],
+    ];
+
+    for (const [de, para] of correcoes) {
+      db.runSync(
+        `UPDATE lancamentos SET categoria = ? WHERE categoria = ? COLLATE NOCASE`,
+        [para, de]
+      );
+    }
+  } catch (e) {}
 }
 
 export function inserirLancamento(item: {
@@ -56,6 +94,7 @@ export function inserirLancamento(item: {
   categoria: string;
   formaPag: string;
   cartaoId: string;
+  contaId?: string;
   parcelas: number;
   parcelaAtual: number;
   totalParcelas: number;
@@ -66,9 +105,9 @@ export function inserirLancamento(item: {
   grupoId: string;
 }) {
   db.runSync(
-    `INSERT INTO lancamentos (id, tipo, descricao, valor, categoria, formaPag, cartaoId, parcelas, parcelaAtual, totalParcelas, data, dataVencimento, status, obs, grupoId)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [item.id, item.tipo, item.descricao, item.valor, item.categoria, item.formaPag, item.cartaoId, item.parcelas, item.parcelaAtual, item.totalParcelas, item.data, item.dataVencimento, item.status, item.obs, item.grupoId]
+    `INSERT INTO lancamentos (id, tipo, descricao, valor, categoria, formaPag, cartaoId, contaId, parcelas, parcelaAtual, totalParcelas, data, dataVencimento, status, obs, grupoId)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [item.id, item.tipo, item.descricao, item.valor, item.categoria, item.formaPag, item.cartaoId, item.contaId || '', item.parcelas, item.parcelaAtual, item.totalParcelas, item.data, item.dataVencimento, item.status, item.obs, item.grupoId]
   );
 }
 
@@ -86,7 +125,7 @@ export function inserirLancamentosParcelados(dados: {
   obs: string;
   tipo: string;
 }) {
-  const grupoId = Date.now().toString();
+  const grupoId = gerarId();
   const valorParcela = dados.valorTotal / dados.totalParcelas;
   const [dia, mes, ano] = dados.dataCompra.split('/').map(Number);
   const dataCompraObj = new Date(ano, mes - 1, dia);
@@ -105,13 +144,10 @@ export function inserirLancamentosParcelados(dados: {
 }
 
 function calcularVencimento(dataCompra: Date, indiceParcela: number, diaFechamento: number, diaVencimento: number): string {
-  const diaCompra = dataCompra.getDate();
-  const mesCompra = dataCompra.getMonth();
+  const mesCompra = dataCompra.getMonth(); // 0-based
   const anoCompra = dataCompra.getFullYear();
-  let mesBase = mesCompra;
+  let mesBase = mesCompra + 1 + indiceParcela;
   let anoBase = anoCompra;
-  if (diaCompra > diaFechamento) mesBase += 1;
-  mesBase += indiceParcela;
   while (mesBase > 11) { mesBase -= 12; anoBase += 1; }
   const dia = String(diaVencimento).padStart(2, '0');
   const mes = String(mesBase + 1).padStart(2, '0');
@@ -125,7 +161,7 @@ export function buscarLancamentos(): any[] {
 export function buscarLancamentosPorMes(mes: number, ano: number): any[] {
   return db.getAllSync(
     `SELECT * FROM lancamentos
-     WHERE dataVencimento LIKE ? OR (dataVencimento = '' AND data LIKE ?)
+     WHERE dataVencimento LIKE ? OR ((dataVencimento IS NULL OR dataVencimento = '') AND data LIKE ?)
      ORDER BY createdAt DESC`,
     [`%/${String(mes).padStart(2,'0')}/${ano}`, `%/${String(mes).padStart(2,'0')}/${ano}`]
   );
@@ -146,7 +182,35 @@ export function atualizarLancamento(id: string, descricao: string, valor: number
   );
 }
 
-// Marca todos os lançamentos de um cartão/mês como pagos de uma vez
+export function atualizarLancamentoCompleto(id: string, fields: {
+  descricao: string;
+  valor: number;
+  categoria: string;
+  status: string;
+  dataPagamento: string;
+  obs: string;
+  data: string;
+  dataVencimento: string;
+  cartaoId: string;
+}) {
+  db.runSync(
+    `UPDATE lancamentos
+     SET descricao = ?, valor = ?, categoria = ?, status = ?, dataPagamento = ?,
+         obs = ?, data = ?, dataVencimento = ?, cartaoId = ?
+     WHERE id = ?`,
+    [fields.descricao, fields.valor, fields.categoria, fields.status,
+     fields.dataPagamento, fields.obs, fields.data, fields.dataVencimento,
+     fields.cartaoId, id]
+  );
+}
+
+export function atualizarGrupoLancamentos(grupoId: string, categoria: string, valorParcela: number) {
+  db.runSync(
+    'UPDATE lancamentos SET categoria = ?, valor = ? WHERE grupoId = ?',
+    [categoria, valorParcela, grupoId]
+  );
+}
+
 export function pagarFaturaCartao(cartaoId: string, mes: number, ano: number, dataPagamento: string): number {
   const mesStr = String(mes).padStart(2, '0');
   const result = db.runSync(
@@ -157,7 +221,6 @@ export function pagarFaturaCartao(cartaoId: string, mes: number, ano: number, da
   return result.changes;
 }
 
-// Busca lançamentos de fatura para exibir resumo antes de pagar
 export function buscarFaturaCartao(cartaoId: string, mes: number, ano: number): any[] {
   const mesStr = String(mes).padStart(2, '0');
   return db.getAllSync(
@@ -182,14 +245,48 @@ export function buscarLancamentosPorCartao(cartaoId: string): any[] {
 
 export function buscarTotalUsadoCartao(cartaoId: string, mes: number, ano: number): number {
   const itens = db.getAllSync(
-    `SELECT * FROM lancamentos WHERE cartaoId = ? AND dataVencimento LIKE ?`,
-    [cartaoId, `%/${String(mes).padStart(2,'0')}/${ano}`]
-  );
-  return itens.reduce((s: number, l: any) => s + l.valor, 0);
+    `SELECT * FROM lancamentos WHERE cartaoId = ? AND (status = 'parcelado' OR status = 'pendente')`,
+    [cartaoId]
+  ) as any[];
+
+  // Para grupos parcelados, conta apenas as parcelas não pagas.
+  // Para lançamentos sem grupoId, inclui diretamente.
+  const gruposContados = new Set<string>();
+  let total = 0;
+
+  for (const l of itens) {
+    if (l.grupoId) {
+      if (!gruposContados.has(l.grupoId)) {
+        gruposContados.add(l.grupoId);
+        const parcelasNaoPagas = itens.filter(
+          (p: any) => p.grupoId === l.grupoId && (p.status === 'parcelado' || p.status === 'pendente')
+        );
+        total += parcelasNaoPagas.reduce((s: number, p: any) => s + p.valor, 0);
+      }
+    } else {
+      total += l.valor;
+    }
+  }
+
+  return total;
+}
+
+export function buscarLancamentosEmAtraso(): any[] {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const pendentes = db.getAllSync(
+    `SELECT * FROM lancamentos WHERE status != 'pago' AND dataVencimento IS NOT NULL AND dataVencimento != ''`
+  ) as any[];
+  return pendentes.filter(l => {
+    const parts = l.dataVencimento.split('/');
+    if (parts.length !== 3) return false;
+    const [dia, mes, ano] = parts.map(Number);
+    return new Date(ano, mes - 1, dia) < hoje;
+  });
 }
 
 export function buscarTodosLancamentos(): any[] {
-  return db.getAllSync('SELECT * FROM lancamentos');
+  return db.getAllSync('SELECT * FROM lancamentos ORDER BY dataVencimento ASC');
 }
 
 export function zerarLancamentos() {
@@ -203,6 +300,48 @@ export function restaurarLancamentos(lancamentos: any[]) {
       `INSERT OR REPLACE INTO lancamentos (id, tipo, descricao, valor, categoria, formaPag, cartaoId, parcelas, parcelaAtual, totalParcelas, data, dataVencimento, dataPagamento, status, obs, grupoId, createdAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [l.id, l.tipo, l.descricao, l.valor, l.categoria, l.formaPag, l.cartaoId, l.parcelas, l.parcelaAtual, l.totalParcelas, l.data, l.dataVencimento, l.dataPagamento || '', l.status, l.obs, l.grupoId, l.createdAt]
+    );
+  }
+}
+
+// ===== CARTÕES =====
+
+export function buscarCartoes(): any[] {
+  return db.getAllSync(`SELECT * FROM cartoes ORDER BY apelido ASC`);
+}
+
+export function inserirCartao(cartao: {
+  id: string; apelido: string; bandeira: string; ultimos4: string;
+  fechamento: string; vencimento: string; limite: string;
+}) {
+  db.runSync(
+    `INSERT OR REPLACE INTO cartoes (id, apelido, bandeira, ultimos4, fechamento, vencimento, limite)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [cartao.id, cartao.apelido, cartao.bandeira, cartao.ultimos4, cartao.fechamento, cartao.vencimento, cartao.limite]
+  );
+}
+
+export function atualizarCartao(id: string, dados: {
+  apelido: string; bandeira: string; ultimos4: string;
+  fechamento: string; vencimento: string; limite: string;
+}) {
+  db.runSync(
+    `UPDATE cartoes SET apelido = ?, bandeira = ?, ultimos4 = ?, fechamento = ?, vencimento = ?, limite = ? WHERE id = ?`,
+    [dados.apelido, dados.bandeira, dados.ultimos4, dados.fechamento, dados.vencimento, dados.limite, id]
+  );
+}
+
+export function deletarCartao(id: string) {
+  db.runSync('DELETE FROM cartoes WHERE id = ?', [id]);
+}
+
+export function restaurarCartoes(cartoes: any[]) {
+  db.runSync('DELETE FROM cartoes');
+  for (const c of cartoes) {
+    db.runSync(
+      `INSERT OR REPLACE INTO cartoes (id, apelido, bandeira, ultimos4, fechamento, vencimento, limite)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [c.id, c.apelido || '', c.bandeira || '', c.ultimos4 || '', c.fechamento || '', c.vencimento || '', c.limite || '']
     );
   }
 }

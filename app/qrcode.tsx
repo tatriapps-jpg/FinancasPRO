@@ -1,7 +1,11 @@
 import { router } from 'expo-router';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Colors, useTheme } from './theme';
 
 export default function QRCodeScreen() {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -24,17 +28,19 @@ export default function QRCodeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex:1, backgroundColor:'#12151e' },
-  header: { flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:16, paddingTop:50, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.08)' },
-  backBtn: { padding:4 },
-  backTxt: { fontSize:16, color:'#5294ff', fontWeight:'600' },
-  headerTitle: { fontSize:17, fontWeight:'700', color:'#f0f3ff' },
-  content: { flex:1, alignItems:'center', justifyContent:'center', padding:32 },
-  ico: { fontSize:64, marginBottom:16 },
-  titulo: { fontSize:20, fontWeight:'700', color:'#f0f3ff', marginBottom:12 },
-  sub: { fontSize:14, color:'#aab4d0', textAlign:'center', lineHeight:22, marginBottom:12 },
-  sub2: { fontSize:13, color:'#6b779a', textAlign:'center', lineHeight:20, marginBottom:32 },
-  btn: { padding:14, backgroundColor:'#5294ff', borderRadius:11, paddingHorizontal:32 },
-  btnTxt: { color:'#fff', fontWeight:'600', fontSize:14 },
-});
+function makeStyles(c: Colors) {
+  return StyleSheet.create({
+    container: { flex:1, backgroundColor:c.bg },
+    header: { flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:16, paddingTop:50, borderBottomWidth:1, borderBottomColor:c.borderSoft },
+    backBtn: { padding:4 },
+    backTxt: { fontSize:16, color:'#5294ff', fontWeight:'600' },
+    headerTitle: { fontSize:17, fontWeight:'700', color:c.text },
+    content: { flex:1, alignItems:'center', justifyContent:'center', padding:32 },
+    ico: { fontSize:64, marginBottom:16 },
+    titulo: { fontSize:20, fontWeight:'700', color:c.text, marginBottom:12 },
+    sub: { fontSize:14, color:c.textSec, textAlign:'center', lineHeight:22, marginBottom:12 },
+    sub2: { fontSize:13, color:c.textMuted, textAlign:'center', lineHeight:20, marginBottom:32 },
+    btn: { padding:14, backgroundColor:'#5294ff', borderRadius:11, paddingHorizontal:32 },
+    btnTxt: { color:'#fff', fontWeight:'600', fontSize:14 },
+  });
+}

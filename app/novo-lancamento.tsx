@@ -2,30 +2,121 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { carregarCategorias } from './categorias';
 import { buscarContas, debitarConta } from './contas';
-import { inserirLancamento, inserirLancamentosParcelados } from './database';
+import { buscarCartoes, buscarLancamentos, gerarId, inserirLancamento, inserirLancamentosParcelados } from './database';
+import { agendarNotificacoesVencimento } from './notificacoes';
+import { Colors, useTheme } from './theme';
 
-const CARTOES_KEY = '@financaspro:cartoes';
-const FORMAS_PAG = ['Credito','Debito','Pix','Dinheiro','Boleto','Outro'];
+const CONTADOR_KEY           = '@faladinheiro:contadorLancamentos';
+const DESBLOQUEADO_KEY       = '@faladinheiro:desbloqueado';
+const PRIMEIRO_LANCAMENTO_KEY = '@faladinheiro:primeiroLancamento';
+const LIMITE_GRATIS          = 150;
+const LIMITE_DIAS            = 30;
+
+const FORMAS_PAG = ['Pix','Crédito','Débito','Dinheiro','Boleto','Transferência','Depósito','Outro'];
+const PARCELAS_OPTS = ['1','2','3','4','5','6','7','8','9','10','11','12','15','18','24'];
+const PARCELAS_BOLETO_OPTS = ['1','2','3','4','5','6','7','8','9','10','11','12'];
 
 type Cartao = { id: string; apelido: string; bandeira: string; ultimos4: string; fechamento: string; vencimento: string; limite: string; };
 type Conta = { id: string; nome: string; banco: string; tipo: string; saldo: string; };
 
+function Dropdown({
+  label, value, placeholder, opcoes, onSelect, renderItem, colors,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  opcoes: string[];
+  onSelect: (v: string) => void;
+  renderItem?: (v: string) => string;
+  colors: Colors;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [busca, setBusca] = useState('');
+
+  const filtradas = opcoes.filter(o =>
+    o.toLowerCase().includes(busca.toLowerCase())
+  );
+
+  const dd = StyleSheet.create({
+    btn: { backgroundColor: colors.input, borderWidth: 1, borderColor: colors.border, borderRadius: 11, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    btnTxt: { fontSize: 14, color: colors.text, fontWeight: '500', flex: 1 },
+    arrow: { fontSize: 14, color: colors.textMuted, marginLeft: 8 },
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 24 },
+    modal: { backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border, maxHeight: '70%' as any },
+    modalTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 12 },
+    search: { backgroundColor: colors.input, borderRadius: 10, padding: 10, color: colors.text, fontSize: 14, marginBottom: 8, borderWidth: 1, borderColor: colors.border },
+    item: { paddingVertical: 12, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: colors.borderLight, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    itemOn: { backgroundColor: 'rgba(82,148,255,0.12)' },
+    itemTxt: { fontSize: 14, color: colors.text },
+    itemTxtOn: { color: '#5294ff', fontWeight: '600' },
+    check: { fontSize: 14, color: '#5294ff' },
+  });
+
+  return (
+    <View style={{ marginBottom: 4 }}>
+      <TouchableOpacity style={dd.btn} onPress={() => { setAberto(true); setBusca(''); }}>
+        <Text style={[dd.btnTxt, !value && { color: colors.textMuted }]}>
+          {value || placeholder}
+        </Text>
+        <Text style={dd.arrow}>▾</Text>
+      </TouchableOpacity>
+
+      <Modal visible={aberto} transparent animationType="fade">
+        <TouchableOpacity style={dd.overlay} activeOpacity={1} onPress={() => setAberto(false)}>
+          <View style={dd.modal}>
+            <Text style={dd.modalTitle}>{label}</Text>
+            {opcoes.length > 5 && (
+              <TextInput
+                style={dd.search}
+                placeholder="Buscar..."
+                placeholderTextColor={colors.textMuted}
+                value={busca}
+                onChangeText={setBusca}
+                autoFocus
+              />
+            )}
+            <FlatList
+              data={filtradas}
+              keyExtractor={item => item}
+              style={{ maxHeight: 300 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[dd.item, value === item && dd.itemOn]}
+                  onPress={() => { onSelect(item); setAberto(false); setBusca(''); }}
+                >
+                  <Text style={[dd.itemTxt, value === item && dd.itemTxtOn]}>
+                    {renderItem ? renderItem(item) : item}
+                  </Text>
+                  {value === item && <Text style={dd.check}>✓</Text>}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+}
+
 export default function NovoLancamentoScreen() {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
+
   const params = useLocalSearchParams();
 
   const [tipo, setTipo] = useState<'despesa'|'receita'>('despesa');
   const [descricao, setDescricao] = useState('');
+  const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
+  const [sugestoes, setSugestoes] = useState<string[]>([]);
   const [valor, setValor] = useState('');
   const [categoria, setCategoria] = useState('');
   const [formaPag, setFormaPag] = useState('');
   const [cartaoSel, setCartaoSel] = useState<Cartao | null>(null);
   const [parcelas, setParcelas] = useState('1');
   const [data, setData] = useState(hoje());
-  const [dataObj, setDataObj] = useState(new Date());
-  const [mostrarCalendario, setMostrarCalendario] = useState(false);
   const [dataVencBoleto, setDataVencBoleto] = useState(hoje());
   const [dataVencBoletoObj, setDataVencBoletoObj] = useState(new Date());
   const [mostrarCalendarioBoleto, setMostrarCalendarioBoleto] = useState(false);
@@ -38,13 +129,22 @@ export default function NovoLancamentoScreen() {
   const [previewDatas, setPreviewDatas] = useState<string[]>([]);
   const [categoriasDesp, setCategoriasDesp] = useState<string[]>([]);
   const [categoriasRec, setCategoriasRec] = useState<string[]>([]);
+  const [historicoDescricoes, setHistoricoDescricoes] = useState<string[]>([]);
 
   useEffect(() => {
     loadDados();
     if (params.descricao) setDescricao(params.descricao as string);
     if (params.valor) setValor(params.valor as string);
     if (params.tipo === 'receita') setTipo('receita');
-    if (params.formaPag) setFormaPag(params.formaPag as string);
+    if (params.formaPag) {
+      const fp = params.formaPag as string;
+      const mapa: Record<string, string> = {
+        'Credito': 'Crédito', 'Debito': 'Débito',
+        'Pix': 'Pix', 'Dinheiro': 'Dinheiro',
+        'Boleto': 'Boleto', 'Outro': 'Outro',
+      };
+      setFormaPag(mapa[fp] || fp);
+    }
     if (params.parcelas) setParcelas(params.parcelas as string);
     if (params.categoria) setCategoria(params.categoria as string);
   }, []);
@@ -52,6 +152,8 @@ export default function NovoLancamentoScreen() {
   useEffect(() => {
     if (cartaoSel && parcelas) calcularPreview();
   }, [cartaoSel, parcelas, data]);
+
+
 
   useEffect(() => {
     if (parseInt(parcelas) > 1) setStatus('parcelado');
@@ -64,11 +166,21 @@ export default function NovoLancamentoScreen() {
       if (n > 1) setStatus('parcelado');
       else setStatus('pendente');
     }
-    // Limpa conta selecionada se mudar para forma que não usa conta
-    if (formaPag !== 'Debito' && formaPag !== 'Pix') {
-      setContaSel(null);
-    }
+    if (formaPag !== 'Débito' && formaPag !== 'Pix') setContaSel(null);
+    if (formaPag !== 'Crédito') { setCartaoSel(null); setParcelas('1'); }
   }, [parcelasBoleto, formaPag]);
+
+  useEffect(() => {
+    if (descricao.length >= 2) {
+      const filtradas = historicoDescricoes
+        .filter(d => d.toLowerCase().includes(descricao.toLowerCase()) && d !== descricao)
+        .slice(0, 5);
+      setSugestoes(filtradas);
+      setMostrarSugestoes(filtradas.length > 0);
+    } else {
+      setMostrarSugestoes(false);
+    }
+  }, [descricao]);
 
   function hoje() {
     const d = new Date();
@@ -84,38 +196,24 @@ export default function NovoLancamentoScreen() {
     let novoMes = mes - 1 + meses;
     let novoAno = ano;
     while (novoMes > 11) { novoMes -= 12; novoAno++; }
-    return `${String(dia).padStart(2,'0')}/${String(novoMes+1).padStart(2,'0')}/${novoAno}`;
+    const ultimoDia = new Date(novoAno, novoMes + 1, 0).getDate();
+    const diaFinal = Math.min(dia, ultimoDia);
+    return `${String(diaFinal).padStart(2,'0')}/${String(novoMes+1).padStart(2,'0')}/${novoAno}`;
   }
 
   async function loadDados() {
-    const savedCartoes = await AsyncStorage.getItem(CARTOES_KEY);
-    if (savedCartoes) setCartoes(JSON.parse(savedCartoes));
+    setCartoes(buscarCartoes());
     const desp = await carregarCategorias('despesa');
     const rec = await carregarCategorias('receita');
-    setCategoriasDesp(desp);
-    setCategoriasRec(rec);
+    setCategoriasDesp(desp.sort((a, b) => a.localeCompare(b)));
+    setCategoriasRec(rec.sort((a, b) => a.localeCompare(b)));
     const contasCarregadas = await buscarContas();
     setContas(contasCarregadas);
-  }
-
-  function onDataCalendario(event: any, selectedDate?: Date) {
-    setMostrarCalendario(false);
-    if (selectedDate) {
-      const anoAtual = new Date().getFullYear();
-      if (selectedDate.getFullYear() !== anoAtual) {
-        Alert.alert(
-          '⚠️ Ano diferente',
-          `A data selecionada é de ${selectedDate.getFullYear()}. O ano atual é ${anoAtual}. Deseja continuar?`,
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Continuar', onPress: () => { setDataObj(selectedDate); setData(dateToStr(selectedDate)); } },
-          ]
-        );
-      } else {
-        setDataObj(selectedDate);
-        setData(dateToStr(selectedDate));
-      }
-    }
+    const todos = buscarLancamentos();
+    const unicas = [...new Set(todos.map((l: any) => l.descricao))]
+      .filter(d => !d.includes('('))
+      .sort((a, b) => a.localeCompare(b));
+    setHistoricoDescricoes(unicas);
   }
 
   function onDataCalendarioBoleto(event: any, selectedDate?: Date) {
@@ -146,67 +244,107 @@ export default function NovoLancamentoScreen() {
   }
 
   async function salvar() {
-    if (!descricao.trim()) { alert('Digite uma descricao.'); return; }
-    if (!valor.trim()) { alert('Digite o valor.'); return; }
-    if (!categoria) { alert('Selecione uma categoria.'); return; }
-    if (tipo === 'despesa' && !formaPag) {
-      alert('Selecione a forma de pagamento.'); return;
+    // ── Verificação de limite do plano gratuito (híbrido) ───────────────────
+    const [statusDesbloqueado, contadorStr, primLancStr] = await Promise.all([
+      AsyncStorage.getItem(DESBLOQUEADO_KEY),
+      AsyncStorage.getItem(CONTADOR_KEY),
+      AsyncStorage.getItem(PRIMEIRO_LANCAMENTO_KEY),
+    ]);
+
+    if (statusDesbloqueado !== 'true') {
+      const contador = parseInt(contadorStr || '0', 10);
+      const primTs = primLancStr ? parseInt(primLancStr, 10) : null;
+      const diasDecorridos = primTs ? Math.floor((Date.now() - primTs) / 86400000) : 0;
+
+      if (contador >= LIMITE_GRATIS || diasDecorridos >= LIMITE_DIAS) {
+        const motivo = diasDecorridos >= LIMITE_DIAS
+          ? `Seu período gratuito de ${LIMITE_DIAS} dias encerrou.`
+          : `Você já registrou ${LIMITE_GRATIS} lançamentos no plano gratuito.`;
+        Alert.alert(
+          '🔒 Limite atingido',
+          `${motivo} Desbloqueie o Premium para continuar sem limites.`,
+          [
+            { text: 'Agora não', style: 'cancel' },
+            { text: 'Ver Premium', onPress: () => router.push('/paywall' as any) },
+          ],
+        );
+        return;
+      }
     }
-    if (tipo === 'despesa' && formaPag === 'Credito' && !cartaoSel) {
-      alert('Selecione um cartao para pagamento no Credito.'); return;
+    // ── Fim da verificação ───────────────────────────────────────────────────
+
+    if (!descricao.trim()) { Alert.alert('Atenção', 'Digite uma descrição.'); return; }
+    if (!valor.trim()) { Alert.alert('Atenção', 'Digite o valor.'); return; }
+    if (!categoria) { Alert.alert('Atenção', 'Selecione uma categoria.'); return; }
+    if (tipo === 'despesa' && !formaPag) { Alert.alert('Atenção', 'Selecione a forma de pagamento.'); return; }
+    if (tipo === 'despesa' && formaPag === 'Crédito' && !cartaoSel) {
+      Alert.alert('Atenção', 'Selecione um cartão para pagamento no Crédito.'); return;
     }
 
     const valorNum = parseFloat(valor.replace(',','.'));
+    if (isNaN(valorNum) || valorNum <= 0) { Alert.alert('Atenção', 'Digite um valor válido.'); return; }
+
+    // Incrementa o contador e registra data do primeiro lançamento
+    const [contAtualStr, primExistente] = await Promise.all([
+      AsyncStorage.getItem(CONTADOR_KEY),
+      AsyncStorage.getItem(PRIMEIRO_LANCAMENTO_KEY),
+    ]);
+    const contAtual = parseInt(contAtualStr || '0', 10);
+    const ops: Promise<void>[] = [AsyncStorage.setItem(CONTADOR_KEY, String(contAtual + 1))];
+    if (!primExistente) ops.push(AsyncStorage.setItem(PRIMEIRO_LANCAMENTO_KEY, String(Date.now())));
+    await Promise.all(ops);
     const totalParcelas = parseInt(parcelas) || 1;
     const totalParcelasBoleto = parseInt(parcelasBoleto) || 1;
+    const formaPagDB = formaPag === 'Crédito' ? 'Credito' : formaPag === 'Débito' ? 'Debito' : formaPag;
 
-    if (formaPag === 'Credito' && cartaoSel && totalParcelas > 1) {
+    if (formaPag === 'Crédito' && cartaoSel && totalParcelas > 1) {
       inserirLancamentosParcelados({
-        descricao, valorTotal: valorNum, categoria, formaPag,
+        descricao, valorTotal: valorNum, categoria, formaPag: formaPagDB,
         cartaoId: cartaoSel.id, totalParcelas, dataCompra: data,
         diaVencimento: parseInt(cartaoSel.vencimento) || 20,
         diaFechamento: parseInt(cartaoSel.fechamento) || 10,
         status, obs, tipo,
       });
     } else if (formaPag === 'Boleto' && totalParcelasBoleto > 1) {
-      const grupoId = Date.now().toString();
+      const grupoId = gerarId();
       const valorParcela = valorNum / totalParcelasBoleto;
       for (let i = 0; i < totalParcelasBoleto; i++) {
-        const dataVenc = addMes(dataVencBoleto, i);
         inserirLancamento({
-          id: `${grupoId}_${i+1}`,
-          tipo, descricao: `${descricao} (${i+1}/${totalParcelasBoleto})`,
-          valor: valorParcela, categoria, formaPag,
-          cartaoId: '', parcelas: totalParcelasBoleto,
+          id: `${grupoId}_${i+1}`, tipo,
+          descricao: `${descricao} (${i+1}/${totalParcelasBoleto})`,
+          valor: valorParcela, categoria, formaPag: formaPagDB,
+          cartaoId: '', contaId: contaSel?.id || '',
+          parcelas: totalParcelasBoleto,
           parcelaAtual: i + 1, totalParcelas: totalParcelasBoleto,
-          data, dataVencimento: dataVenc,
+          data, dataVencimento: addMes(dataVencBoleto, i),
           status: 'parcelado', obs, grupoId,
         });
       }
     } else {
-      const dataVenc = formaPag === 'Boleto' ? dataVencBoleto : data;
-      const statusFinal = formaPag === 'Boleto' ? 'pendente' : status;
       inserirLancamento({
-        id: Date.now().toString(), tipo, descricao, valor: valorNum,
-        categoria, formaPag, cartaoId: cartaoSel?.id || '',
+        id: gerarId(), tipo, descricao, valor: valorNum,
+        categoria, formaPag: formaPagDB, cartaoId: cartaoSel?.id || '',
+        contaId: contaSel?.id || '',
         parcelas: totalParcelas, parcelaAtual: 1, totalParcelas,
-        data, dataVencimento: dataVenc,
-        status: statusFinal, obs, grupoId: '',
+        data, dataVencimento: formaPag === 'Boleto' ? dataVencBoleto : data,
+        status: formaPag === 'Boleto' ? 'pendente' : status, obs, grupoId: '',
       });
     }
 
-    // Debita da conta se Débito ou Pix e conta selecionada
-    if (contaSel && (formaPag === 'Debito' || formaPag === 'Pix') && tipo === 'despesa') {
+    if (contaSel && (formaPag === 'Débito' || formaPag === 'Pix') && tipo === 'despesa') {
       await debitarConta(contaSel.id, valorNum);
     }
 
-    alert('Lancamento salvo!');
+    await agendarNotificacoesVencimento();
+    Alert.alert('✅ Lançamento salvo!', 'O lançamento foi registrado com sucesso.');
     router.back();
   }
 
-  const mostraSelecaoConta = tipo === 'despesa' &&
-    (formaPag === 'Debito' || formaPag === 'Pix') &&
-    contas.length > 0;
+  const mostraSelecaoConta = tipo === 'despesa' && (formaPag === 'Débito' || formaPag === 'Pix') && contas.length > 0;
+  const cartaoOpts = cartoes.map(c => c.id);
+  const cartaoLabel = (id: string) => { const c = cartoes.find(x => x.id === id); return c ? (c.apelido || `${c.bandeira} ****${c.ultimos4}`) : id; };
+  const contaOpts = ['Nenhuma', ...contas.map(c => c.id)];
+  const contaLabel = (id: string) => { if (id === 'Nenhuma') return 'Nenhuma conta'; const c = contas.find(x => x.id === id); return c ? `${c.nome} · ${c.banco}` : id; };
 
   return (
     <View style={styles.container}>
@@ -214,7 +352,7 @@ export default function NovoLancamentoScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backTxt}>Voltar</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Novo Lancamento</Text>
+        <Text style={styles.headerTitle}>Novo Lançamento</Text>
         <TouchableOpacity onPress={() => router.push('/voz')} style={styles.cameraBtn}>
           <Text style={{ fontSize: 26 }}>🎤</Text>
         </TouchableOpacity>
@@ -224,85 +362,90 @@ export default function NovoLancamentoScreen() {
         <TouchableOpacity style={[styles.tab, tipo==='despesa' && styles.tabOn]} onPress={() => setTipo('despesa')}>
           <Text style={[styles.tabTxt, tipo==='despesa' && styles.tabTxtOn]}>Despesa</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, tipo==='receita' && styles.tabOn]} onPress={() => setTipo('receita')}>
+        <TouchableOpacity style={[styles.tab, tipo==='receita' && styles.tabOn]} onPress={() => {
+          setTipo('receita');
+          setFormaPag('');
+          setContaSel(null);
+          setCartaoSel(null);
+          setParcelas('1');
+          setParcelasBoleto('1');
+          setStatus('pago');
+        }}>
           <Text style={[styles.tabTxt, tipo==='receita' && styles.tabTxtOn]}>Receita</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.form}>
-        <Text style={styles.lbl}>Descricao *</Text>
-        <TextInput style={styles.input} placeholder="Ex: Mercado, Salario..." placeholderTextColor="#6b779a" value={descricao} onChangeText={setDescricao} />
+      <ScrollView style={styles.form} keyboardShouldPersistTaps="handled">
 
-        <Text style={styles.lbl}>Valor R$ *</Text>
-        <TextInput style={styles.input} placeholder="0,00" placeholderTextColor="#6b779a" keyboardType="numeric" value={valor} onChangeText={setValor} />
-
-        <Text style={styles.lbl}>Data da compra</Text>
-        <TouchableOpacity style={styles.dataBtn} onPress={() => setMostrarCalendario(true)}>
-          <Text style={styles.dataBtnIco}>📅</Text>
-          <Text style={styles.dataBtnTxt}>{data}</Text>
-        </TouchableOpacity>
-        {mostrarCalendario && (
-          <DateTimePicker value={dataObj} mode="date" display="calendar" onChange={onDataCalendario} locale="pt-BR" />
-        )}
-
-        <Text style={styles.lbl}>Categoria *</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-          <View style={styles.chipRow}>
-            {(tipo==='despesa' ? categoriasDesp : categoriasRec).map(c => (
-              <TouchableOpacity key={c} style={[styles.chip, categoria===c && styles.chipOn]} onPress={() => setCategoria(c)}>
-                <Text style={[styles.chipTxt, categoria===c && styles.chipTxtOn]}>{c}</Text>
+        <Text style={styles.lbl}>Descrição *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Ex: Super X, Farmácia Y, Juca Eletricista..."
+          placeholderTextColor={colors.textMuted}
+          value={descricao}
+          onChangeText={setDescricao}
+        />
+        {mostrarSugestoes && (
+          <View style={styles.sugestoes}>
+            {sugestoes.map((s, i) => (
+              <TouchableOpacity key={i} style={styles.sugestaoItem} onPress={() => { setDescricao(s); setMostrarSugestoes(false); }}>
+                <Text style={styles.sugestaoIco}>🕐</Text>
+                <Text style={styles.sugestaoTxt}>{s}</Text>
               </TouchableOpacity>
             ))}
           </View>
-        </ScrollView>
+        )}
+
+        <Text style={styles.lbl}>Valor R$ *</Text>
+        <TextInput
+          style={styles.input} placeholder="0,00" placeholderTextColor={colors.textMuted}
+          keyboardType="numeric" value={valor} onChangeText={setValor}
+        />
+
+        <Text style={styles.lbl}>Categoria *</Text>
+        <Dropdown
+          label="Selecione a categoria"
+          value={categoria}
+          placeholder="Toque para selecionar..."
+          opcoes={tipo === 'despesa' ? categoriasDesp : categoriasRec}
+          onSelect={setCategoria}
+          colors={colors}
+        />
 
         {tipo === 'despesa' && <>
           <Text style={styles.lbl}>Forma de pagamento *</Text>
-          <View style={styles.payGrid}>
-            {FORMAS_PAG.map(f => (
-              <TouchableOpacity key={f} style={[styles.payBtn, formaPag===f && styles.payBtnOn]} onPress={() => {
-                setFormaPag(f);
-                if (f !== 'Credito') setCartaoSel(null);
-                if (f !== 'Boleto') setParcelasBoleto('1');
-                if (f !== 'Debito' && f !== 'Pix') setContaSel(null);
-              }}>
-                <Text style={[styles.payTxt, formaPag===f && styles.payTxtOn]}>{f}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Dropdown
+            label="Forma de pagamento"
+            value={formaPag}
+            placeholder="Toque para selecionar..."
+            opcoes={FORMAS_PAG}
+            onSelect={(f) => {
+              setFormaPag(f);
+              if (f !== 'Crédito') { setCartaoSel(null); setParcelas('1'); }
+              if (f !== 'Boleto') setParcelasBoleto('1');
+              if (f !== 'Débito' && f !== 'Pix') setContaSel(null);
+            }}
+            colors={colors}
+          />
 
-          {/* DÉBITO / PIX — seleção de conta */}
           {mostraSelecaoConta && <>
             <Text style={styles.lbl}>Débitar da conta (opcional)</Text>
-            <View style={styles.chipRow}>
-              <TouchableOpacity
-                style={[styles.chip, contaSel === null && styles.chipOn]}
-                onPress={() => setContaSel(null)}
-              >
-                <Text style={[styles.chipTxt, contaSel === null && styles.chipTxtOn]}>Nenhuma</Text>
-              </TouchableOpacity>
-              {contas.map(c => (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[styles.chip, contaSel?.id === c.id && styles.chipOn]}
-                  onPress={() => setContaSel(c)}
-                >
-                  <Text style={[styles.chipTxt, contaSel?.id === c.id && styles.chipTxtOn]}>
-                    {c.nome}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Dropdown
+              label="Selecione a conta"
+              value={contaSel?.id || 'Nenhuma'}
+              placeholder="Nenhuma conta"
+              opcoes={contaOpts}
+              onSelect={(id) => { if (id === 'Nenhuma') setContaSel(null); else setContaSel(contas.find(c => c.id === id) || null); }}
+              renderItem={contaLabel}
+              colors={colors}
+            />
             {contaSel && (
               <View style={styles.contaInfo}>
-                <Text style={styles.contaInfoTxt}>
-                  💳 O valor será debitado de: {contaSel.nome} · {contaSel.banco}
-                </Text>
+                <Text style={styles.contaInfoTxt}>💳 Débito em: {contaSel.nome} · {contaSel.banco}</Text>
               </View>
             )}
           </>}
 
-          {/* BOLETO */}
           {formaPag === 'Boleto' && <>
             <Text style={styles.lbl}>Data de vencimento do boleto</Text>
             <TouchableOpacity style={styles.dataBtn} onPress={() => setMostrarCalendarioBoleto(true)}>
@@ -313,13 +456,12 @@ export default function NovoLancamentoScreen() {
               <DateTimePicker value={dataVencBoletoObj} mode="date" display="calendar" onChange={onDataCalendarioBoleto} locale="pt-BR" />
             )}
             <Text style={styles.lbl}>Parcelas do boleto</Text>
-            <View style={styles.payGrid}>
-              {['1','2','3','4','5','6','7','8','9','10','11','12'].map(p => (
-                <TouchableOpacity key={p} style={[styles.payBtn, parcelasBoleto===p && styles.payBtnOn]} onPress={() => setParcelasBoleto(p)}>
-                  <Text style={[styles.payTxt, parcelasBoleto===p && styles.payTxtOn]}>{p==='1' ? 'Único' : p+'x'}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Dropdown
+              label="Parcelas do boleto" value={parcelasBoleto} placeholder="Selecione..."
+              opcoes={PARCELAS_BOLETO_OPTS} onSelect={setParcelasBoleto}
+              renderItem={(p) => p === '1' ? 'Pagamento único' : `${p}x`}
+              colors={colors}
+            />
             {parseInt(parcelasBoleto) > 1 && valor && (
               <View style={styles.previewCard}>
                 <Text style={styles.previewTitle}>Previsão de vencimentos do boleto</Text>
@@ -334,23 +476,19 @@ export default function NovoLancamentoScreen() {
             )}
           </>}
 
-          {/* CREDITO */}
-          {formaPag === 'Credito' && <>
-            <Text style={styles.lbl}>Cartao * {cartoes.length === 0 ? '(Nenhum cadastrado)' : ''}</Text>
+          {formaPag === 'Crédito' && <>
+            <Text style={styles.lbl}>Cartão *</Text>
             {cartoes.length === 0 ? (
               <TouchableOpacity style={styles.alertaCartao} onPress={() => router.push('/cartoes' as any)}>
                 <Text style={styles.alertaCartaoTxt}>⚠️ Nenhum cartão cadastrado. Toque para cadastrar.</Text>
               </TouchableOpacity>
             ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-                <View style={styles.chipRow}>
-                  {cartoes.map(c => (
-                    <TouchableOpacity key={c.id} style={[styles.chip, cartaoSel?.id===c.id && styles.chipOn]} onPress={() => setCartaoSel(c)}>
-                      <Text style={[styles.chipTxt, cartaoSel?.id===c.id && styles.chipTxtOn]}>{c.apelido || c.bandeira+' ****'+c.ultimos4}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
+              <Dropdown
+                label="Selecione o cartão" value={cartaoSel?.id || ''} placeholder="Toque para selecionar..."
+                opcoes={cartaoOpts} onSelect={(id) => setCartaoSel(cartoes.find(c => c.id === id) || null)}
+                renderItem={cartaoLabel}
+                colors={colors}
+              />
             )}
             {cartaoSel && (
               <View style={styles.cartaoInfo}>
@@ -359,16 +497,15 @@ export default function NovoLancamentoScreen() {
               </View>
             )}
             <Text style={styles.lbl}>Parcelas</Text>
-            <View style={styles.payGrid}>
-              {['1','2','3','4','5','6','7','8','9','10','11','12','15','18','24'].map(p => (
-                <TouchableOpacity key={p} style={[styles.payBtn, parcelas===p && styles.payBtnOn]} onPress={() => setParcelas(p)}>
-                  <Text style={[styles.payTxt, parcelas===p && styles.payTxtOn]}>{p==='1'?'A vista':p+'x'}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Dropdown
+              label="Número de parcelas" value={parcelas} placeholder="Selecione..."
+              opcoes={PARCELAS_OPTS} onSelect={setParcelas}
+              renderItem={(p) => p === '1' ? 'Pagamento único' : `${p}x`}
+              colors={colors}
+            />
             {previewDatas.length > 1 && valor && (
               <View style={styles.previewCard}>
-                <Text style={styles.previewTitle}>Previsao de vencimentos</Text>
+                <Text style={styles.previewTitle}>Previsão de vencimentos</Text>
                 {previewDatas.map((d, i) => (
                   <View key={i} style={styles.previewRow}>
                     <Text style={styles.previewParc}>{i+1}/{previewDatas.length}</Text>
@@ -380,22 +517,35 @@ export default function NovoLancamentoScreen() {
             )}
           </>}
 
-          {/* STATUS para formas que não são crédito nem boleto */}
-          {formaPag !== 'Credito' && formaPag !== 'Boleto' && formaPag !== '' && <>
+          {formaPag !== 'Crédito' && formaPag !== 'Boleto' && formaPag !== '' && <>
             <Text style={styles.lbl}>Status</Text>
-            <View style={styles.payGrid}>
+            <View style={styles.statusRow}>
               {[['pago','✅ Pago'],['pendente','⏳ Pendente']].map(([v,l]) => (
-                <TouchableOpacity key={v} style={[styles.payBtn, status===v && styles.payBtnOn]} onPress={() => setStatus(v)}>
-                  <Text style={[styles.payTxt, status===v && styles.payTxtOn]}>{l}</Text>
+                <TouchableOpacity key={v} style={[styles.statusBtn, status===v && styles.statusBtnOn]} onPress={() => setStatus(v)}>
+                  <Text style={[styles.statusTxt, status===v && styles.statusTxtOn]}>{l}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </>}
         </>}
 
-        <Text style={styles.lbl}>Observacoes</Text>
-        <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top' }]} placeholder="Notas adicionais..." placeholderTextColor="#6b779a" multiline value={obs} onChangeText={setObs} />
+        <Text style={styles.lbl}>Data do lançamento</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="DD/MM/AAAA"
+          placeholderTextColor={colors.textMuted}
+          value={data}
+          onChangeText={setData}
+          keyboardType="numeric"
+          maxLength={10}
+        />
 
+        <Text style={styles.lbl}>Observações</Text>
+        <TextInput
+          style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+          placeholder="Notas adicionais..." placeholderTextColor={colors.textMuted}
+          multiline value={obs} onChangeText={setObs}
+        />
         <View style={{ height: 20 }} />
       </ScrollView>
 
@@ -404,57 +554,57 @@ export default function NovoLancamentoScreen() {
           <Text style={styles.btnCancelTxt}>Cancelar</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.btnSave} onPress={salvar}>
-          <Text style={styles.btnSaveTxt}>Salvar lancamento</Text>
+          <Text style={styles.btnSaveTxt}>Salvar lançamento</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex:1, backgroundColor:'#12151e' },
-  header: { flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:16, paddingTop:50, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.08)' },
-  backBtn: { padding:4 },
-  backTxt: { fontSize:16, color:'#5294ff', fontWeight:'600' },
-  headerTitle: { fontSize:17, fontWeight:'700', color:'#f0f3ff' },
-  cameraBtn: { padding:4 },
-  tabs: { flexDirection:'row', margin:16, backgroundColor:'#2a3148', borderRadius:11, padding:4 },
-  tab: { flex:1, padding:9, borderRadius:8, alignItems:'center' },
-  tabOn: { backgroundColor:'#1c2133', borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
-  tabTxt: { fontSize:13, fontWeight:'500', color:'#6b779a' },
-  tabTxtOn: { color:'#f0f3ff' },
-  form: { flex:1, paddingHorizontal:16 },
-  lbl: { fontSize:11.5, fontWeight:'500', color:'#aab4d0', marginBottom:6, marginTop:14 },
-  input: { backgroundColor:'#2a3148', borderWidth:1, borderColor:'rgba(255,255,255,0.18)', borderRadius:11, padding:12, color:'#f0f3ff', fontSize:14 },
-  dataBtn: { flexDirection:'row', alignItems:'center', backgroundColor:'#2a3148', borderWidth:1, borderColor:'rgba(255,255,255,0.18)', borderRadius:11, padding:12, gap:10 },
-  dataBtnIco: { fontSize:18 },
-  dataBtnTxt: { fontSize:14, color:'#f0f3ff', fontWeight:'500' },
-  chipScroll: { marginBottom:4 },
-  chipRow: { flexDirection:'row', flexWrap:'wrap', gap:8, paddingVertical:4 },
-  chip: { paddingHorizontal:14, paddingVertical:8, backgroundColor:'#2a3148', borderRadius:16, borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
-  chipOn: { backgroundColor:'rgba(82,148,255,0.18)', borderColor:'#5294ff' },
-  chipTxt: { fontSize:12.5, color:'#aab4d0', fontWeight:'500' },
-  chipTxtOn: { color:'#7ab0ff' },
-  payGrid: { flexDirection:'row', flexWrap:'wrap', gap:8, marginBottom:4 },
-  payBtn: { paddingHorizontal:14, paddingVertical:9, backgroundColor:'#2a3148', borderRadius:11, borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
-  payBtnOn: { backgroundColor:'rgba(82,148,255,0.18)', borderColor:'#5294ff' },
-  payTxt: { fontSize:12.5, color:'#aab4d0', fontWeight:'500' },
-  payTxtOn: { color:'#7ab0ff' },
-  alertaCartao: { backgroundColor:'rgba(242,85,85,0.1)', borderRadius:11, padding:12, borderWidth:1, borderColor:'rgba(242,85,85,0.3)', marginBottom:8 },
-  alertaCartaoTxt: { fontSize:13, color:'#f25555', fontWeight:'500' },
-  cartaoInfo: { backgroundColor:'#2a3148', borderRadius:11, padding:12, marginBottom:8, borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
-  cartaoInfoTxt: { fontSize:12, color:'#aab4d0', marginBottom:2 },
-  contaInfo: { backgroundColor:'rgba(37,208,126,0.08)', borderRadius:11, padding:12, marginBottom:8, borderWidth:1, borderColor:'rgba(37,208,126,0.25)' },
-  contaInfoTxt: { fontSize:12, color:'#25d07e', fontWeight:'500' },
-  previewCard: { backgroundColor:'#1c2133', borderRadius:11, padding:14, marginTop:8, marginBottom:4, borderWidth:1, borderColor:'rgba(82,148,255,0.3)' },
-  previewTitle: { fontSize:11, fontWeight:'700', color:'#5294ff', marginBottom:10, letterSpacing:0.5 },
-  previewRow: { flexDirection:'row', justifyContent:'space-between', paddingVertical:6, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.06)' },
-  previewParc: { fontSize:12, color:'#6b779a', width:30 },
-  previewData: { fontSize:12, color:'#f0f3ff', flex:1, textAlign:'center' },
-  previewVal: { fontSize:12, color:'#25d07e', fontWeight:'600' },
-  footer: { flexDirection:'row', gap:10, padding:16, paddingBottom:36, borderTopWidth:1, borderTopColor:'rgba(255,255,255,0.08)' },
-  btnCancel: { flex:1, padding:14, backgroundColor:'#2a3148', borderRadius:11, alignItems:'center', borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
-  btnCancelTxt: { color:'#aab4d0', fontWeight:'600', fontSize:14 },
-  btnSave: { flex:2, padding:14, backgroundColor:'#5294ff', borderRadius:11, alignItems:'center' },
-  btnSaveTxt: { color:'#fff', fontWeight:'600', fontSize:14 },
-});
+function makeStyles(c: Colors) {
+  return StyleSheet.create({
+    container: { flex:1, backgroundColor:c.bg },
+    header: { flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:16, paddingTop:50, borderBottomWidth:1, borderBottomColor:c.borderSoft },
+    backBtn: { padding:4 },
+    backTxt: { fontSize:16, color:'#5294ff', fontWeight:'600' },
+    headerTitle: { fontSize:17, fontWeight:'700', color:c.text },
+    cameraBtn: { padding:4 },
+    tabs: { flexDirection:'row', margin:16, backgroundColor:c.input, borderRadius:11, padding:4 },
+    tab: { flex:1, padding:9, borderRadius:8, alignItems:'center' },
+    tabOn: { backgroundColor:c.card, borderWidth:1, borderColor:c.border },
+    tabTxt: { fontSize:13, fontWeight:'500', color:c.textMuted },
+    tabTxtOn: { color:c.text },
+    form: { flex:1, paddingHorizontal:16 },
+    lbl: { fontSize:11.5, fontWeight:'500', color:c.textSec, marginBottom:6, marginTop:14 },
+    input: { backgroundColor:c.input, borderWidth:1, borderColor:c.border, borderRadius:11, padding:12, color:c.text, fontSize:14 },
+    sugestoes: { backgroundColor:c.card, borderRadius:11, borderWidth:1, borderColor:'rgba(82,148,255,0.3)', marginTop:4, overflow:'hidden' },
+    sugestaoItem: { flexDirection:'row', alignItems:'center', padding:12, borderBottomWidth:1, borderBottomColor:c.borderLight, gap:10 },
+    sugestaoIco: { fontSize:14 },
+    sugestaoTxt: { fontSize:13, color:c.text },
+    dataBtn: { flexDirection:'row', alignItems:'center', backgroundColor:c.input, borderWidth:1, borderColor:c.border, borderRadius:11, padding:12, gap:10 },
+    dataBtnIco: { fontSize:18 },
+    dataBtnTxt: { fontSize:14, color:c.text, fontWeight:'500' },
+    contaInfo: { backgroundColor:'rgba(37,208,126,0.08)', borderRadius:11, padding:12, marginTop:6, borderWidth:1, borderColor:'rgba(37,208,126,0.25)' },
+    contaInfoTxt: { fontSize:12, color:'#25d07e', fontWeight:'500' },
+    cartaoInfo: { backgroundColor:c.input, borderRadius:11, padding:12, marginTop:6, marginBottom:4, borderWidth:1, borderColor:c.border },
+    cartaoInfoTxt: { fontSize:12, color:c.textSec, marginBottom:2 },
+    alertaCartao: { backgroundColor:'rgba(242,85,85,0.1)', borderRadius:11, padding:12, borderWidth:1, borderColor:'rgba(242,85,85,0.3)', marginBottom:8 },
+    alertaCartaoTxt: { fontSize:13, color:'#f25555', fontWeight:'500' },
+    statusRow: { flexDirection:'row', gap:10, marginBottom:4 },
+    statusBtn: { flex:1, padding:11, backgroundColor:c.input, borderRadius:11, alignItems:'center', borderWidth:1, borderColor:c.border },
+    statusBtnOn: { backgroundColor:'rgba(82,148,255,0.18)', borderColor:'#5294ff' },
+    statusTxt: { fontSize:13, color:c.textSec, fontWeight:'500' },
+    statusTxtOn: { color:'#7ab0ff' },
+    previewCard: { backgroundColor:c.card, borderRadius:11, padding:14, marginTop:8, marginBottom:4, borderWidth:1, borderColor:'rgba(82,148,255,0.3)' },
+    previewTitle: { fontSize:11, fontWeight:'700', color:'#5294ff', marginBottom:10, letterSpacing:0.5 },
+    previewRow: { flexDirection:'row', justifyContent:'space-between', paddingVertical:6, borderBottomWidth:1, borderBottomColor:c.borderLight },
+    previewParc: { fontSize:12, color:c.textMuted, width:30 },
+    previewData: { fontSize:12, color:c.text, flex:1, textAlign:'center' },
+    previewVal: { fontSize:12, color:'#25d07e', fontWeight:'600' },
+    footer: { flexDirection:'row', gap:10, padding:16, paddingBottom:36, borderTopWidth:1, borderTopColor:c.borderSoft },
+    btnCancel: { flex:1, padding:14, backgroundColor:c.input, borderRadius:11, alignItems:'center', borderWidth:1.5, borderColor:c.textSec },
+    btnCancelTxt: { color:c.textSec, fontWeight:'600', fontSize:14 },
+    btnSave: { flex:2, padding:14, backgroundColor:'#5294ff', borderRadius:11, alignItems:'center' },
+    btnSaveTxt: { color:'#fff', fontWeight:'600', fontSize:14 },
+  });
+}

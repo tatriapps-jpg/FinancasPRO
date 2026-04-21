@@ -2,10 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, Vibration, View } from 'react-native';
+import { Colors, useTheme } from './theme';
 
 const PIN_KEY = '@financaspro:pin';
 
 export default function PinScreen() {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
+
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [mode, setMode] = useState<'verify'|'create'|'confirm'>('verify');
@@ -77,7 +81,7 @@ export default function PinScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.logo}>💰</Text>
-      <Text style={styles.appName}>FinançasPRO</Text>
+      <Text style={styles.appName}>Fala, Dinheiro!</Text>
       <Text style={styles.appSub}>Controle Financeiro Pessoal</Text>
 
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -113,21 +117,23 @@ export default function PinScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex:1, backgroundColor:'#12151e', alignItems:'center', justifyContent:'center', padding:24 },
-  logo: { fontSize:48, marginBottom:8 },
-  appName: { fontSize:24, fontWeight:'700', color:'#f0f3ff', marginBottom:4 },
-  appSub: { fontSize:13, color:'#6b779a', marginBottom:32 },
-  subtitle: { fontSize:12, color:'#6b779a', marginBottom:4 },
-  title: { fontSize:15, fontWeight:'500', color:'#aab4d0', marginBottom:24 },
-  dots: { flexDirection:'row', gap:16, marginBottom:8 },
-  dot: { width:15, height:15, borderRadius:10, borderWidth:2, borderColor:'#6b779a' },
-  dotFilled: { backgroundColor:'#5294ff', borderColor:'#5294ff' },
-  dotError: { backgroundColor:'#f25555', borderColor:'#f25555' },
-  error: { fontSize:12, color:'#f25555', marginBottom:24, height:18 },
-  pad: { flexDirection:'row', flexWrap:'wrap', width:270, gap:12, justifyContent:'center' },
-  key: { width:78, height:68, backgroundColor:'#2a3148', borderRadius:16, alignItems:'center', justifyContent:'center', borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
-  keyDel: { backgroundColor:'#1c2133' },
-  keyEmpty: { width:78, height:68 },
-  keyNum: { fontSize:22, fontWeight:'600', color:'#f0f3ff' },
-});
+function makeStyles(c: Colors) {
+  return StyleSheet.create({
+    container: { flex:1, backgroundColor:c.bg, alignItems:'center', justifyContent:'center', padding:24 },
+    logo: { fontSize:48, marginBottom:8 },
+    appName: { fontSize:24, fontWeight:'700', color:c.text, marginBottom:4 },
+    appSub: { fontSize:13, color:c.textMuted, marginBottom:32 },
+    subtitle: { fontSize:12, color:c.textMuted, marginBottom:4 },
+    title: { fontSize:15, fontWeight:'500', color:c.textSec, marginBottom:24 },
+    dots: { flexDirection:'row', gap:16, marginBottom:8 },
+    dot: { width:15, height:15, borderRadius:10, borderWidth:2, borderColor:c.textMuted },
+    dotFilled: { backgroundColor:'#5294ff', borderColor:'#5294ff' },
+    dotError: { backgroundColor:'#f25555', borderColor:'#f25555' },
+    error: { fontSize:12, color:'#f25555', marginBottom:24, height:18 },
+    pad: { flexDirection:'row', flexWrap:'wrap', width:270, gap:12, justifyContent:'center' },
+    key: { width:78, height:68, backgroundColor:c.input, borderRadius:16, alignItems:'center', justifyContent:'center', borderWidth:1, borderColor:c.border },
+    keyDel: { backgroundColor:c.card },
+    keyEmpty: { width:78, height:68 },
+    keyNum: { fontSize:22, fontWeight:'600', color:c.text },
+  });
+}

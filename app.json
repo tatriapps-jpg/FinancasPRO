@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "FinancasPRO",
-    "slug": "FinancasPRO",
+    "name": "Fala, Dinheiro!",
+    "slug": "fala-dinheiro",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "financaspro",
-    "userInterfaceStyle": "automatic",
+    "scheme": "faladinheiro",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -50,7 +50,15 @@
       ],
       "expo-speech-recognition",
       "expo-sqlite",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "react-native-iap",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#5294ff"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

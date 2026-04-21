@@ -1,133 +1,308 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { buscarTotaisMes } from '../database';
+import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
+import { buscarLancamentosPorMes, buscarTotaisMes } from '../database';
+import { Colors, useTheme } from '../theme';
 
 const ORC_KEY = '@financaspro:orcamento';
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const CORES = ['#5294ff','#25d07e','#f7b731','#f25555','#a855f7','#06b6d4','#f97316'];
+
+const DONUT_SIZE      = 220;
+const DONUT_THICKNESS = 24;
+const DONUT_RADIUS    = (DONUT_SIZE - DONUT_THICKNESS) / 2;
+const CIRCUMFERENCE   = 2 * Math.PI * DONUT_RADIUS;
+
+type CategoriaDado = { nome: string; valor: number; pct: number; cor: string };
+
+function MultiDonut({ dados, totalGasto, orcamento, fmt, trackColor, textColor, textMuted }: {
+  dados: CategoriaDado[];
+  totalGasto: number;
+  orcamento: number;
+  fmt: (v: number) => string;
+  trackColor: string;
+  textColor: string;
+  textMuted: string;
+}) {
+  const cx = DONUT_SIZE / 2;
+  const cy = DONUT_SIZE / 2;
+  const total = dados.reduce((s, d) => s + d.valor, 0);
+
+  let cumAngle = 0;
+  const segments = dados
+    .filter(d => d.valor > 0)
+    .map(d => {
+      const fraction = total > 0 ? d.valor / total : 0;
+      const spanAngle = fraction * 360;
+      const segLen = fraction * CIRCUMFERENCE;
+      const startAngle = cumAngle;
+      cumAngle += spanAngle;
+      return { cor: d.cor, startAngle, segLen };
+    });
+
+  return (
+    <View style={{ width: DONUT_SIZE, height: DONUT_SIZE }}>
+      <Svg width={DONUT_SIZE} height={DONUT_SIZE}>
+        {/* Track */}
+        <Circle
+          cx={cx} cy={cy} r={DONUT_RADIUS}
+          fill="none"
+          stroke={trackColor}
+          strokeWidth={DONUT_THICKNESS}
+        />
+        {/* Colored segments — each rotated so its dash starts at the correct angle */}
+        {segments.map((seg, i) => (
+          <Circle
+            key={i}
+            cx={cx} cy={cy} r={DONUT_RADIUS}
+            fill="none"
+            stroke={seg.cor}
+            strokeWidth={DONUT_THICKNESS}
+            strokeDasharray={`${seg.segLen} ${CIRCUMFERENCE}`}
+            strokeDashoffset={0}
+            rotation={-90 + seg.startAngle}
+            origin={`${cx}, ${cy}`}
+            strokeLinecap="butt"
+          />
+        ))}
+      </Svg>
+
+      {/* Center text — absolute, not inside SVG */}
+      <View style={{
+        position: 'absolute', top: 0, left: 0,
+        width: DONUT_SIZE, height: DONUT_SIZE,
+        alignItems: 'center', justifyContent: 'center',
+      }}>
+        {totalGasto > 0 ? (
+          <>
+            <Text style={{ fontSize: 18, fontWeight: '800', color: textColor, letterSpacing: -0.5 }}>
+              {fmt(totalGasto)}
+            </Text>
+            <Text style={{ fontSize: 10, color: textMuted, fontWeight: '500', marginTop: 4 }}>
+              de {fmt(orcamento)}
+            </Text>
+          </>
+        ) : (
+          <Text style={{ fontSize: 12, color: textMuted, fontWeight: '600', textAlign: 'center' }}>
+            Sem{'\n'}gastos
+          </Text>
+        )}
+      </View>
+    </View>
+  );
+}
 
 export default function OrcamentoScreen() {
+  const { colors } = useTheme();
+  const s = makeStyles(colors);
+
   const [orcamento, setOrcamento] = useState(5000);
   const [totais, setTotais] = useState({ totalGasto: 0, totalReceita: 0, saldo: 0 });
+  const [porCategoria, setPorCategoria] = useState<CategoriaDado[]>([]);
   const [modal, setModal] = useState(false);
   const [novoOrc, setNovoOrc] = useState('');
-  const mesAtual = new Date().getMonth() + 1;
-  const anoAtual = new Date().getFullYear();
-  const meses = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  const hoje = new Date();
-  const diasNoMes = new Date(anoAtual, mesAtual, 0).getDate();
-  const diasRestantes = diasNoMes - hoje.getDate();
 
-  useFocusEffect(
-    useCallback(() => {
-      carregarDados();
-    }, [])
-  );
+  const hoje = new Date();
+  const mesAtual = hoje.getMonth() + 1;
+  const anoAtual = hoje.getFullYear();
+  const diasNoMes = new Date(anoAtual, mesAtual, 0).getDate();
+  const diasPassados = hoje.getDate();
+  const diasRestantes = diasNoMes - diasPassados;
+
+  useFocusEffect(useCallback(() => { carregarDados(); }, []));
 
   async function carregarDados() {
     const saved = await AsyncStorage.getItem(ORC_KEY);
     if (saved) setOrcamento(parseFloat(saved));
+
     const t = buscarTotaisMes(mesAtual, anoAtual);
     setTotais(t);
+
+    const lancamentos = buscarLancamentosPorMes(mesAtual, anoAtual);
+    const despesas = lancamentos.filter((l: any) => l.tipo === 'despesa');
+    const totalDesp = despesas.reduce((s: number, l: any) => s + l.valor, 0);
+
+    const porCat: Record<string, number> = {};
+    despesas.forEach((l: any) => {
+      const cat = l.categoria || 'Outros';
+      porCat[cat] = (porCat[cat] || 0) + l.valor;
+    });
+
+    setPorCategoria(
+      Object.entries(porCat)
+        .sort((a, b) => b[1] - a[1])
+        .map(([nome, valor], i) => ({
+          nome,
+          valor,
+          pct: totalDesp > 0 ? Math.round((valor / totalDesp) * 100) : 0,
+          cor: CORES[i % CORES.length],
+        }))
+    );
   }
 
   async function salvarOrcamento() {
-    const v = parseFloat(novoOrc.replace(',','.'));
-    if (!v || v <= 0) { alert('Digite um valor valido.'); return; }
+    const v = parseFloat(novoOrc.replace(',', '.'));
+    if (isNaN(v) || v < 0) { Alert.alert('Atenção', 'Digite um valor válido ou 0 para desativar.'); return; }
     await AsyncStorage.setItem(ORC_KEY, String(v));
     setOrcamento(v);
     setModal(false);
     setNovoOrc('');
   }
 
+  const orcamentoAtivo = orcamento > 0;
   const fmt = (v: number) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
   const disponivel = orcamento - totais.totalGasto;
-  const pct = Math.min(100, (totais.totalGasto / orcamento) * 100);
+  const pct = orcamento > 0 ? Math.min(100, (totais.totalGasto / orcamento) * 100) : 0;
   const barCor = pct < 70 ? '#25d07e' : pct < 90 ? '#f7b731' : '#f25555';
+  const mediaDiaria = diasPassados > 0 ? totais.totalGasto / diasPassados : 0;
+  const projecao = mediaDiaria * diasNoMes;
+  const projecaoPerigo = projecao > orcamento;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Orcamento</Text>
-        <TouchableOpacity onPress={() => { setNovoOrc(String(orcamento)); setModal(true); }} style={styles.editBtn}>
-          <Text style={styles.editBtnTxt}>✏️ Editar</Text>
+    <View style={s.container}>
+      <View style={s.header}>
+        <Text style={s.headerTitle}>Orçamento — {MESES[mesAtual - 1]}</Text>
+        <TouchableOpacity
+          onPress={() => { setNovoOrc(String(orcamento)); setModal(true); }}
+          style={s.editBtn}
+        >
+          <Text style={s.editBtnTxt}>✏️ Editar</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView>
-        <View style={styles.heroCard}>
-          <Text style={styles.heroLabel}>DISPONIVEL PARA GASTAR</Text>
-          <Text style={[styles.heroValue, { color: disponivel >= 0 ? '#f7b731' : '#f25555' }]}>
-            {fmt(disponivel)}
-          </Text>
-          <Text style={styles.heroSub}>de {fmt(orcamento)} planejados em {meses[mesAtual-1]}</Text>
-          <View style={styles.barTrack}>
-            <View style={[styles.barFill, { width: `${pct}%` as any, backgroundColor: barCor }]} />
-          </View>
-          <Text style={[styles.barPct, { color: barCor }]}>{pct.toFixed(1)}% consumido</Text>
-        </View>
+      <ScrollView contentContainerStyle={s.body}>
 
-        <View style={styles.grid}>
-          <View style={styles.cell}>
-            <Text style={styles.cellLbl}>Orcamento</Text>
-            <Text style={[styles.cellVal, { color: '#f0f3ff' }]}>{fmt(orcamento)}</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.cellLbl}>Gasto</Text>
-            <Text style={[styles.cellVal, { color: '#f25555' }]}>{fmt(totais.totalGasto)}</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.cellLbl}>Disponivel</Text>
-            <Text style={[styles.cellVal, { color: '#f7b731' }]}>{fmt(disponivel)}</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.cellLbl}>Receita</Text>
-            <Text style={[styles.cellVal, { color: '#25d07e' }]}>{fmt(totais.totalReceita)}</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.cellLbl}>Saldo real</Text>
-            <Text style={[styles.cellVal, { color: '#5294ff' }]}>{fmt(totais.saldo)}</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.cellLbl}>Dias rest.</Text>
-            <Text style={[styles.cellVal, { color: '#aab4d0' }]}>{diasRestantes}</Text>
-          </View>
-        </View>
-
-        {pct >= 90 && (
-          <View style={styles.alertDanger}>
-            <Text style={styles.alertTxt}>⚠️ Atencao! Voce ja consumiu {pct.toFixed(0)}% do orcamento!</Text>
-          </View>
-        )}
-        {pct >= 70 && pct < 90 && (
-          <View style={styles.alertWarn}>
-            <Text style={styles.alertTxt}>🔔 Voce ja consumiu {pct.toFixed(0)}% do orcamento. Fique atento!</Text>
+        {!orcamentoAtivo && (
+          <View style={s.semOrcamento}>
+            <Text style={s.semOrcIco}>💰</Text>
+            <Text style={s.semOrcTxt}>Orçamento não definido</Text>
+            <Text style={s.semOrcSub}>Defina um limite mensal para acompanhar seus gastos</Text>
+            <TouchableOpacity style={s.btnDefinirOrc} onPress={() => { setNovoOrc(''); setModal(true); }}>
+              <Text style={s.btnDefinirOrcTxt}>Definir orçamento</Text>
+            </TouchableOpacity>
           </View>
         )}
 
-        <View style={{ height: 20 }} />
+        {orcamentoAtivo && (
+          <>
+            {/* Donut multicor */}
+            <View style={s.donutCard}>
+              <MultiDonut
+                dados={porCategoria}
+                totalGasto={totais.totalGasto}
+                orcamento={orcamento}
+                fmt={fmt}
+                trackColor={colors.barTrack2 ?? '#2a2a3a'}
+                textColor={colors.text}
+                textMuted={colors.textMuted}
+              />
+
+              {porCategoria.length > 0 ? (
+                <View style={s.legenda}>
+                  {porCategoria.map((item, i) => (
+                    <View key={i} style={s.legendaItem}>
+                      <View style={[s.legendaDot, { backgroundColor: item.cor }]} />
+                      <View style={s.legendaInfo}>
+                        <Text style={s.legendaNome} numberOfLines={1}>{item.nome}</Text>
+                        <Text style={s.legendaVal}>{item.pct}% · {fmt(item.valor)}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={s.semDados}>Nenhuma despesa este mês</Text>
+              )}
+            </View>
+
+            {/* 3 cards */}
+            <View style={s.cardsRow}>
+              <View style={s.card}>
+                <Text style={s.cardLbl}>Orçamento</Text>
+                <Text style={[s.cardVal, { color: colors.text }]}>{fmt(orcamento)}</Text>
+              </View>
+              <View style={s.card}>
+                <Text style={s.cardLbl}>Gasto</Text>
+                <Text style={[s.cardVal, { color: '#f25555' }]}>{fmt(totais.totalGasto)}</Text>
+              </View>
+              <View style={s.card}>
+                <Text style={s.cardLbl}>Disponível</Text>
+                <Text style={[s.cardVal, { color: disponivel >= 0 ? '#f7b731' : '#f25555' }]}>
+                  {fmt(disponivel)}
+                </Text>
+              </View>
+            </View>
+
+            {/* Barra de progresso */}
+            <View style={s.barCard}>
+              <View style={s.barRow}>
+                <Text style={s.barLbl}>Progresso do mês</Text>
+                <Text style={[s.barPct, { color: barCor }]}>{pct.toFixed(1)}%</Text>
+              </View>
+              <View style={s.barTrack}>
+                <View style={[s.barFill, { width: `${pct}%` as any, backgroundColor: barCor }]} />
+              </View>
+              <Text style={s.barSub}>{diasRestantes} dias restantes em {MESES[mesAtual - 1]}</Text>
+            </View>
+
+            {/* Projeção */}
+            <View style={[s.projCard, projecaoPerigo && s.projCardPerigo]}>
+              <Text style={s.projTitle}>📊 Projeção do mês</Text>
+              <View style={s.projRow}>
+                <Text style={s.projLbl}>Média diária</Text>
+                <Text style={s.projVal}>{fmt(mediaDiaria)}/dia</Text>
+              </View>
+              <View style={s.projRow}>
+                <Text style={s.projLbl}>Projeção até {diasNoMes}/{mesAtual.toString().padStart(2, '0')}</Text>
+                <Text style={[s.projVal, { color: projecaoPerigo ? '#f25555' : '#25d07e' }]}>
+                  {fmt(projecao)}
+                </Text>
+              </View>
+              {projecaoPerigo && (
+                <Text style={s.projAlerta}>
+                  ⚠️ No ritmo atual você ultrapassará o orçamento em {fmt(projecao - orcamento)}.
+                </Text>
+              )}
+            </View>
+
+            {/* Alertas */}
+            {pct >= 90 && (
+              <View style={s.alertDanger}>
+                <Text style={s.alertTxt}>🚨 Você consumiu {pct.toFixed(0)}% do orçamento!</Text>
+              </View>
+            )}
+            {pct >= 70 && pct < 90 && (
+              <View style={s.alertWarn}>
+                <Text style={s.alertTxt}>🔔 Você consumiu {pct.toFixed(0)}% do orçamento. Atenção!</Text>
+              </View>
+            )}
+          </>
+        )}
+
+        <View style={{ height: 32 }} />
       </ScrollView>
 
       <Modal visible={modal} transparent animationType="slide">
-        <View style={styles.modalBg}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Definir Orcamento</Text>
-            <Text style={styles.modalSub}>Quanto voce planeja gastar em {meses[mesAtual-1]}?</Text>
+        <View style={s.modalBg}>
+          <View style={s.modalBox}>
+            <Text style={s.modalTitle}>Definir Orçamento</Text>
+            <Text style={s.modalSub}>Quanto planeja gastar em {MESES[mesAtual - 1]}? Digite 0 para desativar.</Text>
             <TextInput
-              style={styles.modalInput}
-              placeholder="Ex: 5000"
-              placeholderTextColor="#6b779a"
+              style={s.modalInput}
+              placeholder="Ex: 5000 (0 = desativar)"
+              placeholderTextColor={colors.textMuted}
               keyboardType="numeric"
               value={novoOrc}
               onChangeText={setNovoOrc}
               autoFocus
             />
-            <View style={styles.modalBtns}>
-              <TouchableOpacity style={styles.btnCancel} onPress={() => setModal(false)}>
-                <Text style={styles.btnCancelTxt}>Cancelar</Text>
+            <View style={s.modalBtns}>
+              <TouchableOpacity style={s.btnCancel} onPress={() => setModal(false)}>
+                <Text style={s.btnCancelTxt}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.btnSave} onPress={salvarOrcamento}>
-                <Text style={styles.btnSaveTxt}>Salvar</Text>
+              <TouchableOpacity style={s.btnSave} onPress={salvarOrcamento}>
+                <Text style={s.btnSaveTxt}>Salvar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -137,34 +312,83 @@ export default function OrcamentoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex:1, backgroundColor:'#12151e' },
-  header: { flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:22, paddingTop:50 },
-  headerTitle: { fontSize:22, fontWeight:'700', color:'#f0f3ff' },
-  editBtn: { padding:8, backgroundColor:'#2a3148', borderRadius:11, borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
-  editBtnTxt: { fontSize:13, color:'#aab4d0', fontWeight:'500' },
-  heroCard: { margin:16, backgroundColor:'#1c2133', borderRadius:16, padding:24, alignItems:'center', borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
-  heroLabel: { fontSize:10, fontWeight:'600', color:'#aab4d0', letterSpacing:1, marginBottom:8 },
-  heroValue: { fontSize:40, fontWeight:'700', letterSpacing:-1 },
-  heroSub: { fontSize:12, color:'#aab4d0', marginTop:6, marginBottom:16 },
-  barTrack: { width:'100%', height:10, backgroundColor:'#344060', borderRadius:10, overflow:'hidden', marginBottom:6 },
-  barFill: { height:10, borderRadius:10 },
-  barPct: { fontSize:12, fontWeight:'700' },
-  grid: { flexDirection:'row', flexWrap:'wrap', paddingHorizontal:16, gap:9, marginBottom:16 },
-  cell: { width:'31%', backgroundColor:'#1c2133', borderRadius:11, padding:14, alignItems:'center', borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
-  cellLbl: { fontSize:10, color:'#aab4d0', textTransform:'uppercase', letterSpacing:0.7, marginBottom:6, fontWeight:'600' },
-  cellVal: { fontSize:14, fontWeight:'700' },
-  alertDanger: { marginHorizontal:16, marginBottom:8, padding:12, backgroundColor:'rgba(242,85,85,0.11)', borderRadius:11, borderWidth:1, borderColor:'rgba(242,85,85,0.3)' },
-  alertWarn: { marginHorizontal:16, marginBottom:8, padding:12, backgroundColor:'rgba(247,183,49,0.11)', borderRadius:11, borderWidth:1, borderColor:'rgba(247,183,49,0.3)' },
-  alertTxt: { fontSize:13, color:'#f0f3ff', lineHeight:20 },
-  modalBg: { flex:1, backgroundColor:'rgba(0,0,0,0.75)', justifyContent:'center', padding:24 },
-  modalBox: { backgroundColor:'#1c2133', borderRadius:20, padding:24, borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
-  modalTitle: { fontSize:18, fontWeight:'700', color:'#f0f3ff', marginBottom:6 },
-  modalSub: { fontSize:13, color:'#6b779a', marginBottom:18 },
-  modalInput: { backgroundColor:'#2a3148', borderWidth:1, borderColor:'rgba(255,255,255,0.18)', borderRadius:11, padding:14, color:'#f0f3ff', fontSize:18, fontWeight:'700', marginBottom:16 },
-  modalBtns: { flexDirection:'row', gap:10 },
-  btnCancel: { flex:1, padding:13, backgroundColor:'#2a3148', borderRadius:11, alignItems:'center', borderWidth:1, borderColor:'rgba(255,255,255,0.18)' },
-  btnCancelTxt: { color:'#aab4d0', fontWeight:'600', fontSize:14 },
-  btnSave: { flex:1, padding:13, backgroundColor:'#5294ff', borderRadius:11, alignItems:'center' },
-  btnSaveTxt: { color:'#fff', fontWeight:'600', fontSize:14 },
-});
+function makeStyles(c: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    header: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 20, paddingTop: 52, paddingBottom: 14,
+      borderBottomWidth: 1, borderBottomColor: c.borderSoft,
+    },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: c.text },
+    editBtn: { paddingVertical: 7, paddingHorizontal: 13, backgroundColor: c.input, borderRadius: 11, borderWidth: 1, borderColor: c.border },
+    editBtnTxt: { fontSize: 13, color: c.textSec, fontWeight: '600' },
+
+    body: { paddingHorizontal: 16, paddingTop: 20, gap: 14 },
+
+    donutCard: {
+      alignItems: 'center',
+      paddingVertical: 24, paddingHorizontal: 16,
+      backgroundColor: c.card, borderRadius: 20,
+      borderWidth: 1, borderColor: c.borderSoft,
+      gap: 20,
+    },
+
+    legenda: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, width: '100%' },
+    legendaItem: { flexDirection: 'row', alignItems: 'center', gap: 8, width: '47%' },
+    legendaDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
+    legendaInfo: { flex: 1 },
+    legendaNome: { fontSize: 11, color: c.text, fontWeight: '600' },
+    legendaVal: { fontSize: 10, color: c.textMuted, marginTop: 1 },
+    semDados: { fontSize: 13, color: c.textMuted },
+    semOrcamento: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 24 },
+    semOrcIco: { fontSize: 52, marginBottom: 16 },
+    semOrcTxt: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 8 },
+    semOrcSub: { fontSize: 13, color: c.textMuted, textAlign: 'center', marginBottom: 28, lineHeight: 20 },
+    btnDefinirOrc: { backgroundColor: '#5294ff', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32 },
+    btnDefinirOrcTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
+
+    cardsRow: { flexDirection: 'row', gap: 10 },
+    card: {
+      flex: 1, backgroundColor: c.card, borderRadius: 14,
+      padding: 14, alignItems: 'center',
+      borderWidth: 1, borderColor: c.borderSoft,
+    },
+    cardLbl: { fontSize: 10, color: c.textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 },
+    cardVal: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
+
+    barCard: { backgroundColor: c.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.borderSoft },
+    barRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+    barLbl: { fontSize: 13, color: c.textSec, fontWeight: '600' },
+    barPct: { fontSize: 13, fontWeight: '700' },
+    barTrack: { height: 10, backgroundColor: c.barTrack, borderRadius: 10, overflow: 'hidden', marginBottom: 8 },
+    barFill: { height: 10, borderRadius: 10 },
+    barSub: { fontSize: 11, color: c.textMuted },
+
+    projCard: { backgroundColor: c.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.borderSoft },
+    projCardPerigo: { borderColor: 'rgba(242,85,85,0.4)', backgroundColor: 'rgba(242,85,85,0.06)' },
+    projTitle: { fontSize: 13, fontWeight: '700', color: c.text, marginBottom: 12 },
+    projRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+    projLbl: { fontSize: 13, color: c.textMuted },
+    projVal: { fontSize: 13, fontWeight: '700', color: c.text },
+    projAlerta: { fontSize: 12, color: '#f25555', marginTop: 8, lineHeight: 18 },
+
+    alertDanger: { padding: 13, backgroundColor: 'rgba(242,85,85,0.11)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(242,85,85,0.3)' },
+    alertWarn: { padding: 13, backgroundColor: 'rgba(247,183,49,0.11)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(247,183,49,0.3)' },
+    alertTxt: { fontSize: 13, color: c.text, lineHeight: 20 },
+
+    modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 24 },
+    modalBox: { backgroundColor: c.card, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: c.border },
+    modalTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 6 },
+    modalSub: { fontSize: 13, color: c.textMuted, marginBottom: 18 },
+    modalInput: {
+      backgroundColor: c.input, borderWidth: 1, borderColor: c.border,
+      borderRadius: 11, padding: 14, color: c.text, fontSize: 18, fontWeight: '700', marginBottom: 16,
+    },
+    modalBtns: { flexDirection: 'row', gap: 10 },
+    btnCancel: { flex: 1, padding: 13, backgroundColor: c.input, borderRadius: 11, alignItems: 'center', borderWidth: 1, borderColor: c.border },
+    btnCancelTxt: { color: c.textSec, fontWeight: '600', fontSize: 14 },
+    btnSave: { flex: 1, padding: 13, backgroundColor: '#5294ff', borderRadius: 11, alignItems: 'center' },
+    btnSaveTxt: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  });
+}

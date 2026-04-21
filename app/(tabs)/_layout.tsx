@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../theme';
 
 function TabBarIcon({ symbol }: { symbol: string }) {
   return <Text style={{ fontSize: 22 }}>{symbol}</Text>;
@@ -8,21 +9,22 @@ function TabBarIcon({ symbol }: { symbol: string }) {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#1c2133',
-          borderTopColor: 'rgba(255,255,255,0.1)',
+          backgroundColor: colors.card,
+          borderTopColor: colors.borderSoft,
           borderTopWidth: 1,
           height: 60 + insets.bottom,
           paddingBottom: insets.bottom + 6,
           paddingTop: 6,
         },
         tabBarActiveTintColor: '#5294ff',
-        tabBarInactiveTintColor: '#6b779a',
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '600',

@@ -2,16 +2,29 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { buscarLancamentos, deletarLancamento } from '../database';
+import { buscarLancamentos, buscarLancamentosEmAtraso, buscarLancamentosPorMes, deletarGrupoLancamentos, deletarLancamento } from '../database';
+import { Colors, useTheme } from '../theme';
 
-const LIMITE_GRATIS = 100;
-const DESBLOQUEADO_KEY = '@financaspro:desbloqueado';
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const LIMITE_GRATIS          = 150;
+const LIMITE_DIAS            = 30;
+const DESBLOQUEADO_KEY       = '@faladinheiro:desbloqueado';
+const PRIMEIRO_LANCAMENTO_KEY = '@faladinheiro:primeiroLancamento';
 
 export default function LancamentosScreen() {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
+
+  const _hoje = new Date();
   const [lancamentos, setLancamentos] = useState<any[]>([]);
+  const [atrasados, setAtrasados] = useState<any[]>([]);
   const [busca, setBusca] = useState('');
   const [desbloqueado, setDesbloqueado] = useState(false);
   const [modalPaywall, setModalPaywall] = useState(false);
+  const [diasDecorridos, setDiasDecorridos] = useState(0);
+  const [mesFiltro, setMesFiltro] = useState(_hoje.getMonth() + 1);
+  const [anoFiltro, setAnoFiltro] = useState(_hoje.getFullYear());
+  const [todosMeses, setTodosMeses] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -19,31 +32,54 @@ export default function LancamentosScreen() {
     }, [])
   );
 
-  async function carregarLancamentos() {
-    const saved = await AsyncStorage.getItem(DESBLOQUEADO_KEY);
+  async function carregarLancamentos(mes = mesFiltro, ano = anoFiltro, todos = todosMeses) {
+    const [saved, primLancStr] = await Promise.all([
+      AsyncStorage.getItem(DESBLOQUEADO_KEY),
+      AsyncStorage.getItem(PRIMEIRO_LANCAMENTO_KEY),
+    ]);
     setDesbloqueado(saved === 'true');
+    if (primLancStr) {
+      const dias = Math.floor((Date.now() - parseInt(primLancStr, 10)) / 86400000);
+      setDiasDecorridos(Math.min(dias, LIMITE_DIAS));
+    }
 
-    const dados = buscarLancamentos();
+    const parsData = (d: string) => {
+      if (!d) return 0;
+      const [dia, mm, aa] = d.split('/').map(Number);
+      return new Date(aa, mm - 1, dia).getTime();
+    };
+
+    const atrasadosBuscados = buscarLancamentosEmAtraso();
+    atrasadosBuscados.sort((a, b) => parsData(a.dataVencimento) - parsData(b.dataVencimento));
+    setAtrasados(atrasadosBuscados);
+
+    const idsAtrasados = new Set(atrasadosBuscados.map((l: any) => l.id));
+    const fonte = todos ? buscarLancamentos() : buscarLancamentosPorMes(mes, ano);
+    const dados = fonte.filter((l: any) => !idsAtrasados.has(l.id));
     dados.sort((a, b) => {
-      const parsData = (d: string) => {
-        if (!d) return 0;
-        const [dia, mes, ano] = d.split('/').map(Number);
-        return new Date(ano, mes - 1, dia).getTime();
-      };
-
-      // Se são do mesmo grupo, ordena por parcelaAtual ASC (1/3, 2/3, 3/3)
-      if (a.grupoId && b.grupoId && a.grupoId === b.grupoId) {
-        return a.parcelaAtual - b.parcelaAtual;
-      }
-
-      // Grupos diferentes: mais recente no topo
       const vA = parsData(a.dataVencimento || a.data);
       const vB = parsData(b.dataVencimento || b.data);
-      if (vA !== vB) return vB - vA;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      if (vA !== vB) return vA - vB;
+      return a.parcelaAtual - b.parcelaAtual;
     });
 
     setLancamentos(dados);
+  }
+
+  function navMesFiltro(dir: number) {
+    let novoMes = mesFiltro + dir;
+    let novoAno = anoFiltro;
+    if (novoMes < 1) { novoMes = 12; novoAno--; }
+    if (novoMes > 12) { novoMes = 1; novoAno++; }
+    setMesFiltro(novoMes);
+    setAnoFiltro(novoAno);
+    carregarLancamentos(novoMes, novoAno, todosMeses);
+  }
+
+  function toggleTodos() {
+    const novo = !todosMeses;
+    setTodosMeses(novo);
+    carregarLancamentos(mesFiltro, anoFiltro, novo);
   }
 
   const fmt = (v: number) => 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -57,12 +93,27 @@ export default function LancamentosScreen() {
 
   const filtrados = lancamentos.filter(t =>
     t.descricao.toLowerCase().includes(busca.toLowerCase()) ||
-    (t.categoria && t.categoria.toLowerCase().includes(busca.toLowerCase()))
+    (t.categoria && t.categoria.toLowerCase().includes(busca.toLowerCase())) ||
+    (t.formaPag && t.formaPag.toLowerCase().includes(busca.toLowerCase()))
   );
 
+  const filtradosAtrasados = atrasados.filter(t =>
+    t.descricao.toLowerCase().includes(busca.toLowerCase()) ||
+    (t.categoria && t.categoria.toLowerCase().includes(busca.toLowerCase())) ||
+    (t.formaPag && t.formaPag.toLowerCase().includes(busca.toLowerCase()))
+  );
+
+  const mesAtualNum = _hoje.getMonth() + 1;
+  const anoAtualNum = _hoje.getFullYear();
+  const ehMesAtual = todosMeses || (mesFiltro === mesAtualNum && anoFiltro === anoAtualNum);
+
   const totalLancamentos = lancamentos.length;
-  const atingiuLimite = !desbloqueado && totalLancamentos >= LIMITE_GRATIS;
-  const restantes = Math.max(0, LIMITE_GRATIS - totalLancamentos);
+  const diasRestantes = Math.max(0, LIMITE_DIAS - diasDecorridos);
+  const lancRestantes = Math.max(0, LIMITE_GRATIS - totalLancamentos);
+  const pctLanc = totalLancamentos / LIMITE_GRATIS;
+  const pctDias = diasDecorridos / LIMITE_DIAS;
+  const showDiasProgress = diasDecorridos > 0 && pctDias >= pctLanc;
+  const atingiuLimite = !desbloqueado && (totalLancamentos >= LIMITE_GRATIS || diasDecorridos >= LIMITE_DIAS);
 
   function tentarAdicionar() {
     if (atingiuLimite) {
@@ -72,18 +123,29 @@ export default function LancamentosScreen() {
     }
   }
 
-  function deletar(id: string, descricao: string) {
-    Alert.alert(
-      'Excluir lancamento',
-      `Deseja excluir "${descricao}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Excluir', style: 'destructive', onPress: () => {
-          deletarLancamento(id);
-          carregarLancamentos();
-        }}
-      ]
-    );
+  function deletar(item: any) {
+    const ehGrupo = item.grupoId && (item.totalParcelas || 1) > 1;
+
+    if (ehGrupo) {
+      Alert.alert(
+        'Excluir lançamento',
+        `"${item.descricao}"\n\nEste lançamento faz parte de um grupo parcelado. O que deseja excluir?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Só esta parcela', onPress: () => { deletarLancamento(item.id); carregarLancamentos(); } },
+          { text: 'Todas as parcelas', style: 'destructive', onPress: () => { deletarGrupoLancamentos(item.grupoId); carregarLancamentos(); } },
+        ]
+      );
+    } else {
+      Alert.alert(
+        'Excluir lançamento',
+        `Deseja excluir "${item.descricao}"?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Excluir', style: 'destructive', onPress: () => { deletarLancamento(item.id); carregarLancamentos(); } },
+        ]
+      );
+    }
   }
 
   function editar(item: any) {
@@ -98,6 +160,11 @@ export default function LancamentosScreen() {
         obs: item.obs || '',
         tipo: item.tipo,
         dataPagamento: item.dataPagamento || '',
+        cartaoId: item.cartaoId || '',
+        data: item.data || '',
+        dataVencimento: item.dataVencimento || '',
+        grupoId: item.grupoId || '',
+        totalParcelas: String(item.totalParcelas || 1),
       }
     });
   }
@@ -112,43 +179,101 @@ export default function LancamentosScreen() {
         {!desbloqueado && (
           <View style={[styles.contadorBadge, atingiuLimite && styles.contadorBadgeRed]}>
             <Text style={[styles.contadorTxt, atingiuLimite && styles.contadorTxtRed]}>
-              {atingiuLimite ? '🔒 Limite atingido' : `${restantes} grátis restantes`}
+              {atingiuLimite
+                ? '🔒 Limite atingido'
+                : showDiasProgress
+                  ? `${diasRestantes}d restantes`
+                  : `${lancRestantes} lançamentos restantes`}
             </Text>
           </View>
         )}
       </View>
 
-      {/* Barra de progresso gratuito */}
       {!desbloqueado && (
         <View style={styles.progressBox}>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, {
-              width: `${Math.min(100, (totalLancamentos / LIMITE_GRATIS) * 100)}%` as any,
-              backgroundColor: atingiuLimite ? '#f25555' : totalLancamentos > 80 ? '#f7b731' : '#5294ff'
+              width: `${Math.min(100, (showDiasProgress ? pctDias : pctLanc) * 100)}%` as any,
+              backgroundColor: atingiuLimite ? '#f25555' : (showDiasProgress ? pctDias : pctLanc) > 0.8 ? '#f7b731' : '#5294ff'
             }]} />
           </View>
-          <Text style={styles.progressTxt}>{totalLancamentos}/{LIMITE_GRATIS} lançamentos gratuitos</Text>
+          <Text style={styles.progressTxt}>
+            {showDiasProgress
+              ? `${diasDecorridos} de ${LIMITE_DIAS} dias do período gratuito`
+              : `${totalLancamentos} de ${LIMITE_GRATIS} lançamentos gratuitos`}
+          </Text>
         </View>
       )}
+
+      <View style={styles.mesNavBar}>
+        <TouchableOpacity style={styles.mesNavBtn} onPress={() => navMesFiltro(-1)} disabled={todosMeses}>
+          <Text style={[styles.mesNavArrow, todosMeses && { color: colors.textMuted }]}>◀</Text>
+        </TouchableOpacity>
+        <Text style={[styles.mesNavTxt, todosMeses && { color: colors.textMuted }]}>
+          {MESES[mesFiltro - 1]} {anoFiltro}
+        </Text>
+        <TouchableOpacity style={styles.mesNavBtn} onPress={() => navMesFiltro(1)} disabled={todosMeses}>
+          <Text style={[styles.mesNavArrow, todosMeses && { color: colors.textMuted }]}>▶</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.todosBtnNav, todosMeses && styles.todosBtnNavOn]} onPress={toggleTodos}>
+          <Text style={[styles.todosBtnNavTxt, todosMeses && styles.todosBtnNavTxtOn]}>Todos</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.searchBar}>
         <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar lançamento..."
-          placeholderTextColor="#6b779a"
+          placeholderTextColor={colors.textMuted}
           value={busca}
           onChangeText={setBusca}
         />
         {busca.length > 0 &&
           <TouchableOpacity onPress={() => setBusca('')}>
-            <Text style={{ color:'#6b779a', fontSize:16 }}>✕</Text>
+            <Text style={{ color: colors.textMuted, fontSize:16 }}>✕</Text>
           </TouchableOpacity>
         }
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-        {filtrados.length === 0 && (
+
+        {/* Lançamentos em atraso — só no mês atual ou "Todos" */}
+        {ehMesAtual && filtradosAtrasados.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionHeaderTxt}>⚠️ Em atraso ({filtradosAtrasados.length})</Text>
+            </View>
+            {filtradosAtrasados.map((t) => (
+              <TouchableOpacity
+                key={t.id}
+                style={[styles.txRow, styles.txRowAtrasado]}
+                onPress={() => editar(t)}
+                onLongPress={() => deletar(t)}
+              >
+                <View style={[styles.txIco, styles.txIcoAtrasado]}>
+                  <Text style={{ fontSize: 18 }}>⚠️</Text>
+                </View>
+                <View style={styles.txInfo}>
+                  <Text style={styles.txName}>{t.descricao}</Text>
+                  <View style={styles.txMeta}>
+                    <Text style={styles.txTagAtrasado}>⚠️ Atrasado</Text>
+                    <Text style={styles.txSub}>{t.categoria}</Text>
+                  </View>
+                </View>
+                <View style={styles.txRight}>
+                  <Text style={[styles.txAmt, { color: '#f25555' }]}>
+                    -{fmt(t.valor)}
+                  </Text>
+                  <Text style={[styles.txDate, { color: '#f25555' }]}>{t.dataVencimento}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </>
+        )}
+
+        {/* Lançamentos normais */}
+        {filtrados.length === 0 && (!ehMesAtual || filtradosAtrasados.length === 0) && (
           <View style={styles.empty}>
             <Text style={styles.emptyIco}>📋</Text>
             <Text style={styles.emptyTxt}>
@@ -159,12 +284,17 @@ export default function LancamentosScreen() {
             </Text>
           </View>
         )}
+        {filtrados.length > 0 && (
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionHeaderTxt}>Todos os lançamentos</Text>
+          </View>
+        )}
         {filtrados.map((t) => (
           <TouchableOpacity
             key={t.id}
             style={styles.txRow}
             onPress={() => editar(t)}
-            onLongPress={() => deletar(t.id, t.descricao)}
+            onLongPress={() => deletar(t)}
           >
             <View style={styles.txIco}>
               <Text style={{ fontSize: 18 }}>{t.tipo === 'receita' ? '💰' : '💸'}</Text>
@@ -172,7 +302,7 @@ export default function LancamentosScreen() {
             <View style={styles.txInfo}>
               <Text style={styles.txName}>{t.descricao}</Text>
               <View style={styles.txMeta}>
-                <Text style={[styles.txTag, { color: tagColor[t.status] || '#aab4d0', backgroundColor: (tagColor[t.status] || '#aab4d0') + '22' }]}>
+                <Text style={[styles.txTag, { color: tagColor[t.status] || colors.textSec, backgroundColor: (tagColor[t.status] || colors.textSec) + '22' }]}>
                   {tagLabel[t.status] || t.status}
                 </Text>
                 <Text style={styles.txSub}>{t.categoria}</Text>
@@ -186,7 +316,7 @@ export default function LancamentosScreen() {
             </View>
           </TouchableOpacity>
         ))}
-        {filtrados.length > 0 && (
+        {(filtrados.length > 0 || filtradosAtrasados.length > 0) && (
           <Text style={styles.hint}>Toque para editar · Toque longo para excluir</Text>
         )}
       </ScrollView>
@@ -199,34 +329,33 @@ export default function LancamentosScreen() {
         <Text style={styles.fabText}>{atingiuLimite ? '🔒' : '+'}</Text>
       </TouchableOpacity>
 
-      {/* Modal Paywall */}
       <Modal visible={modalPaywall} transparent animationType="slide">
         <View style={styles.modalBg}>
           <View style={styles.modalBox}>
             <Text style={styles.modalIco}>🚀</Text>
-            <Text style={styles.modalTitle}>Desbloqueie o FinançasPRO</Text>
-            <Text style={styles.modalSub}>Você usou todos os 100 lançamentos gratuitos!</Text>
-
+            <Text style={styles.modalTitle}>Desbloqueie o Fala, Dinheiro!</Text>
+            <Text style={styles.modalSub}>
+              {diasDecorridos >= LIMITE_DIAS
+                ? `Seu período gratuito de ${LIMITE_DIAS} dias encerrou!`
+                : `Você atingiu o limite de ${LIMITE_GRATIS} lançamentos gratuitos!`}
+            </Text>
             <View style={styles.beneficios}>
               <Text style={styles.beneficioItem}>✅ Lançamentos ilimitados</Text>
               <Text style={styles.beneficioItem}>✅ Todos os recursos desbloqueados</Text>
               <Text style={styles.beneficioItem}>✅ Pagamento único — sem assinatura</Text>
               <Text style={styles.beneficioItem}>✅ Suporte prioritário</Text>
             </View>
-
             <View style={styles.precoBox}>
               <Text style={styles.precoLabel}>Acesso vitalício por apenas</Text>
               <Text style={styles.preco}>R$ 14,90</Text>
               <Text style={styles.precoSub}>pagamento único</Text>
             </View>
-
             <TouchableOpacity style={styles.btnComprar} onPress={() => {
               setModalPaywall(false);
-              alert('Pagamento in-app será implementado em breve!');
+              Alert.alert('Em breve', 'Pagamento in-app será implementado em breve!');
             }}>
               <Text style={styles.btnComprarTxt}>Desbloquear agora — R$ 14,90</Text>
             </TouchableOpacity>
-
             <TouchableOpacity style={styles.btnFechar} onPress={() => setModalPaywall(false)}>
               <Text style={styles.btnFecharTxt}>Agora não</Text>
             </TouchableOpacity>
@@ -237,53 +366,68 @@ export default function LancamentosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#12151e' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 22, paddingTop: 50, paddingBottom: 8 },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: '#f0f3ff' },
-  headerSub: { fontSize: 13, color: '#6b779a', marginTop: 2 },
-  contadorBadge: { backgroundColor: 'rgba(82,148,255,0.15)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(82,148,255,0.3)' },
-  contadorBadgeRed: { backgroundColor: 'rgba(242,85,85,0.15)', borderColor: 'rgba(242,85,85,0.3)' },
-  contadorTxt: { fontSize: 11, color: '#5294ff', fontWeight: '600' },
-  contadorTxtRed: { color: '#f25555' },
-  progressBox: { paddingHorizontal: 22, paddingBottom: 12 },
-  progressTrack: { height: 4, backgroundColor: '#2a3148', borderRadius: 4, overflow: 'hidden', marginBottom: 4 },
-  progressFill: { height: 4, borderRadius: 4 },
-  progressTxt: { fontSize: 10, color: '#6b779a' },
-  searchBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 12, backgroundColor: '#2a3148', borderRadius: 22, padding: 10, paddingHorizontal: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
-  searchIcon: { fontSize: 14, marginRight: 8 },
-  searchInput: { flex: 1, color: '#f0f3ff', fontSize: 13.5 },
-  empty: { alignItems: 'center', padding: 48 },
-  emptyIco: { fontSize: 48, marginBottom: 12 },
-  emptyTxt: { fontSize: 15, color: '#aab4d0', fontWeight: '600' },
-  emptySub: { fontSize: 13, color: '#6b779a', marginTop: 4 },
-  txRow: { flexDirection: 'row', alignItems: 'center', padding: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
-  txIco: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#2a3148', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  txInfo: { flex: 1 },
-  txName: { fontSize: 13.5, fontWeight: '500', color: '#f0f3ff' },
-  txMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
-  txTag: { fontSize: 10, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, fontWeight: '600' },
-  txSub: { fontSize: 11, color: '#6b779a' },
-  txRight: { alignItems: 'flex-end' },
-  txAmt: { fontSize: 14, fontWeight: '700', color: '#f0f3ff' },
-  txDate: { fontSize: 11, color: '#6b779a', marginTop: 2 },
-  hint: { textAlign: 'center', fontSize: 11, color: '#6b779a', padding: 16 },
-  fab: { position: 'absolute', bottom: 24, right: 20, width: 58, height: 58, borderRadius: 29, backgroundColor: '#5294ff', alignItems: 'center', justifyContent: 'center', elevation: 10, zIndex: 999 },
-  fabLocked: { backgroundColor: '#f25555' },
-  fabText: { fontSize: 30, color: '#fff', lineHeight: 34 },
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
-  modalBox: { backgroundColor: '#1c2133', borderRadius: 24, padding: 28, paddingBottom: 48, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', alignItems: 'center' },
-  modalIco: { fontSize: 48, marginBottom: 12 },
-  modalTitle: { fontSize: 22, fontWeight: '700', color: '#f0f3ff', marginBottom: 8, textAlign: 'center' },
-  modalSub: { fontSize: 14, color: '#aab4d0', marginBottom: 20, textAlign: 'center' },
-  beneficios: { alignSelf: 'stretch', marginBottom: 20 },
-  beneficioItem: { fontSize: 14, color: '#f0f3ff', paddingVertical: 4 },
-  precoBox: { alignItems: 'center', marginBottom: 24, backgroundColor: 'rgba(82,148,255,0.1)', borderRadius: 16, padding: 16, alignSelf: 'stretch', borderWidth: 1, borderColor: 'rgba(82,148,255,0.3)' },
-  precoLabel: { fontSize: 12, color: '#aab4d0', marginBottom: 4 },
-  preco: { fontSize: 36, fontWeight: '700', color: '#5294ff' },
-  precoSub: { fontSize: 12, color: '#6b779a', marginTop: 2 },
-  btnComprar: { backgroundColor: '#5294ff', borderRadius: 14, padding: 16, alignSelf: 'stretch', alignItems: 'center', marginBottom: 12 },
-  btnComprarTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  btnFechar: { padding: 12 },
-  btnFecharTxt: { color: '#6b779a', fontSize: 14 },
-});
+function makeStyles(c: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 22, paddingTop: 50, paddingBottom: 8 },
+    headerTitle: { fontSize: 22, fontWeight: '700', color: c.text },
+    headerSub: { fontSize: 13, color: c.textMuted, marginTop: 2 },
+    contadorBadge: { backgroundColor: 'rgba(82,148,255,0.15)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(82,148,255,0.3)' },
+    contadorBadgeRed: { backgroundColor: 'rgba(242,85,85,0.15)', borderColor: 'rgba(242,85,85,0.3)' },
+    contadorTxt: { fontSize: 11, color: '#5294ff', fontWeight: '600' },
+    contadorTxtRed: { color: '#f25555' },
+    progressBox: { paddingHorizontal: 22, paddingBottom: 12 },
+    progressTrack: { height: 4, backgroundColor: c.barTrack2, borderRadius: 4, overflow: 'hidden', marginBottom: 4 },
+    progressFill: { height: 4, borderRadius: 4 },
+    progressTxt: { fontSize: 10, color: c.textMuted },
+    mesNavBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
+    mesNavBtn: { padding: 6 },
+    mesNavArrow: { fontSize: 16, color: '#5294ff', fontWeight: '700' },
+    mesNavTxt: { fontSize: 14, fontWeight: '600', color: c.text, minWidth: 148, textAlign: 'center' },
+    todosBtnNav: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: c.input, borderWidth: 1, borderColor: c.border, marginLeft: 4 },
+    todosBtnNavOn: { backgroundColor: 'rgba(82,148,255,0.18)', borderColor: '#5294ff' },
+    todosBtnNavTxt: { fontSize: 12, color: c.textMuted, fontWeight: '600' },
+    todosBtnNavTxtOn: { color: '#5294ff' },
+    searchBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 12, backgroundColor: c.input, borderRadius: 22, padding: 10, paddingHorizontal: 16, borderWidth: 1, borderColor: c.border },
+    searchIcon: { fontSize: 14, marginRight: 8 },
+    searchInput: { flex: 1, color: c.text, fontSize: 13.5 },
+    empty: { alignItems: 'center', padding: 48 },
+    emptyIco: { fontSize: 48, marginBottom: 12 },
+    emptyTxt: { fontSize: 15, color: c.textSec, fontWeight: '600' },
+    emptySub: { fontSize: 13, color: c.textMuted, marginTop: 4 },
+    txRow: { flexDirection: 'row', alignItems: 'center', padding: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: c.borderLight },
+    txIco: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.input, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    txInfo: { flex: 1 },
+    txName: { fontSize: 13.5, fontWeight: '500', color: c.text },
+    txMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
+    txTag: { fontSize: 10, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, fontWeight: '600' },
+    txSub: { fontSize: 11, color: c.textMuted },
+    txRight: { alignItems: 'flex-end' },
+    txAmt: { fontSize: 14, fontWeight: '700', color: c.text },
+    txDate: { fontSize: 11, color: c.textMuted, marginTop: 2 },
+    hint: { textAlign: 'center', fontSize: 11, color: c.textMuted, padding: 16 },
+    sectionHeader: { paddingHorizontal: 20, paddingVertical: 8, backgroundColor: c.bg },
+    sectionHeaderTxt: { fontSize: 11, fontWeight: '700', color: c.textMuted, textTransform: 'uppercase', letterSpacing: 0.8 },
+    txRowAtrasado: { backgroundColor: 'rgba(242,85,85,0.06)', borderLeftWidth: 3, borderLeftColor: '#f25555' },
+    txIcoAtrasado: { backgroundColor: 'rgba(242,85,85,0.15)' },
+    txTagAtrasado: { fontSize: 10, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, fontWeight: '700', color: '#f25555', backgroundColor: 'rgba(242,85,85,0.15)' },
+    fab: { position: 'absolute', bottom: 24, right: 20, width: 58, height: 58, borderRadius: 29, backgroundColor: '#5294ff', alignItems: 'center', justifyContent: 'center', elevation: 10, zIndex: 999 },
+    fabLocked: { backgroundColor: '#f25555' },
+    fabText: { fontSize: 30, color: '#fff', lineHeight: 34 },
+    modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
+    modalBox: { backgroundColor: c.card, borderRadius: 24, padding: 28, paddingBottom: 48, borderWidth: 1, borderColor: c.border, alignItems: 'center' },
+    modalIco: { fontSize: 48, marginBottom: 12 },
+    modalTitle: { fontSize: 22, fontWeight: '700', color: c.text, marginBottom: 8, textAlign: 'center' },
+    modalSub: { fontSize: 14, color: c.textSec, marginBottom: 20, textAlign: 'center' },
+    beneficios: { alignSelf: 'stretch', marginBottom: 20 },
+    beneficioItem: { fontSize: 14, color: c.text, paddingVertical: 4 },
+    precoBox: { alignItems: 'center', marginBottom: 24, backgroundColor: 'rgba(82,148,255,0.1)', borderRadius: 16, padding: 16, alignSelf: 'stretch', borderWidth: 1, borderColor: 'rgba(82,148,255,0.3)' },
+    precoLabel: { fontSize: 12, color: c.textSec, marginBottom: 4 },
+    preco: { fontSize: 36, fontWeight: '700', color: '#5294ff' },
+    precoSub: { fontSize: 12, color: c.textMuted, marginTop: 2 },
+    btnComprar: { backgroundColor: '#5294ff', borderRadius: 14, padding: 16, alignSelf: 'stretch', alignItems: 'center', marginBottom: 12 },
+    btnComprarTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    btnFechar: { padding: 12 },
+    btnFecharTxt: { color: c.textMuted, fontSize: 14 },
+  });
+}
