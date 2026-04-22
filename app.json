@@ -16,9 +16,9 @@
       }
     },
     "android": {
-      "package": "com.financaspro.app",
+      "package": "com.tatriapps.faladinheiro",
       "adaptiveIcon": {
-        "backgroundColor": "#0D3B6E",
+        "backgroundColor": "#1a5c3a",
         "foregroundImage": "./assets/images/icon.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
