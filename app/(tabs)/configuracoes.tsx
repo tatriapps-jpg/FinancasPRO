@@ -70,7 +70,7 @@ export default function ConfiguracoesScreen() {
 
       const json = JSON.stringify(backup, null, 2);
       const dataHoje = new Date().toISOString().split('T')[0];
-      const path = FileSystem.documentDirectory + `FinancasPRO_backup_${dataHoje}.json`;
+      const path = FileSystem.documentDirectory + `FalaDinheiro_backup_${dataHoje}.json`;
 
       await FileSystem.writeAsStringAsync(path, json, { encoding: FileSystem.EncodingType.UTF8 });
 
@@ -91,7 +91,7 @@ export default function ConfiguracoesScreen() {
   async function selecionarBackup() {
     try {
       const files = await FileSystem.readDirectoryAsync(FileSystem.documentDirectory!);
-      const backups = files.filter(f => f.startsWith('FinancasPRO_backup_') && f.endsWith('.json'));
+      const backups = files.filter(f => f.startsWith('FalaDinheiro_backup_') && f.endsWith('.json'));
       if (backups.length === 0) {
         Alert.alert('Nenhum backup encontrado', 'Faça um backup antes de restaurar.');
         return;

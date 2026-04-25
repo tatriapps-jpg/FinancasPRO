@@ -200,7 +200,7 @@ export default function RelatoriosScreen() {
       <View style={styles.exportRow}>
         <TouchableOpacity
           style={[styles.btnExport, exportando && { opacity: 0.6 }]}
-          onPress={() => gerarExcel(buscarLancamentosPorMes(mes, ano), `FinancasPRO_${MESES[mes-1]}_${ano}.xlsx`, `${MESES[mes-1]} ${ano}`, true)}
+          onPress={() => gerarExcel(buscarLancamentosPorMes(mes, ano), `FalaDinheiro_${MESES[mes-1]}_${ano}.xlsx`, `${MESES[mes-1]} ${ano}`, true)}
           disabled={exportando}
         >
           <Text style={styles.btnExportIco}>📅</Text>
@@ -208,7 +208,7 @@ export default function RelatoriosScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.btnExportTri, exportando && { opacity: 0.6 }]}
-          onPress={() => gerarExcel(getLancamentosTrimestreAtual(), `FinancasPRO_Trimestre_${mes}_${ano}.xlsx`, 'Trimestre', false, true)}
+          onPress={() => gerarExcel(getLancamentosTrimestreAtual(), `FalaDinheiro_Trimestre_${mes}_${ano}.xlsx`, 'Trimestre', false, true)}
           disabled={exportando}
         >
           <Text style={styles.btnExportIco}>📆</Text>
@@ -216,7 +216,7 @@ export default function RelatoriosScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.btnExportAlt, exportando && { opacity: 0.6 }]}
-          onPress={() => gerarExcel(getLancamentosAnoAtual(), `FinancasPRO_Ano_${ano}.xlsx`, `Ano ${ano}`, false, true)}
+          onPress={() => gerarExcel(getLancamentosAnoAtual(), `FalaDinheiro_Ano_${ano}.xlsx`, `Ano ${ano}`, false, true)}
           disabled={exportando}
         >
           <Text style={styles.btnExportIco}>📋</Text>
