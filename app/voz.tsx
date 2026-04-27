@@ -77,7 +77,7 @@ const MAP_CATEGORIA: Record<string, string> = {
   manutencao: 'Manutenção', manutenção: 'Manutenção',
   escola: 'Educação', faculdade: 'Educação', curso: 'Educação',
   educacao: 'Educação', educação: 'Educação',
-  juros: 'Custos Financeiros', multa: 'Custos Financeiros', taxa: 'Custos Financeiros',
+  juros: 'Custos Financeiros', multa: 'Custos Financeiros',
   roupa: 'Vestuário', calcado: 'Vestuário', calçado: 'Vestuário',
   vestuario: 'Vestuário', vestuário: 'Vestuário',
   eletronico: 'Eletrônicos', eletrônico: 'Eletrônicos', celular: 'Eletrônicos',
@@ -85,6 +85,7 @@ const MAP_CATEGORIA: Record<string, string> = {
   investimento: 'Investimentos', poupanca: 'Investimentos', poupança: 'Investimentos',
   emprestimo: 'Empréstimos', empréstimo: 'Empréstimos', financiamento: 'Empréstimos',
   imposto: 'Impostos', ir: 'Impostos', iptu: 'Impostos', ipva: 'Impostos',
+  tributo: 'Impostos', darf: 'Impostos', taxa: 'Impostos',
   doacao: 'Doações', doação: 'Doações',
   esporte: 'Esportes', academia: 'Esportes', ginastica: 'Esportes',
   advogado: 'Serviços Profissionais', contador: 'Serviços Profissionais',
@@ -103,17 +104,77 @@ function capitalizarPalavras(texto: string): string {
 function detectarCategoria(descricao: string): string {
   const t = normalizar(descricao);
   for (const [palavra, cat] of Object.entries(MAP_CATEGORIA)) {
-    if (t.includes(normalizar(palavra))) return cat;
+    const p = normalizar(palavra);
+    if (new RegExp(`\\b${p}\\b`).test(t)) return cat;
   }
   return '';
+}
+
+// ─── Extenso → número ────────────────────────────────────────────────────────
+// Dicionário de palavras numéricas (normalizado sem acentos)
+const PALAVRAS_NUM: Record<string, number> = {
+  zero: 0,
+  um: 1, uma: 1, dois: 2, duas: 2,
+  tres: 3, trez: 3, treis: 3, tree: 3, tri: 3,
+  quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9,
+  dez: 10, onze: 11, doze: 12, treze: 13, quatorze: 14, catorze: 14,
+  quinze: 15, dezesseis: 16, dezessete: 17, dezoito: 18, dezenove: 19,
+  vinte: 20, trinta: 30, quarenta: 40, cinquenta: 50,
+  sessenta: 60, setenta: 70, oitenta: 80, noventa: 90,
+  cem: 100, sem: 100, cento: 100,
+  duzentos: 200, duzentas: 200,
+  trezentos: 300, trezentas: 300,
+  quatrocentos: 400, quatrocentas: 400,
+  quinhentos: 500, quinhentas: 500,
+  seiscentos: 600, seiscentas: 600,
+  setecentos: 700, setecentas: 700,
+  oitocentos: 800, oitocentas: 800,
+  novecentos: 900, novecentas: 900,
+  mil: 1_000,
+  milhao: 1_000_000, milhoes: 1_000_000,
+};
+
+/**
+ * Soma tokens de extenso (palavras E dígitos) em um valor inteiro.
+ * Aceita mistura dígito+palavra: ["10","mil"] → 10000, ["dez","mil"] → 10000.
+ * Tokens "e" e "com" são ignorados como conectores.
+ *
+ * Casos de teste:
+ *   ["dez","mil"]              → 10000
+ *   ["10","mil"]               → 10000  ← fix: dígito como multiplicador
+ *   ["vinte","mil"]            → 20000
+ *   ["5","mil"]                → 5000   ← fix
+ *   ["dois","mil","trezentos"] → 2300
+ *   ["2","mil","300"]          → 2300   ← fix
+ *   ["trezentos","cinquenta"]  → 350
+ *   ["mil","quinhentos"]       → 1500
+ *   ["um","milhao"]            → 1000000
+ *   ["1","milhao"]             → 1000000 ← fix
+ */
+function somarExtenso(tokens: string[]): number {
+  let total = 0;
+  let atual = 0;
+  for (const tok of tokens) {
+    if (!tok || tok === 'e' || tok === 'com') continue;
+    const fromDict = PALAVRAS_NUM[tok];
+    const fromInt  = parseInt(tok, 10);
+    const n = fromDict !== undefined ? fromDict : (!isNaN(fromInt) ? fromInt : undefined);
+    if (n === undefined) continue;
+    if (n >= 1_000_000) { total += (atual || 1) * n; atual = 0; }
+    else if (n === 1000) { total += (atual || 1) * 1000; atual = 0; }
+    else                 { atual += n; }
+  }
+  return total + atual;
 }
 
 /**
  * Interpreta valores falados em português.
  * Suporta:
  *  - números diretos: "50", "150,30", "R$ 45"
- *  - por extenso: "cem", "duzentos e cinquenta", "mil", "dois mil", "vinte e três"
- *  - centavos: "cinquenta e setenta centavos", "cem reais e quinze centavos"
+ *  - por extenso puro: "cem", "dez mil", "dois mil e trezentos"
+ *  - misto dígito+extenso: "10 mil", "5 mil", "2 mil e 300"
+ *  - milhão: "um milhão", "1 milhão e 500 mil"
+ *  - centavos: "cem reais e quinze centavos"
  *  - separadores de centavos: "258 com 52", "258 e 52", "258 vírgula 52", "258 52"
  */
 function interpretarValor(texto: string): string {
@@ -147,71 +208,25 @@ function interpretarValor(texto: string): string {
   const matchDecimal = t.match(/(\d+)[,.](\d{1,2})(?!\d)/);
   if (matchDecimal) return `${matchDecimal[1]}.${matchDecimal[2].padEnd(2, '0')}`;
 
-  // Mapa de palavras numéricas
-  const unidades: Record<string, number> = {
-    zero: 0, um: 1, uma: 1, dois: 2, duas: 2,
-    tres: 3, trez: 3, treis: 3, tree: 3, tri: 3,
-    quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9,
-    dez: 10, onze: 11, doze: 12, treze: 13, quatorze: 14, catorze: 14,
-    quinze: 15, dezesseis: 16, dezessete: 17, dezoito: 18, dezenove: 19,
-    vinte: 20, trinta: 30, quarenta: 40, cinquenta: 50,
-    sessenta: 60, setenta: 70, oitenta: 80, noventa: 90,
-    cem: 100, sem: 100, cento: 100,
-    duzentos: 200, duzentas: 200,
-    trezentos: 300, trezentas: 300,
-    quatrocentos: 400, quatrocentas: 400,
-    quinhentos: 500, quinhentas: 500,
-    seiscentos: 600, seiscentas: 600,
-    setecentos: 700, setecentas: 700,
-    oitocentos: 800, oitocentas: 800,
-    novecentos: 900, novecentas: 900,
-    mil: 1000,
-  };
-
-  // Verifica se há "centavos" no texto para separar partes
+  // Extenso: separa parte de reais e centavos, converte com somarExtenso
   const temCentavos = t.includes('centavos');
   let parteReais = t;
   let parteCentavos = '';
 
   if (temCentavos) {
-    // Separadores possíveis entre reais e centavos
+    // Remover "reais" deixa duplo espaço; \s{2,} localiza o separador reais→centavos
     const sepMatch = t.match(/^(.*?)\s{2,}(?:(?:e|com|virgula|ponto|,)\s+)?(.*?)\s*centavos/);
     if (sepMatch) {
-      parteReais = sepMatch[1].trim();
+      parteReais    = sepMatch[1].trim();
       parteCentavos = sepMatch[2].trim();
     } else {
-      // fallback: tudo antes de "centavos" são centavos se não houver parte de reais
-      const antes = t.replace(/\s*centavos.*$/, '').trim();
-      // Se veio só centavos sem parte de reais
-      parteReais = '';
-      parteCentavos = antes;
+      parteReais    = '';
+      parteCentavos = t.replace(/\s*centavos.*$/, '').trim();
     }
   }
 
-  function somarPalavras(parte: string): number {
-    const palavras = parte.split(/\s+/);
-    let total = 0;
-    let atual = 0;
-    let temMil = false;
-    for (const p of palavras) {
-      const n = unidades[p];
-      if (n === undefined) continue;
-      if (n === 1000) {
-        // "mil" sozinho = 1000, "dois mil" = atual*1000
-        total += (atual > 0 ? atual : 1) * 1000;
-        atual = 0;
-        temMil = true;
-      } else {
-        atual += n;
-      }
-    }
-    total += atual;
-    // Se só tinha "mil" no texto e nada mais, atual=0, total já foi setado
-    return total;
-  }
-
-  const valorReais = somarPalavras(parteReais);
-  const valorCentavos = parteCentavos ? somarPalavras(parteCentavos) : 0;
+  const valorReais    = somarExtenso(parteReais.split(/\s+/));
+  const valorCentavos = parteCentavos ? somarExtenso(parteCentavos.split(/\s+/)) : 0;
 
   if (valorReais > 0 || valorCentavos > 0) {
     const resultado = valorReais + valorCentavos / 100;
@@ -228,21 +243,27 @@ function interpretarTipo(texto: string): 'despesa' | 'receita' | null {
   return null;
 }
 
+// Detecta Pix em todas as variações fonéticas que o Speech pt-BR pode transcrever
+function ehPix(t: string): boolean {
+  return (
+    t === 'pi' || t === 'pí' ||
+    t.match(/\bpi[xks]\b/) !== null ||
+    t.match(/\bp[ií]x/) !== null ||
+    t.includes('pix')   || t.includes('pics')   || t.includes('pis')   ||
+    t.includes('pik')   || t.includes('piks')   || t.includes('pixs')  ||
+    t.includes('pique') || t.includes('pick')   || t.includes('pyx')   ||
+    t.includes('pex')   || t.includes('pixi')   || t.includes('pixe')  ||
+    t.includes('pichi') || t.includes('pich')   || t.includes('pixar') ||
+    t.includes('pixou') || t.includes('bix')    || t.includes('fix')   ||
+    t.includes('pixici')|| t.includes('piquici')|| t.includes('phix')
+  );
+}
+
 function interpretarFormaPag(texto: string): string {
   const t = normalizar(texto);
   if (t.includes('credito') || t.includes('cartao') || t.includes('cartão')) return 'Credito';
   if (t.includes('debito') || t.includes('debto') || t.includes('debico')) return 'Debito';
-  // PIX — variações fonéticas ampliadas
-  if (
-    t.match(/\bpi[xks]\b/) || t.includes('pics') || t.includes('pis') ||
-    t.includes('piks') || t.includes('pixs') || t.includes('pich') ||
-    t.includes('pique') || t.includes('pik') || t.includes('pyx') ||
-    t.includes('pex') || t.includes('pix') || t.includes('pis ') ||
-    t.match(/\bp[ií]x/) || t.includes('pixi') || t.includes('pichi') ||
-    t.includes('pixe') || t.includes('pixar') || t.includes('pixou') ||
-    t.includes('bix') || t.includes('fix') || t === 'pi' || t === 'pí' ||
-    t.includes('pixici') || t.includes('piquici') || t.includes('phix')
-  ) return 'Pix';
+  if (ehPix(t)) return 'Pix';
   if (t.includes('dinheiro') || t.includes('especie') || t.includes('cash') || t.includes('espécie') || t.includes('dinhero')) return 'Dinheiro';
   if (t.includes('boleto') || t.includes('boletos') || t.includes('boletu')) return 'Boleto';
   if (t.includes('deposito') || t.includes('depósito') || t.includes('depositar')) return 'Depósito';
@@ -254,10 +275,7 @@ function interpretarFormaPag(texto: string): string {
 // Formas de pagamento aceitas para receitas
 function interpretarFormaPagReceita(texto: string): string {
   const t = normalizar(texto);
-  if (
-    t.match(/\bpi[xks]\b/) || t.includes('pix') || t.includes('pics') ||
-    t.includes('pis') || t.includes('pik') || t.includes('pyx') || t.includes('pex')
-  ) return 'Pix';
+  if (ehPix(t)) return 'Pix';
   if (t.includes('deposito') || t.includes('depositar') || t.includes('depósito')) return 'Depósito';
   if (t.includes('transferencia') || t.includes('transferência') || t.includes('ted') || t.includes('doc')) return 'Transferência';
   if (t.includes('dinheiro') || t.includes('especie') || t.includes('cash')) return 'Dinheiro';
@@ -342,6 +360,7 @@ export default function VozScreen() {
   const categoriasRecRef  = useRef<string[]>([]);
   const vozVelocidadeRef = useRef(1.3);
   const gravacaoAtiva = useRef(false);
+  const historicoEtapas = useRef<Etapa[]>([]);
 
   useEffect(() => { lancamentoRef.current = lancamento; }, [lancamento]);
   useEffect(() => { usarTutorialRef.current = usarTutorial; }, [usarTutorial]);
@@ -511,6 +530,7 @@ export default function VozScreen() {
   }
 
   function avancarEtapa(novaEtapa: Etapa, atualizacao: Partial<Lancamento>) {
+    historicoEtapas.current = [...historicoEtapas.current, etapaRef.current];
     const novoLanc = { ...lancamentoRef.current, ...atualizacao };
     setLancamento(novoLanc);
     lancamentoRef.current = novoLanc;
@@ -749,6 +769,7 @@ export default function VozScreen() {
 
   function reiniciar() {
     Speech.stop();
+    historicoEtapas.current = [];
     setEtapa('tipo'); etapaRef.current = 'tipo';
     setTranscricao(''); setErro(''); jaProcessou.current = false;
     setLancamento({
@@ -757,6 +778,18 @@ export default function VozScreen() {
       contaId: '', contaNome: '', obs: '',
     });
     setTimeout(() => falar(getPergunta('tipo')), 300);
+  }
+
+  function voltarEtapa() {
+    const hist = historicoEtapas.current;
+    if (hist.length === 0) return;
+    const anterior = hist[hist.length - 1];
+    historicoEtapas.current = hist.slice(0, -1);
+    Speech.stop();
+    setErro(''); setTranscricao(''); textoFinal.current = ''; jaProcessou.current = false;
+    setEtapa(anterior);
+    etapaRef.current = anterior;
+    setTimeout(() => falar(getPergunta(anterior)), 150);
   }
 
   const fmt = (v: string) => {
@@ -907,11 +940,18 @@ export default function VozScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Recomeçar — visível em todas as etapas exceto confirmação */}
+        {/* Navegação: Voltar + Recomeçar */}
         {etapa !== 'confirmacao' && (
-          <TouchableOpacity style={s.btnRecomecar} onPress={reiniciar}>
-            <Text style={s.btnRecomecarTxt}>🔄 Recomeçar</Text>
-          </TouchableOpacity>
+          <View style={s.botoesNav}>
+            {etapa !== 'tipo' && (
+              <TouchableOpacity style={s.btnVoltar} onPress={voltarEtapa}>
+                <Text style={s.btnVoltarTxt}>◀ Voltar</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={s.btnRecomecar} onPress={reiniciar}>
+              <Text style={s.btnRecomecarTxt}>🔄 Recomeçar</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Indicador falando */}
@@ -1021,8 +1061,17 @@ function makeStyles(c: Colors) {
     micBtnGravando: { backgroundColor: '#f25555' },
     micIco: { fontSize: 44 },
     micTxt: { fontSize: 11, color: '#fff', fontWeight: '600' },
+    botoesNav: {
+      flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+      gap: 12, marginTop: 16,
+    },
+    btnVoltar: {
+      paddingVertical: 8, paddingHorizontal: 20,
+      borderRadius: 20, borderWidth: 1, borderColor: c.border,
+      backgroundColor: 'transparent',
+    },
+    btnVoltarTxt: { fontSize: 12, color: c.textSec, fontWeight: '500' },
     btnRecomecar: {
-      alignSelf: 'center', marginTop: 16,
       paddingVertical: 8, paddingHorizontal: 20,
       borderRadius: 20, borderWidth: 1, borderColor: c.border,
       backgroundColor: 'transparent',

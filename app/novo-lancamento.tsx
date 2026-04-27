@@ -395,7 +395,7 @@ export default function NovoLancamentoScreen() {
         <Text style={styles.lbl}>Descrição *</Text>
         <TextInput
           style={styles.input}
-          placeholder="Ex: Super X, Farmácia Y, Juca Eletricista..."
+          placeholder={tipo === 'receita' ? 'Ex: Empresa X, Apartamento, Venda de Carro...' : 'Ex: Supermercado, Farmácia, Eletricista...'}
           placeholderTextColor={colors.textMuted}
           value={descricao}
           onChangeText={setDescricao}

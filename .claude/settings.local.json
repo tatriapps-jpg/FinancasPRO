@@ -11,7 +11,8 @@
       "Bash(./gradlew assembleRelease)",
       "Bash(python -c \"from PIL import Image; print\\('pillow ok'\\)\")",
       "Bash(python *)",
-      "Bash(./gradlew clean *)"
+      "Bash(./gradlew clean *)",
+      "Bash(grep -E \"BUILD \\(SUCCESSFUL|FAILED\\)|assembleRelease$|actionable tasks\" \"C:\\\\Users\\\\usuario\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-usuario-FinancasPRO\\\\d5ed3a3b-b520-4e5f-87fb-2aa7316e4e54\\\\tasks\\\\bvem0d9n4.output\")"
     ]
   }
 }
