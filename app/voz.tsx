@@ -114,7 +114,7 @@ function detectarCategoria(descricao: string): string {
  *  - números diretos: "50", "150,30", "R$ 45"
  *  - por extenso: "cem", "duzentos e cinquenta", "mil", "dois mil", "vinte e três"
  *  - centavos: "cinquenta e setenta centavos", "cem reais e quinze centavos"
- *  - separadores de centavos: "e", "com", "vírgula", "ponto"
+ *  - separadores de centavos: "258 com 52", "258 e 52", "258 vírgula 52", "258 52"
  */
 function interpretarValor(texto: string): string {
   let t = texto.toLowerCase()
@@ -123,6 +123,11 @@ function interpretarValor(texto: string): string {
     .replace(/reais?/g, '')
     .replace(/centavos?/g, ' centavos')
     .trim();
+
+  // Separadores de centavos: "258 com 52", "258 e 52", "258 vírgula 52", "258 52"
+  // Deve vir antes de semEspaco para evitar que "258 52" vire "25852"
+  const matchSepCents = t.match(/^(\d+)\s+(?:(?:com|e|virgula|ponto)\s+)?(\d{1,2})$/);
+  if (matchSepCents) return `${matchSepCents[1]}.${matchSepCents[2].padEnd(2, '0')}`;
 
   // Tenta número direto (aceita ponto ou vírgula como decimal)
   // Remove espaços antes de tentar parse
@@ -558,6 +563,7 @@ export default function VozScreen() {
           const tNorm = normalizar(t);
           const encontrada = catsList.find(c => tNorm.includes(normalizar(c)));
           if (encontrada) categoria = encontrada;
+          else if (l.tipo === 'receita') categoria = 'Outros';
           else categoria = detectarCategoria(texto) || capitalizarPalavras(texto);
         }
 

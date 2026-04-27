@@ -23,7 +23,7 @@ type Cartao = { id: string; apelido: string; bandeira: string; ultimos4: string;
 type Conta = { id: string; nome: string; banco: string; tipo: string; saldo: string; };
 
 function Dropdown({
-  label, value, placeholder, opcoes, onSelect, renderItem, colors,
+  label, value, placeholder, opcoes, onSelect, renderItem, colors, onNovaCat,
 }: {
   label: string;
   value: string;
@@ -32,6 +32,7 @@ function Dropdown({
   onSelect: (v: string) => void;
   renderItem?: (v: string) => string;
   colors: Colors;
+  onNovaCat?: () => void;
 }) {
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState('');
@@ -53,6 +54,8 @@ function Dropdown({
     itemTxt: { fontSize: 14, color: colors.text },
     itemTxtOn: { color: '#5294ff', fontWeight: '600' },
     check: { fontSize: 14, color: '#5294ff' },
+    novaCatBtn: { marginTop: 8, paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.borderLight },
+    novaCatTxt: { fontSize: 14, color: '#5294ff', fontWeight: '600' },
   });
 
   return (
@@ -94,6 +97,14 @@ function Dropdown({
                 </TouchableOpacity>
               )}
             />
+            {onNovaCat && (
+              <TouchableOpacity
+                style={dd.novaCatBtn}
+                onPress={() => { setAberto(false); setBusca(''); onNovaCat(); }}
+              >
+                <Text style={dd.novaCatTxt}>＋ Nova categoria</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -129,7 +140,8 @@ export default function NovoLancamentoScreen() {
   const [previewDatas, setPreviewDatas] = useState<string[]>([]);
   const [categoriasDesp, setCategoriasDesp] = useState<string[]>([]);
   const [categoriasRec, setCategoriasRec] = useState<string[]>([]);
-  const [historicoDescricoes, setHistoricoDescricoes] = useState<string[]>([]);
+  const [historicoDesp, setHistoricoDesp] = useState<string[]>([]);
+  const [historicoRec, setHistoricoRec]   = useState<string[]>([]);
 
   useEffect(() => {
     loadDados();
@@ -172,7 +184,8 @@ export default function NovoLancamentoScreen() {
 
   useEffect(() => {
     if (descricao.length >= 2) {
-      const filtradas = historicoDescricoes
+      const historico = tipo === 'despesa' ? historicoDesp : historicoRec;
+      const filtradas = historico
         .filter(d => d.toLowerCase().includes(descricao.toLowerCase()) && d !== descricao)
         .slice(0, 5);
       setSugestoes(filtradas);
@@ -210,10 +223,12 @@ export default function NovoLancamentoScreen() {
     const contasCarregadas = await buscarContas();
     setContas(contasCarregadas);
     const todos = buscarLancamentos();
-    const unicas = [...new Set(todos.map((l: any) => l.descricao))]
-      .filter(d => !d.includes('('))
-      .sort((a, b) => a.localeCompare(b));
-    setHistoricoDescricoes(unicas);
+    const unicas = (t: string) =>
+      [...new Set(todos.filter((l: any) => l.tipo === t).map((l: any) => l.descricao as string))]
+        .filter(d => !d.includes('('))
+        .sort((a, b) => a.localeCompare(b));
+    setHistoricoDesp(unicas('despesa'));
+    setHistoricoRec(unicas('receita'));
   }
 
   function onDataCalendarioBoleto(event: any, selectedDate?: Date) {
@@ -410,6 +425,7 @@ export default function NovoLancamentoScreen() {
           opcoes={tipo === 'despesa' ? categoriasDesp : categoriasRec}
           onSelect={setCategoria}
           colors={colors}
+          onNovaCat={() => router.push('/categorias' as any)}
         />
 
         {tipo === 'despesa' && <>

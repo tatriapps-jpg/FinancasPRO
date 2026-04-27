@@ -4,7 +4,14 @@
       "Bash(npx expo:*)",
       "Bash(node:*)",
       "Bash(eas build:*)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(xargs grep *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(./gradlew assembleRelease)",
+      "Bash(python -c \"from PIL import Image; print\\('pillow ok'\\)\")",
+      "Bash(python *)",
+      "Bash(./gradlew clean *)"
     ]
   }
 }
