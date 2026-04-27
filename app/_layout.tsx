@@ -38,10 +38,10 @@ function RootContent() {
   }, []);
 
   useEffect(() => {
-    if (pronto && temPin) {
+    if (pronto) {
       router.replace('/pin');
     }
-  }, [pronto, temPin]);
+  }, [pronto]);
 
   async function inicializar() {
     const [pin, status] = await Promise.all([

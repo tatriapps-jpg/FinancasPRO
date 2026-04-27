@@ -193,7 +193,7 @@ export default function NovoLancamentoScreen() {
     } else {
       setMostrarSugestoes(false);
     }
-  }, [descricao]);
+  }, [descricao, tipo]);
 
   function hoje() {
     const d = new Date();

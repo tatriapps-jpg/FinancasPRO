@@ -135,8 +135,16 @@ function interpretarValor(texto: string): string {
   const matchDireto = semEspaco.match(/^(\d+\.?\d*)$/);
   if (matchDireto) return matchDireto[1];
 
-  // Tenta padrão "X reais e Y centavos" ou "X,YY" com casas decimais
-  const matchDecimal = t.match(/(\d+)[,.](\d{1,2})/);
+  // Separador de milhar europeu: "1.200" → 1200, "1.200,50" → 1200.50
+  const matchMilhar = t.match(/^(\d{1,3}(?:\.\d{3})+)(?:,(\d{1,2}))?$/);
+  if (matchMilhar) {
+    const inteiro = matchMilhar[1].replace(/\./g, '');
+    const cents = matchMilhar[2] ? matchMilhar[2].padEnd(2, '0') : '';
+    return cents ? `${inteiro}.${cents}` : inteiro;
+  }
+
+  // Tenta padrão "X,YY" com casas decimais — lookahead evita capturar separador de milhar
+  const matchDecimal = t.match(/(\d+)[,.](\d{1,2})(?!\d)/);
   if (matchDecimal) return `${matchDecimal[1]}.${matchDecimal[2].padEnd(2, '0')}`;
 
   // Mapa de palavras numéricas
@@ -330,6 +338,8 @@ export default function VozScreen() {
   const etapaRef = useRef<Etapa>('tipo');
   const cartoesRef = useRef<Cartao[]>([]);
   const contasRef = useRef<Conta[]>([]);
+  const categoriasDispRef = useRef<string[]>([]);
+  const categoriasRecRef  = useRef<string[]>([]);
   const vozVelocidadeRef = useRef(1.3);
   const gravacaoAtiva = useRef(false);
 
@@ -338,6 +348,8 @@ export default function VozScreen() {
   useEffect(() => { etapaRef.current = etapa; }, [etapa]);
   useEffect(() => { cartoesRef.current = cartoes; }, [cartoes]);
   useEffect(() => { contasRef.current = contas; }, [contas]);
+  useEffect(() => { categoriasDispRef.current = categoriasDisp; }, [categoriasDisp]);
+  useEffect(() => { categoriasRecRef.current  = categoriasRec;  }, [categoriasRec]);
 
   useEffect(() => {
     AsyncStorage.getItem('@financaspro:vozVelocidade').then(v => {
@@ -555,7 +567,7 @@ export default function VozScreen() {
 
       case 'categoria': {
         let categoria = '';
-        const catsList = l.tipo === 'receita' ? categoriasRec : categoriasDisp;
+        const catsList = l.tipo === 'receita' ? categoriasRecRef.current : categoriasDispRef.current;
 
         if (t.includes('automatico') || t.includes('auto')) {
           categoria = detectarCategoria(l.descricao) || 'Outros';
@@ -885,21 +897,21 @@ export default function VozScreen() {
 
         {/* Botão microfone */}
         {etapa !== 'confirmacao' && !falando && (
-          <>
-            <TouchableOpacity
-              style={[s.micBtn, gravando && s.micBtnGravando]}
-              onPress={gravando ? pararGravacao : iniciarGravacao}
-              activeOpacity={0.8}
-            >
-              <Text style={s.micIco}>{gravando ? '⏹' : '🎤'}</Text>
-              <Text style={s.micTxt}>{gravando ? 'Parar' : 'Falar'}</Text>
-            </TouchableOpacity>
-            {etapa !== 'tipo' && (
-              <TouchableOpacity style={s.btnRecomecar} onPress={reiniciar}>
-                <Text style={s.btnRecomecarTxt}>🔄 Recomeçar</Text>
-              </TouchableOpacity>
-            )}
-          </>
+          <TouchableOpacity
+            style={[s.micBtn, gravando && s.micBtnGravando]}
+            onPress={gravando ? pararGravacao : iniciarGravacao}
+            activeOpacity={0.8}
+          >
+            <Text style={s.micIco}>{gravando ? '⏹' : '🎤'}</Text>
+            <Text style={s.micTxt}>{gravando ? 'Parar' : 'Falar'}</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Recomeçar — visível em todas as etapas exceto confirmação */}
+        {etapa !== 'confirmacao' && (
+          <TouchableOpacity style={s.btnRecomecar} onPress={reiniciar}>
+            <Text style={s.btnRecomecarTxt}>🔄 Recomeçar</Text>
+          </TouchableOpacity>
         )}
 
         {/* Indicador falando */}
