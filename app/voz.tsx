@@ -190,10 +190,11 @@ function interpretarValor(texto: string): string {
   const matchSepCents = t.match(/^(\d+)\s+(?:(?:com|e|virgula|ponto)\s+)?(\d{1,2})$/);
   if (matchSepCents) return `${matchSepCents[1]}.${matchSepCents[2].padEnd(2, '0')}`;
 
-  // Tenta número direto (aceita ponto ou vírgula como decimal)
-  // Remove espaços antes de tentar parse
+  // Tenta número direto com até 2 casas decimais.
+  // IMPORTANTE: \d* permitia "10.000" bater aqui antes do matchMilhar → retornava 10 em vez de 10000.
+  // /^(\d+(?:\.\d{1,2})?)$/ restringe a 0–2 casas, deixando "10.000" cair no matchMilhar abaixo.
   const semEspaco = t.replace(/\s/g, '').replace(',', '.');
-  const matchDireto = semEspaco.match(/^(\d+\.?\d*)$/);
+  const matchDireto = semEspaco.match(/^(\d+(?:\.\d{1,2})?)$/);
   if (matchDireto) return matchDireto[1];
 
   // Separador de milhar europeu: "1.200" → 1200, "1.200,50" → 1200.50
@@ -453,6 +454,12 @@ export default function VozScreen() {
       return usarTutorialRef.current
         ? `Qual cartão? Você tem: ${nomes}.`
         : `Qual cartão? ${nomes}.`;
+    }
+    if (e === 'categoria') {
+      if (!usarTutorialRef.current) return 'Categoria?';
+      return lancamentoRef.current.tipo === 'receita'
+        ? 'Qual é a categoria? Por exemplo: Salário, Freelance, Aluguel Recebido. Ou diga automático.'
+        : 'Qual é a categoria? Por exemplo: Supermercado, Saúde, Transporte. Ou diga automático.';
     }
     return usarTutorialRef.current ? PERGUNTAS_COMPLETAS[e] : PERGUNTAS_CURTAS[e];
   }

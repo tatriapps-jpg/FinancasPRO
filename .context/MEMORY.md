@@ -97,6 +97,15 @@ Palavra "ir" aparecia em "farmácia", "recebir", etc. e categorizava como "Impos
 Historicamente havia bug onde recomeçar não limpava o histórico de etapas.
 **Solução:** `historicoEtapas.current = []` ao recomeçar, junto com reset do lancamento state.
 
+### `matchDireto` em interpretarValor capturava separador de milhar como decimal
+STT Android pt-BR transcreve "dez mil" como "10.000" e "mil e duzentos" como "1.200".
+O regex `/^(\d+\.?\d*)$/` com `\d*` aceita qualquer quantidade de dígitos após o ponto — "10.000" batia e retornava "10.000" = R$10, antes do `matchMilhar` (que trata corretamente separador europeu) ter chance de rodar.
+**Solução:** `/^(\d+(?:\.\d{1,2})?)$/` — restringe a 0–2 casas decimais. "10.000" cai no matchMilhar e retorna "10000".
+
+### getPergunta('categoria') sempre usava exemplos de despesa
+`getPergunta` não tinha tratamento especial para 'categoria'. Caía no `return` final com `PERGUNTAS_COMPLETAS['categoria']` = "Supermercado, Saúde, Transporte." mesmo quando tipo era receita.
+**Solução:** adicionado bloco `if (e === 'categoria')` em `getPergunta` que retorna exemplos de receita ("Salário, Freelance, Aluguel Recebido") quando `lancamentoRef.current.tipo === 'receita'`.
+
 ### Split reais/centavos falhava sem "reais" explícito
 "dez mil e quinze centavos" retornava "10015" em vez de "10000.15".
 O regex de duplo espaço (`\s{2,}`) só funciona quando o usuário diz "reais" (o remove deixa duplo espaço). Sem "reais", o group2 ficava vazio e "quinze" era tratado como reais.
