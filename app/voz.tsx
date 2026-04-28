@@ -423,7 +423,7 @@ export default function VozScreen() {
 
   function getPerguntaDescricao(tipo: 'despesa' | 'receita'): string {
     if (!usarTutorialRef.current) return 'Descrição?';
-    if (tipo === 'receita') return 'Qual é a descrição? Por exemplo: Salário, Freelance, Aluguel Recebido ou Venda.';
+    if (tipo === 'receita') return 'Qual é a descrição? De onde ou de quem você recebeu? Por exemplo: Empresa X, Apartamento, Venda de Carro.';
     return 'Qual é a descrição? Por exemplo: Super X, Farmácia Y ou Juca Eletricista.';
   }
 
@@ -961,7 +961,7 @@ export default function VozScreen() {
           <View style={s.botoesNav}>
             {etapa !== 'tipo' && (
               <TouchableOpacity style={s.btnVoltar} onPress={voltarEtapa}>
-                <Text style={s.btnVoltarTxt}>◀ Voltar</Text>
+                <Text style={s.btnVoltarTxt} numberOfLines={1}>◀ Voltar</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity style={s.btnRecomecar} onPress={reiniciar}>
