@@ -13,7 +13,13 @@
       "Bash(python *)",
       "Bash(./gradlew clean *)",
       "Bash(grep -E \"BUILD \\(SUCCESSFUL|FAILED\\)|assembleRelease$|actionable tasks\" \"C:\\\\Users\\\\usuario\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-usuario-FinancasPRO\\\\d5ed3a3b-b520-4e5f-87fb-2aa7316e4e54\\\\tasks\\\\bvem0d9n4.output\")",
-      "Bash(gradlew clean *)"
+      "Bash(gradlew clean *)",
+      "Bash(python3 *)",
+      "Bash(py --version)",
+      "Bash(where python *)",
+      "Bash(where py *)",
+      "Bash(grep -n \"confirmacao\\\\|confirma\\\\|resumo\\\\|valor\\\\|fmt\\\\|toFixed\\\\|toLocale\\\\|Intl\\\\|R\\\\$\\\\|formatVal\" /c/Users/usuario/FinancasPRO/app/voz.tsx)",
+      "Bash(grep -i \"confirm\\\\|resumo\\\\|valor\\\\|fmt\\\\|R\\\\$\\\\|format\")"
     ]
   }
 }

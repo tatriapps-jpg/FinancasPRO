@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import HelpModal, { helpBtnStyle, helpTxtStyle } from './HelpModal';
 import * as XLSX from 'xlsx';
 import { buscarTodosLancamentos, gerarId } from './database';
 import { Colors, useTheme } from './theme';
@@ -61,6 +62,7 @@ export default function ContasScreen() {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
 
+  const [helpVisible, setHelpVisible] = useState(false);
   const [contas, setContas] = useState<Conta[]>([]);
   const [modal, setModal] = useState(false);
   const [nome, setNome] = useState('');
@@ -221,7 +223,9 @@ export default function ContasScreen() {
           <Text style={styles.backTxt}>Voltar</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Minhas Contas</Text>
-        <View style={{ width: 60 }} />
+        <TouchableOpacity onPress={() => setHelpVisible(true)} style={helpBtnStyle}>
+          <Text style={helpTxtStyle}>?</Text>
+        </TouchableOpacity>
       </View>
 
       {contas.length > 0 && (
@@ -339,6 +343,19 @@ export default function ContasScreen() {
           </View>
         </View>
       </Modal>
+      <HelpModal
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title="Como cadastrar contas"
+        tips={[
+          'Toque em + para adicionar uma conta bancária.',
+          'Preencha nome, banco, tipo (Corrente, Poupança, etc.) e saldo inicial.',
+          'O saldo é atualizado automaticamente ao registrar despesas em Débito ou Pix.',
+          'Receitas também creditam automaticamente a conta selecionada.',
+          'Toque em uma conta para editar ou ajustar o saldo.',
+          'Pressione e segure para excluir a conta.',
+        ]}
+      />
     </View>
   );
 }

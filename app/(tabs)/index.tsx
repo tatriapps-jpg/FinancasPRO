@@ -3,6 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { buscarCartoes, buscarLancamentos, buscarLancamentosPorMes, buscarTotaisMes } from '../database';
+import HelpModal, { helpBtnStyle, helpTxtStyle } from '../HelpModal';
 import { Colors, useTheme } from '../theme';
 
 const ALERTA_KEY = '@financaspro:diasAlerta';
@@ -18,8 +19,9 @@ export default function HomeScreen() {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
 
+  const [helpVisible, setHelpVisible] = useState(false);
   const [totais, setTotais] = useState({ totalGasto: 0, totalReceita: 0, saldo: 0 });
-  const [orcamento, setOrcamento] = useState(5000);
+  const [orcamento, setOrcamento] = useState(0);
   const [topGastos, setTopGastos] = useState<{ cat: string; val: number; pct: number }[]>([]);
   const [mesAtual] = useState(new Date().getMonth() + 1);
   const [anoAtual] = useState(new Date().getFullYear());
@@ -165,10 +167,15 @@ export default function HomeScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <TouchableOpacity style={styles.header} onPress={() => { setNomeInput(nomeUsuario); setModalNome(true); }} activeOpacity={0.8}>
-        <Text style={styles.headerTitle}>Olá, {nomeUsuario || 'bem-vindo'}! 👋</Text>
-        <Text style={styles.headerSub}>{meses[mesAtual-1]} {anoAtual}</Text>
-      </TouchableOpacity>
+      <View style={[styles.header, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
+        <TouchableOpacity onPress={() => { setNomeInput(nomeUsuario); setModalNome(true); }} activeOpacity={0.8}>
+          <Text style={styles.headerTitle}>Olá, {nomeUsuario || 'bem-vindo'}! 👋</Text>
+          <Text style={styles.headerSub}>{meses[mesAtual-1]} {anoAtual}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setHelpVisible(true)} style={helpBtnStyle}>
+          <Text style={helpTxtStyle}>?</Text>
+        </TouchableOpacity>
+      </View>
 
       {vencimentos.length > 0 && (
         <View style={styles.alertaBox}>
@@ -366,6 +373,19 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+      <HelpModal
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title="Como usar o Dashboard"
+        tips={[
+          'Toque no seu nome para editá-lo.',
+          'Os cards mostram Receitas, Despesas e Saldo do mês atual.',
+          'A barra de orçamento fica verde (< 70%), amarela (70–90%) ou vermelha (acima de 90%).',
+          'O banner de vencimentos exibe contas não pagas nos próximos N dias.',
+          'Toque em ⚙️ N dias no banner para ajustar o prazo de alerta.',
+          'Os gastos por categoria aparecem logo abaixo do saldo.',
+        ]}
+      />
     </ScrollView>
   );
 }

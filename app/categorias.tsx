@@ -7,7 +7,7 @@ import { Colors, useTheme } from './theme';
 export const CATS_DESP_KEY = '@financaspro:categorias_despesa';
 export const CATS_REC_KEY = '@financaspro:categorias_receita';
 export const CATS_VERSAO_KEY = '@financaspro:categorias_versao';
-const VERSAO_ATUAL = '2';
+const VERSAO_ATUAL = '3';
 
 export const CATS_DESP_PADRAO = [
   'Assinaturas Digitais','Combustível','Custos Financeiros','Doações',
@@ -19,7 +19,7 @@ export const CATS_DESP_PADRAO = [
 ];
 
 export const CATS_REC_PADRAO = [
-  'Freelance','Outros','Pró-labore','Reembolso','Rendimentos','Salário'
+  'Freelance','Outros','Pró-labore','Reembolso','Rendimentos','Salário','Vendas'
 ];
 
 export async function carregarCategorias(tipo: 'despesa' | 'receita'): Promise<string[]> {

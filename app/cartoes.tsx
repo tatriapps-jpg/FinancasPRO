@@ -3,6 +3,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import HelpModal, { helpBtnStyle, helpTxtStyle } from './HelpModal';
 import { buscarContas, debitarConta } from './contas';
 import { atualizarCartao, buscarCartoes, buscarFaturaCartao, buscarLancamentosPorCartao, buscarTotalUsadoCartao, deletarCartao, gerarId, inserirCartao, pagarFaturaCartao } from './database';
 import { Colors, useTheme } from './theme';
@@ -28,6 +29,7 @@ export default function CartoesScreen() {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
 
+  const [helpVisible, setHelpVisible] = useState(false);
   const [cartoes, setCartoes] = useState<CartaoComUso[]>([]);
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState<Cartao | null>(null);
@@ -251,7 +253,9 @@ export default function CartoesScreen() {
           <Text style={styles.backTxt}>Voltar</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Meus Cartões</Text>
-        <View style={{ width: 60 }} />
+        <TouchableOpacity onPress={() => setHelpVisible(true)} style={helpBtnStyle}>
+          <Text style={helpTxtStyle}>?</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView>
@@ -442,6 +446,19 @@ export default function CartoesScreen() {
           </ScrollView>
         </View>
       </Modal>
+      <HelpModal
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title="Como cadastrar cartões"
+        tips={[
+          'Toque em + para adicionar um novo cartão.',
+          'Preencha apelido, bandeira, últimos 4 dígitos, dia de fechamento e dia de vencimento.',
+          'O limite é opcional — serve para controle de gastos e alerta de uso.',
+          'Toque no cartão para ver a fatura e as parcelas em aberto.',
+          '"Pagar fatura" marca todas as parcelas do mês como pagas.',
+          'Ao lançar uma despesa no Crédito, o app pede o cartão e o número de parcelas.',
+        ]}
+      />
     </View>
   );
 }

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, FlatList, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { carregarCategorias } from './categorias';
 import { atualizarGrupoLancamentos, atualizarLancamentoCompleto, buscarCartoes } from './database';
-import { agendarNotificacoesVencimento } from './notificacoes';
+import { agendarNotificacoesVencimento, verificarAlertaOrcamento, resetarLembreteMotivacional } from './notificacoes';
 import { Colors, useTheme } from './theme';
 
 function Dropdown({
@@ -144,6 +144,8 @@ export default function EditarLancamentoScreen() {
     }
 
     await agendarNotificacoesVencimento();
+    verificarAlertaOrcamento().catch(() => {});
+    resetarLembreteMotivacional().catch(() => {});
     Alert.alert('✅ Lançamento atualizado!', 'As alterações foram salvas com sucesso.');
     router.back();
   }

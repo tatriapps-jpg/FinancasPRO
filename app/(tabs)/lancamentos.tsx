@@ -3,6 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { buscarLancamentos, buscarLancamentosEmAtraso, buscarLancamentosPorMes, deletarGrupoLancamentos, deletarLancamento } from '../database';
+import HelpModal, { helpBtnStyle, helpTxtStyle } from '../HelpModal';
 import { Colors, useTheme } from '../theme';
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -16,6 +17,7 @@ export default function LancamentosScreen() {
   const styles = makeStyles(colors);
 
   const _hoje = new Date();
+  const [helpVisible, setHelpVisible] = useState(false);
   const [lancamentos, setLancamentos] = useState<any[]>([]);
   const [atrasados, setAtrasados] = useState<any[]>([]);
   const [busca, setBusca] = useState('');
@@ -176,6 +178,7 @@ export default function LancamentosScreen() {
           <Text style={styles.headerTitle}>Lançamentos</Text>
           <Text style={styles.headerSub}>{lancamentos.length} lançamento(s)</Text>
         </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         {!desbloqueado && (
           <View style={[styles.contadorBadge, atingiuLimite && styles.contadorBadgeRed]}>
             <Text style={[styles.contadorTxt, atingiuLimite && styles.contadorTxtRed]}>
@@ -187,6 +190,10 @@ export default function LancamentosScreen() {
             </Text>
           </View>
         )}
+        <TouchableOpacity onPress={() => setHelpVisible(true)} style={helpBtnStyle}>
+          <Text style={helpTxtStyle}>?</Text>
+        </TouchableOpacity>
+        </View>
       </View>
 
       {!desbloqueado && (
@@ -362,6 +369,20 @@ export default function LancamentosScreen() {
           </View>
         </View>
       </Modal>
+      <HelpModal
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title="Como ver seus lançamentos"
+        tips={[
+          'Lançamentos são listados do mais recente ao mais antigo.',
+          'Use o filtro de mês (setas ‹ ›) para navegar entre os períodos.',
+          'Toque em um lançamento para editar.',
+          'Pressione e segure para excluir (pede confirmação).',
+          'Lançamentos em atraso aparecem em destaque no topo.',
+          'Use o campo de busca para encontrar por descrição ou categoria.',
+          'O botão + abre o formulário de novo lançamento.',
+        ]}
+      />
     </View>
   );
 }

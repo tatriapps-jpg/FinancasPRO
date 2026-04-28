@@ -7,7 +7,8 @@ import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { carregarCategorias } from './categorias';
 import { buscarContas, creditarConta, debitarConta } from './contas';
 import { buscarCartoes, buscarLancamentos, gerarId, inserirLancamento, inserirLancamentosParcelados } from './database';
-import { agendarNotificacoesVencimento } from './notificacoes';
+import { agendarNotificacoesVencimento, verificarAlertaOrcamento, resetarLembreteMotivacional } from './notificacoes';
+import HelpModal, { helpBtnStyle, helpTxtStyle } from './HelpModal';
 import { Colors, useTheme } from './theme';
 
 const VOZ_TUTORIAL_KEY = '@financaspro:vozTutorial';
@@ -338,6 +339,7 @@ export default function VozScreen() {
   const { colors } = useTheme();
   const s = makeStyles(colors);
 
+  const [helpVisible, setHelpVisible] = useState(false);
   const [etapa, setEtapa] = useState<Etapa>('tipo');
   const [gravando, setGravando] = useState(false);
   const [transcricao, setTranscricao] = useState('');
@@ -779,6 +781,8 @@ export default function VozScreen() {
     }
 
     await agendarNotificacoesVencimento();
+    verificarAlertaOrcamento().catch(() => {});
+    resetarLembreteMotivacional().catch(() => {});
     Speech.speak('Salvo!', { language: 'pt-BR', rate: vozVelocidadeRef.current });
     router.replace('/(tabs)/lancamentos');
   }
@@ -810,7 +814,7 @@ export default function VozScreen() {
 
   const fmt = (v: string) => {
     const n = parseFloat(v.replace(',', '.'));
-    return isNaN(n) ? v : 'R$ ' + n.toFixed(2).replace('.', ',');
+    return isNaN(n) ? v : 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const ETAPAS_LISTA: Etapa[] = ['tipo', 'descricao', 'valor', 'categoria', 'formaPag', 'cartao', 'parcelas', 'conta', 'contaReceita', 'obs'];
@@ -827,13 +831,18 @@ export default function VozScreen() {
     <View style={s.container}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => { Speech.stop(); router.back(); }} style={s.backBtn}>
-          <Text style={s.backTxt}>Voltar</Text>
+          <Text style={s.backTxt} numberOfLines={1}>Voltar</Text>
         </TouchableOpacity>
         <Text style={s.headerTitle}>Lançamento por Voz</Text>
-        <TouchableOpacity onPress={toggleTutorial} style={s.tutorialBtn}>
-          <Text style={s.tutorialBtnTxt}>{usarTutorial ? '🔊' : '⚡'}</Text>
-          <Text style={s.tutorialBtnLbl}>{usarTutorial ? 'Guiado' : 'Rápido'}</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <TouchableOpacity onPress={toggleTutorial} style={s.tutorialBtn}>
+            <Text style={s.tutorialBtnTxt}>{usarTutorial ? '🔊' : '⚡'}</Text>
+            <Text style={s.tutorialBtnLbl}>{usarTutorial ? 'Guiado' : 'Rápido'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setHelpVisible(true)} style={helpBtnStyle}>
+            <Text style={helpTxtStyle}>?</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={s.body}>
@@ -995,6 +1004,21 @@ export default function VozScreen() {
         )}
 
       </ScrollView>
+      <HelpModal
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title="Como usar o lançamento por voz"
+        tips={[
+          'Aguarde o bip antes de começar a falar.',
+          'Diga "despesa" ou "receita" para escolher o tipo.',
+          'Para Pix, diga "é Pix" — funciona melhor do que só "Pix".',
+          'Fale o valor por extenso: "dez mil reais", "cinquenta e cinco reais".',
+          'Na etapa de categoria, diga "automático" para detectar pela descrição.',
+          'Diga "não" ou "pular" na observação para avançar direto.',
+          'Use 🔊 Guiado para perguntas detalhadas ou ⚡ Rápido para perguntas curtas.',
+          'Toque em "◀ Voltar" para refazer a etapa anterior sem recomeçar tudo.',
+        ]}
+      />
     </View>
   );
 }
@@ -1008,7 +1032,7 @@ function makeStyles(c: Colors) {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
       padding: 16, paddingTop: 50, borderBottomWidth: 1, borderBottomColor: c.borderSoft,
     },
-    backBtn: { padding: 4, width: 60 },
+    backBtn: { padding: 4, minWidth: 70, flexShrink: 0 },
     backTxt: { fontSize: 16, color: '#5294ff', fontWeight: '600' },
     headerTitle: { fontSize: 17, fontWeight: '700', color: c.text },
     tutorialBtn: { alignItems: 'center', padding: 4, width: 60 },

@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { initConnection, endConnection } from 'react-native-iap';
 import { initDB } from './database';
+import { configurarNotificacoes } from './notificacoes';
 import { ThemeProvider, useTheme } from './theme';
 
 const PIN_KEY          = '@financaspro:pin';
@@ -51,6 +52,7 @@ function RootContent() {
     setDesbloqueado(status === 'true');
     setTemPin(!!pin);
     setPronto(true);
+    configurarNotificacoes().catch(() => {});
   }
 
   // alias para manter compatibilidade interna

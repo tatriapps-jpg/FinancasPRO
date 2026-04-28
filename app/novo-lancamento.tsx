@@ -6,7 +6,8 @@ import { Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, Toucha
 import { carregarCategorias } from './categorias';
 import { buscarContas, debitarConta } from './contas';
 import { buscarCartoes, buscarLancamentos, gerarId, inserirLancamento, inserirLancamentosParcelados } from './database';
-import { agendarNotificacoesVencimento } from './notificacoes';
+import { agendarNotificacoesVencimento, verificarAlertaOrcamento, resetarLembreteMotivacional } from './notificacoes';
+import HelpModal, { helpBtnStyle, helpTxtStyle } from './HelpModal';
 import { Colors, useTheme } from './theme';
 
 const CONTADOR_KEY           = '@faladinheiro:contadorLancamentos';
@@ -34,6 +35,7 @@ function Dropdown({
   colors: Colors;
   onNovaCat?: () => void;
 }) {
+  const [helpVisible, setHelpVisible] = useState(false);
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState('');
 
@@ -351,6 +353,8 @@ export default function NovoLancamentoScreen() {
     }
 
     await agendarNotificacoesVencimento();
+    verificarAlertaOrcamento().catch(() => {});
+    resetarLembreteMotivacional().catch(() => {});
     Alert.alert('✅ Lançamento salvo!', 'O lançamento foi registrado com sucesso.');
     router.back();
   }
@@ -368,9 +372,14 @@ export default function NovoLancamentoScreen() {
           <Text style={styles.backTxt}>Voltar</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Novo Lançamento</Text>
-        <TouchableOpacity onPress={() => router.push('/voz')} style={styles.cameraBtn}>
-          <Text style={{ fontSize: 26 }}>🎤</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity onPress={() => router.push('/voz')} style={styles.cameraBtn}>
+            <Text style={{ fontSize: 26 }}>🎤</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setHelpVisible(true)} style={helpBtnStyle}>
+            <Text style={helpTxtStyle}>?</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.tabs}>
@@ -573,6 +582,19 @@ export default function NovoLancamentoScreen() {
           <Text style={styles.btnSaveTxt}>Salvar lançamento</Text>
         </TouchableOpacity>
       </View>
+      <HelpModal
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title="Como fazer um lançamento"
+        tips={[
+          'Escolha o tipo (Despesa ou Receita) nas abas no topo.',
+          'Preencha a descrição, valor e selecione a categoria.',
+          'Para despesa no Crédito, escolha o cartão e o número de parcelas.',
+          'Para Débito ou Pix, selecione a conta que será debitada.',
+          'Data de vencimento é opcional — útil para contas futuras.',
+          'Toque em 🎤 para usar o lançamento por voz.',
+        ]}
+      />
     </View>
   );
 }
@@ -617,7 +639,7 @@ function makeStyles(c: Colors) {
     previewParc: { fontSize:12, color:c.textMuted, width:30 },
     previewData: { fontSize:12, color:c.text, flex:1, textAlign:'center' },
     previewVal: { fontSize:12, color:'#25d07e', fontWeight:'600' },
-    footer: { flexDirection:'row', gap:10, padding:16, paddingBottom:36, borderTopWidth:1, borderTopColor:c.borderSoft },
+    footer: { flexDirection:'row', gap:10, padding:16, paddingBottom:60, borderTopWidth:1, borderTopColor:c.borderSoft },
     btnCancel: { flex:1, padding:14, backgroundColor:c.input, borderRadius:11, alignItems:'center', borderWidth:1.5, borderColor:c.textSec },
     btnCancelTxt: { color:c.textSec, fontWeight:'600', fontSize:14 },
     btnSave: { flex:2, padding:14, backgroundColor:'#5294ff', borderRadius:11, alignItems:'center' },

@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { buscarLancamentosPorMes, buscarTotaisMes } from '../database';
+import HelpModal, { helpBtnStyle, helpTxtStyle } from '../HelpModal';
 import { Colors, useTheme } from '../theme';
 
 const ORC_KEY = '@financaspro:orcamento';
@@ -98,7 +99,8 @@ export default function OrcamentoScreen() {
   const { colors } = useTheme();
   const s = makeStyles(colors);
 
-  const [orcamento, setOrcamento] = useState(5000);
+  const [orcamento, setOrcamento] = useState(0);
+  const [helpVisible, setHelpVisible] = useState(false);
   const [totais, setTotais] = useState({ totalGasto: 0, totalReceita: 0, saldo: 0 });
   const [porCategoria, setPorCategoria] = useState<CategoriaDado[]>([]);
   const [modal, setModal] = useState(false);
@@ -164,12 +166,17 @@ export default function OrcamentoScreen() {
     <View style={s.container}>
       <View style={s.header}>
         <Text style={s.headerTitle}>Orçamento — {MESES[mesAtual - 1]}</Text>
-        <TouchableOpacity
-          onPress={() => { setNovoOrc(String(orcamento)); setModal(true); }}
-          style={s.editBtn}
-        >
-          <Text style={s.editBtnTxt}>✏️ Editar</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity
+            onPress={() => { setNovoOrc(String(orcamento)); setModal(true); }}
+            style={s.editBtn}
+          >
+            <Text style={s.editBtnTxt}>✏️ Editar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setHelpVisible(true)} style={helpBtnStyle}>
+            <Text style={helpTxtStyle}>?</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={s.body}>
@@ -308,6 +315,19 @@ export default function OrcamentoScreen() {
           </View>
         </View>
       </Modal>
+      <HelpModal
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title="Como definir seu orçamento"
+        tips={[
+          'Toque em ✏️ Editar para definir ou alterar o limite mensal de gastos.',
+          'Digite 0 para desativar o orçamento.',
+          'A barra de progresso mostra o percentual do orçamento já utilizado.',
+          'Verde: menos de 70%. Amarelo: 70–90%. Vermelho: acima de 90%.',
+          'O gráfico de rosca mostra os gastos divididos por categoria.',
+          'Você receberá uma notificação ao atingir 80% e 100% do limite.',
+        ]}
+      />
     </View>
   );
 }

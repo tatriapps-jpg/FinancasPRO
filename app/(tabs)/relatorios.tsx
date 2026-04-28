@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as XLSX from 'xlsx';
 import { buscarLancamentosEmAtraso, buscarLancamentosPorMes } from '../database';
+import HelpModal, { helpBtnStyle, helpTxtStyle } from '../HelpModal';
 import { Colors, useTheme } from '../theme';
 
 export default function RelatoriosScreen() {
@@ -12,6 +13,7 @@ export default function RelatoriosScreen() {
   const styles = makeStyles(colors);
 
   const hoje = new Date();
+  const [helpVisible, setHelpVisible] = useState(false);
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [ano, setAno] = useState(hoje.getFullYear());
   const [porCategoria, setPorCategoria] = useState<{ nome: string; valor: number; pct: number }[]>([]);
@@ -164,7 +166,12 @@ export default function RelatoriosScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Relatórios</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <Text style={styles.headerTitle}>Relatórios</Text>
+          <TouchableOpacity onPress={() => setHelpVisible(true)} style={helpBtnStyle}>
+            <Text style={helpTxtStyle}>?</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.navMes}>
           <TouchableOpacity onPress={() => navMes(-1)} style={styles.navBtn}>
             <Text style={styles.navArrow}>‹</Text>
@@ -267,6 +274,18 @@ export default function RelatoriosScreen() {
         </View>
       )}
       <View style={{ height: 20 }} />
+      <HelpModal
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title="Como usar os relatórios"
+        tips={[
+          'Use as setas ‹ › para navegar entre os meses.',
+          'O resumo mostra total de receitas, despesas e saldo do mês.',
+          'O gráfico de barras exibe os gastos por categoria.',
+          'Toque em "Exportar Excel" para salvar e compartilhar o relatório em XLSX.',
+          'Lançamentos em atraso aparecem em destaque no topo.',
+        ]}
+      />
     </ScrollView>
   );
 }
