@@ -214,14 +214,23 @@ function interpretarValor(texto: string): string {
   let parteCentavos = '';
 
   if (temCentavos) {
-    // Remover "reais" deixa duplo espaço; \s{2,} localiza o separador reais→centavos
-    const sepMatch = t.match(/^(.*?)\s{2,}(?:(?:e|com|virgula|ponto|,)\s+)?(.*?)\s*centavos/);
-    if (sepMatch) {
-      parteReais    = sepMatch[1].trim();
-      parteCentavos = sepMatch[2].trim();
+    // 1ª prioridade: duplo espaço criado ao remover "reais" (ex: "cem reais e quinze centavos" → "cem  e quinze  centavos")
+    const sepDouble = t.match(/^(.*?)\s{2,}(?:(?:e|com|virgula|ponto|,)\s+)?(.*?)\s*centavos/);
+    if (sepDouble && sepDouble[2]) {
+      parteReais    = sepDouble[1].trim();
+      parteCentavos = sepDouble[2].trim();
     } else {
-      parteReais    = '';
-      parteCentavos = t.replace(/\s*centavos.*$/, '').trim();
+      // 2ª prioridade: conector explícito sem "reais" (ex: "dez mil e quinze centavos")
+      // Busca gananciosa captura o ÚLTIMO conector antes de centavos
+      const sepConn = t.match(/^(.*)\s+(?:e|com|virgula|ponto)\s+(.*?)\s*centavos/);
+      if (sepConn) {
+        parteReais    = sepConn[1].trim();
+        parteCentavos = sepConn[2].trim();
+      } else {
+        // Só centavos sem reais (ex: "quinze centavos")
+        parteReais    = '';
+        parteCentavos = t.replace(/\s*centavos.*$/, '').trim();
+      }
     }
   }
 
