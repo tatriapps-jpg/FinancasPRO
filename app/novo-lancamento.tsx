@@ -144,6 +144,7 @@ export default function NovoLancamentoScreen() {
   const [categoriasRec, setCategoriasRec] = useState<string[]>([]);
   const [historicoDesp, setHistoricoDesp] = useState<string[]>([]);
   const [historicoRec, setHistoricoRec]   = useState<string[]>([]);
+  const [helpVisible, setHelpVisible]     = useState(false);
 
   useEffect(() => {
     loadDados();
