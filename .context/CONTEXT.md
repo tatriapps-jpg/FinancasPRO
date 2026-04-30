@@ -104,10 +104,23 @@ Datas são sempre strings no formato `DD/MM/YYYY`.
 | `@financaspro:vozVelocidade`            | 1.0, 1.3 ou 1.6                  |
 | `@financaspro:vozTutorial`              | número de usos do tutorial       |
 
-## Status atual (2026-04-28)
+## Status atual (2026-04-30)
 
+### O que está funcionando
 - APK release Android gerado com sucesso (`app-release.apk`)
 - New Architecture habilitada e funcionando
 - Entrada por voz corrigida: extenso, Pix, categoria, voltar etapa, placeholder
 - Placeholder de descrição em novo-lancamento.tsx adaptativo (receita/despesa)
 - Todas as categorias normalizadas via migrarCategorias() no initDB
+- Botão "?" de ajuda contextual em 8 telas: index, lancamentos, orcamento, relatorios, voz, novo-lancamento, contas, cartoes
+- HelpModal.tsx centralizado com estilos exportados (helpBtnStyle, helpTxtStyle)
+- Crash ao abrir "Novo Lançamento" corrigido (helpVisible não declarado)
+- Botão "Entendi" do HelpModal corrigido (texto visível no Android)
+
+### O que falta para publicar na Play Store
+- Testes end-to-end no dispositivo físico (especialmente fluxo de voz + parcelamento)
+- Verificar compra IAP em ambiente de produção (track interno / alpha da Play Store)
+- Screenshots e assets para a ficha da loja
+- Política de privacidade hospedada em URL pública
+- Configurar signing keystore definitivo para release
+- Enviar AAB (não APK) via `gradlew bundleRelease` para a Play Store

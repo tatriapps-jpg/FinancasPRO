@@ -62,5 +62,5 @@ const s = StyleSheet.create({
     paddingVertical: 14, paddingHorizontal: 20,
     alignItems: 'center', justifyContent: 'center',
   },
-  closeTxt: { color: '#ffffff', fontWeight: '700', fontSize: 15, includeFontPadding: false },
+  closeTxt: { color: '#ffffff', fontWeight: '700', fontSize: 15, lineHeight: 20 },
 });

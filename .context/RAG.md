@@ -204,13 +204,60 @@ Categorias vivem no AsyncStorage:
 
 ---
 
+## HelpModal.tsx — Modal de ajuda contextual
+
+Arquivo: `app/HelpModal.tsx`
+
+Componente reutilizado em 8 telas. Exporta o componente padrão e dois estilos para o botão "?".
+
+| Exportação        | Tipo      | Descrição                                                        |
+|-------------------|-----------|------------------------------------------------------------------|
+| `default HelpModal` | Component | Modal com título, lista de dicas e botão "Entendi"             |
+| `helpBtnStyle`    | objeto    | Estilo do botão `?` no header (32×32, circular, borda azul)      |
+| `helpTxtStyle`    | objeto    | Estilo do texto `?` (fontSize 15, bold, azul `#5294ff`)          |
+
+Props do `HelpModal`:
+
+| Prop      | Tipo       | Descrição                        |
+|-----------|------------|----------------------------------|
+| `visible` | boolean    | Controla visibilidade do modal   |
+| `onClose` | () => void | Callback ao fechar               |
+| `title`   | string     | Título exibido no topo           |
+| `tips`    | string[]   | Array de dicas (uma por bullet)  |
+
+Padrão de uso (igual em todas as 8 telas):
+```tsx
+import HelpModal, { helpBtnStyle, helpTxtStyle } from './HelpModal'; // ou '../HelpModal' em (tabs)/
+const [helpVisible, setHelpVisible] = useState(false); // OBRIGATÓRIO declarar no componente raiz
+// No header:
+<TouchableOpacity onPress={() => setHelpVisible(true)} style={helpBtnStyle}>
+  <Text style={helpTxtStyle}>?</Text>
+</TouchableOpacity>
+// No JSX raiz:
+<HelpModal visible={helpVisible} onClose={() => setHelpVisible(false)} title="..." tips={[...]} />
+```
+
+⚠️ **Armadilha:** `helpVisible` deve ser declarado no componente da tela, nunca em um subcomponente — causa crash por variável fora de escopo.
+
+---
+
 ## notificacoes.ts
 
 Arquivo: `app/notificacoes.ts`
 
-| Função                               | Descrição                                              |
-|--------------------------------------|--------------------------------------------------------|
-| `agendarNotificacoesVencimento()`    | Agenda push notifications para lançamentos pendentes   |
+| Função                               | Linha | Descrição                                                        |
+|--------------------------------------|-------|------------------------------------------------------------------|
+| `agendarNotificacoesVencimento()`    | 65    | Agenda push notifications para lançamentos pendentes             |
+| `verificarAlertaOrcamento()`         | 131   | Notifica se gasto do mês ultrapassou % do orçamento              |
+| `resetarLembreteMotivacional()`      | 245   | Reinicia ciclo do lembrete motivacional após novo lançamento     |
+| `configurarNotificacoes()`           | 277   | Solicita permissão e configura canal Android                     |
+
+Chamadas após salvar lançamento (em `voz.tsx` e `novo-lancamento.tsx`):
+```ts
+await agendarNotificacoesVencimento();
+verificarAlertaOrcamento().catch(() => {});
+resetarLembreteMotivacional().catch(() => {});
+```
 
 ---
 

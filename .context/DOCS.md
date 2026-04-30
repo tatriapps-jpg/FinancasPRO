@@ -207,6 +207,32 @@ Configurações → Dados → Restaurar Backup
 
 ---
 
+## Botão "?" de ajuda contextual
+
+Todas as telas com funcionalidades não-óbvias têm um botão `?` circular no canto direito do header.
+
+### Telas com botão de ajuda
+
+| Tela                  | Arquivo                       | Título do modal               |
+|-----------------------|-------------------------------|-------------------------------|
+| Dashboard / Home      | `(tabs)/index.tsx`            | Como usar o Dashboard         |
+| Lançamentos           | `(tabs)/lancamentos.tsx`      | Como gerenciar lançamentos    |
+| Relatórios            | `(tabs)/relatorios.tsx`       | Como usar os Relatórios       |
+| Orçamento             | `(tabs)/orcamento.tsx`        | Como usar o Orçamento         |
+| Novo Lançamento       | `novo-lancamento.tsx`         | Como fazer um lançamento      |
+| Entrada por Voz       | `voz.tsx`                     | Como usar a entrada por voz   |
+| Contas Bancárias      | `contas.tsx`                  | Como gerenciar contas         |
+| Cartões de Crédito    | `cartoes.tsx`                 | Como gerenciar cartões        |
+
+### Como funciona
+
+- Toque no `?` para abrir um modal com dicas contextuais da tela.
+- O modal exibe um título e uma lista de bullets com orientações.
+- Botão "Entendi" fecha o modal.
+- O estilo do botão e do texto `?` são padronizados via `helpBtnStyle` e `helpTxtStyle` exportados de `HelpModal.tsx`.
+
+---
+
 ## Notificações
 
 - Agendadas após cada lançamento com `dataVencimento` futura e status != 'pago'.

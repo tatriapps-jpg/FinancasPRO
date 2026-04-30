@@ -73,6 +73,16 @@ Backup exporta JSON com lancamentos, cartoes, contas, orcamento, diasAlerta, cat
 
 ## Bugs conhecidos e resolvidos
 
+### Crash ao abrir "Novo Lançamento" — `helpVisible` não declarado (2026-04-29)
+`NovoLancamentoScreen` usava `helpVisible` e `setHelpVisible` (botão `?` e `<HelpModal>`) sem declarar o state.
+O `useState(false)` existia no componente `Dropdown` (linha 38), escopo diferente — não acessível em `NovoLancamentoScreen`.
+**Solução:** adicionado `const [helpVisible, setHelpVisible] = useState(false)` em `NovoLancamentoScreen` (linha 148).
+Os outros 7 arquivos com `HelpModal` (index, lancamentos, orcamento, relatorios, voz, contas, cartoes) já tinham a declaração correta.
+
+### Botão "Entendi" no `HelpModal` aparecia como barra azul sem texto (2026-04-29)
+`includeFontPadding: false` no estilo `closeTxt` do `HelpModal` causava corte vertical do texto no Android.
+**Solução:** substituído por `lineHeight: 20` em `HelpModal.tsx:closeTxt`. O `paddingVertical: 14` já estava correto.
+
 ### Pix não reconhecido por variações fonéticas
 O reconhecimento de voz pt-BR transcreve "Pix" de formas variadas: "pics", "pis", "pik", "pixe", "piche", etc.
 **Solução:** função `ehPix()` em `voz.tsx:247` com ~20 variações cobertas por regex e includes.
