@@ -27,8 +27,10 @@ export default function HelpModal({ visible, onClose, title, tips }: Props) {
               </View>
             ))}
           </ScrollView>
-          <TouchableOpacity style={s.closeBtn} onPress={onClose} activeOpacity={0.8}>
-            <Text style={s.closeTxt}>Entendi</Text>
+          <TouchableOpacity onPress={onClose} activeOpacity={0.8} style={{ marginTop: 20 }}>
+            <View style={{ backgroundColor: '#5294ff', borderRadius: 8, paddingVertical: 14, alignItems: 'center' }}>
+              <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '700' }}>Entendi</Text>
+            </View>
           </TouchableOpacity>
         </TouchableOpacity>
       </TouchableOpacity>
@@ -57,10 +59,4 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', marginBottom: 12, alignItems: 'flex-start' },
   bullet: { fontSize: 16, color: '#5294ff', marginRight: 10, lineHeight: 22 },
   tip: { flex: 1, fontSize: 14, lineHeight: 22 },
-  closeBtn: {
-    marginTop: 20, backgroundColor: '#5294ff', borderRadius: 12,
-    paddingVertical: 14, paddingHorizontal: 20,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  closeTxt: { color: '#ffffff', fontWeight: '700', fontSize: 15, lineHeight: 20 },
 });
