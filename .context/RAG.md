@@ -225,6 +225,19 @@ Props do `HelpModal`:
 | `title`   | string     | Título exibido no topo           |
 | `tips`    | string[]   | Array de dicas (uma por bullet)  |
 
+Implementação atual do botão fechar (usa `Pressable`, não `TouchableOpacity`):
+```tsx
+<Pressable
+  onPress={onClose}
+  style={{ marginTop: 20, backgroundColor: '#5294ff', borderRadius: 8,
+           height: 48, width: '100%', justifyContent: 'center', alignItems: 'center' }}
+>
+  <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>Entendi</Text>
+</Pressable>
+```
+
+Overlay e box também usam `Pressable`. Layout: `box` com `flex: 1` + `maxHeight: '85%'`; `ScrollView` com `flex: 1`.
+
 Padrão de uso (igual em todas as 8 telas):
 ```tsx
 import HelpModal, { helpBtnStyle, helpTxtStyle } from './HelpModal'; // ou '../HelpModal' em (tabs)/

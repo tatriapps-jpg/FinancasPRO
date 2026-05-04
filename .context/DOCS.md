@@ -227,9 +227,10 @@ Todas as telas com funcionalidades não-óbvias têm um botão `?` circular no c
 ### Como funciona
 
 - Toque no `?` para abrir um modal com dicas contextuais da tela.
-- O modal exibe um título e uma lista de bullets com orientações.
-- Botão "Entendi" fecha o modal.
+- O modal exibe um título e uma lista de bullets com orientações (ScrollView).
+- Botão "Entendi" (Pressable, altura fixa 48px) fecha o modal.
 - O estilo do botão e do texto `?` são padronizados via `helpBtnStyle` e `helpTxtStyle` exportados de `HelpModal.tsx`.
+- ⚠️ Bug em investigação (2026-05-04): texto "Entendi" pode não aparecer em alguns dispositivos Android.
 
 ---
 

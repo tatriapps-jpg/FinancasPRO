@@ -104,10 +104,10 @@ Datas são sempre strings no formato `DD/MM/YYYY`.
 | `@financaspro:vozVelocidade`            | 1.0, 1.3 ou 1.6                  |
 | `@financaspro:vozTutorial`              | número de usos do tutorial       |
 
-## Status atual (2026-04-30)
+## Status atual (2026-05-04)
 
 ### O que está funcionando
-- APK release Android gerado com sucesso (`app-release.apk`)
+- APK release Android gerado com sucesso (`app-release.apk`) — builds ~3–4min
 - New Architecture habilitada e funcionando
 - Entrada por voz corrigida: extenso, Pix, categoria, voltar etapa, placeholder
 - Placeholder de descrição em novo-lancamento.tsx adaptativo (receita/despesa)
@@ -115,9 +115,17 @@ Datas são sempre strings no formato `DD/MM/YYYY`.
 - Botão "?" de ajuda contextual em 8 telas: index, lancamentos, orcamento, relatorios, voz, novo-lancamento, contas, cartoes
 - HelpModal.tsx centralizado com estilos exportados (helpBtnStyle, helpTxtStyle)
 - Crash ao abrir "Novo Lançamento" corrigido (helpVisible não declarado)
-- Botão "Entendi" do HelpModal corrigido (texto visível no Android)
+
+### Bug em investigação ativa
+- **Botão "Entendi" do HelpModal aparece como barra azul sem texto no Android**
+  - Tentativa 1: removido `includeFontPadding: false`, adicionado `lineHeight: 20` — não resolveu
+  - Tentativa 2: estilos inline + `View` dentro do `TouchableOpacity` — não resolveu
+  - Tentativa 3: flex layout no `box` e `ScrollView` (maxHeight→flex:1) — não resolveu
+  - Tentativa 4 (atual): substituído `TouchableOpacity` por `Pressable`, `height: 48` explícito, overlay também usa `Pressable`
+  - Ainda não confirmado se resolveu — aguarda teste no dispositivo físico
 
 ### O que falta para publicar na Play Store
+- ⚠️ Confirmar botão "Entendi" do HelpModal visível no dispositivo físico
 - Testes end-to-end no dispositivo físico (especialmente fluxo de voz + parcelamento)
 - Verificar compra IAP em ambiente de produção (track interno / alpha da Play Store)
 - Screenshots e assets para a ficha da loja

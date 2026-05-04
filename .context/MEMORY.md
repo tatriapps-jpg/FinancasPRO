@@ -79,9 +79,15 @@ O `useState(false)` existia no componente `Dropdown` (linha 38), escopo diferent
 **Solução:** adicionado `const [helpVisible, setHelpVisible] = useState(false)` em `NovoLancamentoScreen` (linha 148).
 Os outros 7 arquivos com `HelpModal` (index, lancamentos, orcamento, relatorios, voz, contas, cartoes) já tinham a declaração correta.
 
-### Botão "Entendi" no `HelpModal` aparecia como barra azul sem texto (2026-04-29)
-`includeFontPadding: false` no estilo `closeTxt` do `HelpModal` causava corte vertical do texto no Android.
-**Solução:** substituído por `lineHeight: 20` em `HelpModal.tsx:closeTxt`. O `paddingVertical: 14` já estava correto.
+### Botão "Entendi" no `HelpModal` aparece como barra azul sem texto (Android) — em investigação
+Bug persistente: o texto "Entendi" não aparece no botão de fechar do HelpModal no Android, só a barra azul.
+Histórico de tentativas:
+1. Removido `includeFontPadding: false`, adicionado `lineHeight: 20` — não resolveu
+2. Estilos inline + `View` dentro do `TouchableOpacity`, sem `StyleSheet` — não resolveu
+3. `box` com `flex: 1`, `ScrollView` com `flex: 1` (era `maxHeight: 340`) — não resolveu
+4. **(atual, 2026-05-04)** Substituído `TouchableOpacity` por `Pressable`, `height: 48` explícito, overlay com `Pressable` — aguarda confirmação
+**Hipóteses não descartadas:** `ScrollView` com `flex:1` ainda pode estar comprimindo o botão; `Pressable` dentro de `TouchableOpacity` aninhado pode ter comportamento inesperado; tema escuro pode ter `colors.card` sobrescrevendo cor do texto.
+**NÃO usar** `includeFontPadding: false` em texto de botões — causa corte no Android.
 
 ### Pix não reconhecido por variações fonéticas
 O reconhecimento de voz pt-BR transcreve "Pix" de formas variadas: "pics", "pis", "pik", "pixe", "piche", etc.
