@@ -52,10 +52,10 @@ const s = StyleSheet.create({
     justifyContent: 'center', padding: 24,
   },
   box: {
-    borderRadius: 20, padding: 24, borderWidth: 1, maxHeight: '85%',
+    borderRadius: 20, padding: 24, borderWidth: 1, maxHeight: '85%', flex: 1,
   },
   title: { fontSize: 17, fontWeight: '700', marginBottom: 16 },
-  scroll: { maxHeight: 340 },
+  scroll: { flex: 1 },
   row: { flexDirection: 'row', marginBottom: 12, alignItems: 'flex-start' },
   bullet: { fontSize: 16, color: '#5294ff', marginRight: 10, lineHeight: 22 },
   tip: { flex: 1, fontSize: 14, lineHeight: 22 },
