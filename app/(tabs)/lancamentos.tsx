@@ -20,6 +20,7 @@ export default function LancamentosScreen() {
   const [helpVisible, setHelpVisible] = useState(false);
   const [lancamentos, setLancamentos] = useState<any[]>([]);
   const [atrasados, setAtrasados] = useState<any[]>([]);
+  const [totalGeral, setTotalGeral] = useState(0);
   const [busca, setBusca] = useState('');
   const [desbloqueado, setDesbloqueado] = useState(false);
   const [modalPaywall, setModalPaywall] = useState(false);
@@ -66,6 +67,7 @@ export default function LancamentosScreen() {
     });
 
     setLancamentos(dados);
+    setTotalGeral(buscarLancamentos().length);
   }
 
   function navMesFiltro(dir: number) {
@@ -109,13 +111,12 @@ export default function LancamentosScreen() {
   const anoAtualNum = _hoje.getFullYear();
   const ehMesAtual = todosMeses || (mesFiltro === mesAtualNum && anoFiltro === anoAtualNum);
 
-  const totalLancamentos = lancamentos.length;
   const diasRestantes = Math.max(0, LIMITE_DIAS - diasDecorridos);
-  const lancRestantes = Math.max(0, LIMITE_GRATIS - totalLancamentos);
-  const pctLanc = totalLancamentos / LIMITE_GRATIS;
+  const lancRestantes = Math.max(0, LIMITE_GRATIS - totalGeral);
+  const pctLanc = totalGeral / LIMITE_GRATIS;
   const pctDias = diasDecorridos / LIMITE_DIAS;
   const showDiasProgress = diasDecorridos > 0 && pctDias >= pctLanc;
-  const atingiuLimite = !desbloqueado && (totalLancamentos >= LIMITE_GRATIS || diasDecorridos >= LIMITE_DIAS);
+  const atingiuLimite = !desbloqueado && (totalGeral >= LIMITE_GRATIS || diasDecorridos >= LIMITE_DIAS);
 
   function tentarAdicionar() {
     if (atingiuLimite) {
@@ -359,7 +360,7 @@ export default function LancamentosScreen() {
             </View>
             <TouchableOpacity style={styles.btnComprar} onPress={() => {
               setModalPaywall(false);
-              Alert.alert('Em breve', 'Pagamento in-app será implementado em breve!');
+              router.push('/paywall' as any);
             }}>
               <Text style={styles.btnComprarTxt}>Desbloquear agora — R$ 14,90</Text>
             </TouchableOpacity>
@@ -381,6 +382,7 @@ export default function LancamentosScreen() {
           'Lançamentos em atraso aparecem em destaque no topo.',
           'Use o campo de busca para encontrar por descrição ou categoria.',
           'O botão + abre o formulário de novo lançamento.',
+          'O botão "Todos" exibe lançamentos de todos os meses juntos. Desative-o para filtrar pelo mês escolhido nas setas ‹ ›.',
         ]}
       />
     </View>

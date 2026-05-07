@@ -37,11 +37,6 @@ export default function PoliticaScreen() {
           processamento ocorre localmente no dispositivo — nenhum áudio é enviado a servidores externos.
         </Section>
 
-        <Section titulo="Câmera e galeria" colors={colors}>
-          A câmera e a galeria são acessadas somente quando você utiliza o recurso de leitura
-          de notas fiscais. As imagens não são armazenadas fora do dispositivo.
-        </Section>
-
         <Section titulo="Pagamento in-app" colors={colors}>
           Processado pelo Google Play Billing. A TaTri Apps não tem acesso aos dados de
           pagamento — todo o processo é gerenciado pelo Google.

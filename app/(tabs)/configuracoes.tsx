@@ -5,13 +5,18 @@ import * as Sharing from 'expo-sharing';
 import { useEffect, useState } from 'react';
 import { Alert, Linking, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { buscarCartoes, buscarTodosLancamentos, restaurarCartoes, restaurarLancamentos, zerarLancamentos } from '../database';
+import HelpModal, { helpBtnStyle, helpTxtStyle } from '../HelpModal';
 import { Colors, useTheme } from '../theme';
+
+const ORC_KEY = '@financaspro:orcamento';
 
 export default function ConfiguracoesScreen() {
   const { colors, isDark, toggleTheme } = useTheme();
   const styles = makeStyles(colors);
 
+  const [helpVisible, setHelpVisible] = useState(false);
   const [modalZerar, setModalZerar] = useState(false);
+  const [modalResetOrcamento, setModalResetOrcamento] = useState(false);
   const [modalRestaurar, setModalRestaurar] = useState(false);
   const [modalAjuda, setModalAjuda] = useState(false);
   const [modalNome, setModalNome] = useState(false);
@@ -124,6 +129,12 @@ export default function ConfiguracoesScreen() {
     }
   }
 
+  async function resetarOrcamento() {
+    await AsyncStorage.removeItem(ORC_KEY);
+    setModalResetOrcamento(false);
+    Alert.alert('✅ Pronto!', 'O orçamento mensal foi resetado.');
+  }
+
   function executarZerar() {
     zerarLancamentos();
     setModalZerar(false);
@@ -149,8 +160,13 @@ export default function ConfiguracoesScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Configurações</Text>
-        <Text style={styles.headerSub}>Fala, Dinheiro!</Text>
+        <View>
+          <Text style={styles.headerTitle}>Configurações</Text>
+          <Text style={styles.headerSub}>Fala, Dinheiro!</Text>
+        </View>
+        <TouchableOpacity onPress={() => setHelpVisible(true)} style={helpBtnStyle}>
+          <Text style={helpTxtStyle}>?</Text>
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.sectionTitle}>APARÊNCIA</Text>
@@ -280,6 +296,15 @@ export default function ConfiguracoesScreen() {
           </View>
           <Text style={styles.rowArrow}>›</Text>
         </TouchableOpacity>
+        <View style={styles.divider} />
+        <TouchableOpacity style={styles.row} onPress={() => setModalResetOrcamento(true)}>
+          <Text style={styles.rowIco}>🔄</Text>
+          <View style={styles.rowInfo}>
+            <Text style={styles.rowTitle}>Resetar Orçamento</Text>
+            <Text style={styles.rowSub}>Zerar o limite mensal definido</Text>
+          </View>
+          <Text style={styles.rowArrow}>›</Text>
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.sectionTitle}>SOBRE</Text>
@@ -370,6 +395,25 @@ export default function ConfiguracoesScreen() {
         </View>
       </Modal>
 
+      {/* Modal Reset Orçamento */}
+      <Modal visible={modalResetOrcamento} transparent animationType="fade">
+        <View style={styles.modalBg}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalIco}>🔄</Text>
+            <Text style={styles.modalTitle}>Resetar Orçamento</Text>
+            <Text style={styles.modalSub}>O limite mensal será removido e o orçamento ficará desativado.</Text>
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={styles.btnCancel} onPress={() => setModalResetOrcamento(false)}>
+                <Text style={styles.btnCancelTxt}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.btnDanger} onPress={resetarOrcamento}>
+                <Text style={styles.btnDangerTxt}>Resetar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Modal Restaurar */}
       <Modal visible={modalRestaurar} transparent animationType="fade">
         <View style={styles.modalBg}>
@@ -398,6 +442,21 @@ export default function ConfiguracoesScreen() {
         </View>
       </Modal>
 
+      <HelpModal
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title="Como usar as Configurações"
+        tips={[
+          'APARÊNCIA: alterne entre tema claro e escuro, e ajuste a velocidade da leitura por voz.',
+          'CONTA E SEGURANÇA: defina seu nome, altere o PIN ou bloqueie o app imediatamente.',
+          'CARTÕES E CONTAS: cadastre cartões de crédito e contas bancárias para uso nos lançamentos.',
+          'CATEGORIAS: crie, edite ou exclua categorias personalizadas de despesa e receita.',
+          'DADOS: faça backup de todos os dados em JSON, restaure um backup anterior ou apague todos os lançamentos.',
+          'Resetar Orçamento remove o limite mensal definido — o card de orçamento voltará a exibir "Não definido".',
+          'SOBRE: acesse a ajuda rápida, envie feedback por e-mail ou leia a política de privacidade.',
+        ]}
+      />
+
       {/* Modal Ajuda */}
       <Modal visible={modalAjuda} transparent animationType="slide">
         <View style={styles.modalBg}>
@@ -415,8 +474,8 @@ export default function ConfiguracoesScreen() {
                 </View>
               ))}
             </ScrollView>
-            <TouchableOpacity style={styles.btnSave} onPress={() => setModalAjuda(false)}>
-              <Text style={styles.btnSaveTxt}>Fechar</Text>
+            <TouchableOpacity style={styles.btnAjudaVoltar} onPress={() => setModalAjuda(false)}>
+              <Text style={styles.btnAjudaVoltarTxt}>←</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -428,7 +487,7 @@ export default function ConfiguracoesScreen() {
 function makeStyles(c: Colors) {
   return StyleSheet.create({
     container: { flex:1, backgroundColor:c.bg },
-    header: { padding:22, paddingTop:50 },
+    header: { padding:22, paddingTop:50, flexDirection:'row', alignItems:'flex-start', justifyContent:'space-between' },
     headerTitle: { fontSize:22, fontWeight:'700', color:c.text },
     headerSub: { fontSize:13, color:c.textMuted, marginTop:2 },
     sectionTitle: { fontSize:11, fontWeight:'600', color:c.textMuted, letterSpacing:0.8, paddingHorizontal:22, paddingTop:20, paddingBottom:8 },
@@ -464,5 +523,7 @@ function makeStyles(c: Colors) {
     ajudaInfo: { flex:1 },
     ajudaTitulo: { fontSize:13, fontWeight:'700', color:c.text, marginBottom:3 },
     ajudaDesc: { fontSize:12, color:c.textSec, lineHeight:18 },
+    btnAjudaVoltar: { alignItems:'center', paddingVertical:12 },
+    btnAjudaVoltarTxt: { fontSize:28, color:'#5294ff' },
   });
 }

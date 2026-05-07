@@ -164,7 +164,8 @@ export default function RelatoriosScreen() {
   const { m: mA } = mesAnterior();
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={{ flex: 1 }}>
+      <ScrollView style={styles.container}>
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <Text style={styles.headerTitle}>Relatórios</Text>
@@ -274,6 +275,7 @@ export default function RelatoriosScreen() {
         </View>
       )}
       <View style={{ height: 20 }} />
+      </ScrollView>
       <HelpModal
         visible={helpVisible}
         onClose={() => setHelpVisible(false)}
@@ -286,7 +288,7 @@ export default function RelatoriosScreen() {
           'Lançamentos em atraso aparecem em destaque no topo.',
         ]}
       />
-    </ScrollView>
+    </View>
   );
 }
 

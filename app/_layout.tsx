@@ -81,6 +81,7 @@ function RootContent() {
         <Stack.Screen name="qrcode" options={{ headerShown: false }} />
         <Stack.Screen name="voz" options={{ headerShown: false }} />
         <Stack.Screen name="paywall" options={{ headerShown: false }} />
+        <Stack.Screen name="politica" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
     </PremiumContext.Provider>

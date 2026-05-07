@@ -328,9 +328,10 @@ const DICAS = [
   { titulo: '💰 Valores por extenso', texto: 'Diga o valor por extenso: "cinquenta reais", "cento e vinte reais e cinquenta centavos", "dois mil e trezentos". Evite falar apenas números isolados.' },
   { titulo: '💳 Formas de pagamento', texto: 'Diga: "pix", "crédito", "débito", "dinheiro", "boleto", "transferência" ou "depósito". O app reconhece variações como "cartão", "cartão de crédito", "à vista".' },
   { titulo: '🏷️ Cartões e contas', texto: 'Use apelidos simples como "Nubank" ou "Itaú" — não é necessário informar número, bandeira ou dados reais. O app busca pelo nome que você cadastrou.' },
-  { titulo: '📂 Categorias', texto: 'Diga o nome da categoria ou diga "automático" para o app detectar pela descrição. Ex: dizer "mercado" na descrição já sugere Supermercado automaticamente.' },
+  { titulo: '📂 Categorias', texto: 'Na etapa de categoria, diga o nome da categoria (ex: "Supermercado", "Saúde") ou diga "automático" para o app detectar pela descrição. Ex: "mercado" já sugere Supermercado.' },
   { titulo: '🔢 Parcelas', texto: 'Diga o número de parcelas por extenso: "três", "seis", "doze". Para pagamento único diga "um" ou "à vista". Parcelamento só funciona com cartão de crédito.' },
   { titulo: '✅ Observações', texto: 'Na etapa de observações, diga qualquer anotação que queira registrar. Diga "não" para pular esta etapa e ir direto para a confirmação.' },
+  { titulo: '🎙️ Dica de dispositivo', texto: 'Cada aparelho reconhece voz de forma diferente. Se o app disser "Não entendi", tente falar mais devagar, mais alto ou use palavras alternativas para o mesmo comando.' },
 ];
 
 // ─── componente principal ───────────────────────────────────────────────────
@@ -574,13 +575,13 @@ export default function VozScreen() {
           if (t.includes('d') || t.includes('desp')) tipo = 'despesa';
           else if (t.includes('r') || t.includes('rec')) tipo = 'receita';
         }
-        if (!tipo) { falar('Despesa ou receita?'); return; }
+        if (!tipo) { falar('Não entendi, repita. Despesa ou receita?'); return; }
         avancarEtapa('descricao', { tipo });
         break;
       }
 
       case 'descricao': {
-        if (!t) { falar(getPerguntaDescricao(l.tipo)); return; }
+        if (!t) { falar('Não entendi, repita. ' + getPerguntaDescricao(l.tipo)); return; }
         const descricao = capitalizarPalavras(texto);
         const catAuto = detectarCategoria(texto);
         avancarEtapa('valor', { descricao, categoria: catAuto });
@@ -589,7 +590,7 @@ export default function VozScreen() {
 
       case 'valor': {
         const valor = interpretarValor(texto);
-        if (!valor || valor === '0') { falar('Não entendi. Qual o valor?'); return; }
+        if (!valor || valor === '0') { falar('Não entendi, repita. Qual o valor?'); return; }
 
         if (l.tipo === 'receita') {
           // Receita: após valor → forma de pagamento (Pix/Depósito/Transferência/Dinheiro)
@@ -628,7 +629,7 @@ export default function VozScreen() {
         if (l.tipo === 'receita') {
           // Receita: aceita Pix, Depósito, Transferência, Dinheiro, Crédito
           formaPag = interpretarFormaPagReceita(t);
-          if (!formaPag) { falar('Forma de recebimento? Pix, Depósito, Transferência ou Dinheiro.'); return; }
+          if (!formaPag) { falar('Não entendi, repita. Forma de recebimento? Pix, Depósito, Transferência ou Dinheiro.'); return; }
 
           // Após forma de pagamento na receita → pergunta conta onde foi recebido
           if (contasRef.current.length > 0) {
@@ -641,7 +642,7 @@ export default function VozScreen() {
 
         // Despesa: fluxo original
         formaPag = interpretarFormaPag(t);
-        if (!formaPag) { falar(getPergunta('formaPag')); return; }
+        if (!formaPag) { falar('Não entendi, repita. ' + getPergunta('formaPag')); return; }
 
         if (formaPag === 'Credito') {
           if (cartoesRef.current.length > 0) avancarEtapa('cartao', { formaPag });
@@ -741,7 +742,7 @@ export default function VozScreen() {
     if (desbloqueado !== 'true') {
       const total = buscarLancamentos().length;
       if (total >= LIMITE_GRATIS) {
-        Alert.alert('Limite atingido', 'Você atingiu o limite de 100 lançamentos gratuitos. Acesse a tela de Lançamentos para desbloquear.');
+        Alert.alert('Limite atingido', `Você atingiu o limite de ${LIMITE_GRATIS} lançamentos gratuitos. Acesse a tela de Lançamentos para desbloquear.`);
         return;
       }
     }
@@ -1013,10 +1014,11 @@ export default function VozScreen() {
           'Diga "despesa" ou "receita" para escolher o tipo.',
           'Para Pix, diga "é Pix" — funciona melhor do que só "Pix".',
           'Fale o valor por extenso: "dez mil reais", "cinquenta e cinco reais".',
-          'Na etapa de categoria, diga "automático" para detectar pela descrição.',
+          'Na etapa de categoria, diga o nome da categoria ou "automático" para detectar pela descrição.',
           'Diga "não" ou "pular" na observação para avançar direto.',
           'Use 🔊 Guiado para perguntas detalhadas ou ⚡ Rápido para perguntas curtas.',
           'Toque em "◀ Voltar" para refazer a etapa anterior sem recomeçar tudo.',
+          'Se ouvir "Não entendi, repita", tente falar mais devagar ou use palavras diferentes — cada dispositivo reconhece voz de forma distinta.',
         ]}
       />
     </View>

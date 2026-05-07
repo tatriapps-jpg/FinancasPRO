@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { buscarCartoes, buscarLancamentos, buscarLancamentosPorMes, buscarTotaisMes } from '../database';
@@ -46,7 +46,7 @@ export default function HomeScreen() {
     setDiasInput(String(dias));
 
     const savedOrc = await AsyncStorage.getItem(ORC_KEY);
-    if (savedOrc) setOrcamento(parseFloat(savedOrc));
+    setOrcamento(savedOrc ? parseFloat(savedOrc) : 0);
 
     const t = buscarTotaisMes(mesAtual, anoAtual);
     setTotais(t);
@@ -147,8 +147,7 @@ export default function HomeScreen() {
   const fmt = (v: number) => 'R$' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const saldoOrcamento = orcamento - totais.totalGasto;
   const pct = orcamento > 0 ? Math.min(100, (totais.totalGasto / orcamento) * 100) : 0;
-  const barCor = pct < 70 ? '#25d07e' : pct < 90 ? '#f7b731' : '#f25555';
-  const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const meses =['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const hoje = new Date();
   const diasNoMes = new Date(anoAtual, mesAtual, 0).getDate();
   const diasRestantes = diasNoMes - hoje.getDate();
@@ -166,7 +165,8 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={{ flex: 1 }}>
+      <ScrollView style={styles.container}>
       <View style={[styles.header, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
         <TouchableOpacity onPress={() => { setNomeInput(nomeUsuario); setModalNome(true); }} activeOpacity={0.8}>
           <Text style={styles.headerTitle}>Olá, {nomeUsuario || 'bem-vindo'}! 👋</Text>
@@ -210,6 +210,19 @@ export default function HomeScreen() {
         </TouchableOpacity>
       )}
 
+      <View style={styles.atalhos}>
+        <TouchableOpacity style={[styles.atalhoCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => router.push('/cartoes' as any)} activeOpacity={0.8}>
+          <Text style={styles.atalhoIco}>🪙</Text>
+          <Text style={[styles.atalhoTxt, { color: colors.textSec }]}>Cartões</Text>
+          <Text style={[styles.atalhoArrow, { color: colors.textSec }]}>›</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.atalhoCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => router.push('/contas' as any)} activeOpacity={0.8}>
+          <Text style={styles.atalhoIco}>🏦</Text>
+          <Text style={[styles.atalhoTxt, { color: colors.textSec }]}>Bancos</Text>
+          <Text style={[styles.atalhoArrow, { color: colors.textSec }]}>›</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.cardsGrid}>
         <View style={[styles.card, styles.cardGreen]}>
           <Text style={styles.cardLabel}>RECEITAS</Text>
@@ -221,31 +234,24 @@ export default function HomeScreen() {
           <Text style={[styles.cardValue, {color:'#f25555'}]}>{fmt(totais.totalGasto)}</Text>
           <Text style={styles.cardChange}>{diasRestantes} dias restantes</Text>
         </View>
-        <View style={[styles.card, styles.cardBlue, styles.cardFull]}>
+        <View style={[styles.card, styles.cardBlue]}>
           <Text style={styles.cardLabel}>SALDO REAL</Text>
           <Text style={[styles.cardValue, {color: totais.saldo >= 0 ? '#5294ff' : '#f25555'}]}>{fmt(totais.saldo)}</Text>
           <Text style={styles.cardChange}>receitas - despesas</Text>
         </View>
-      </View>
-
-      {orcamento > 0 && (
-        <View style={styles.budgetCard}>
-          <View style={styles.budgetHeader}>
-            <View>
-              <Text style={styles.budgetTitle}>Orçamento de {meses[mesAtual-1]}</Text>
-              <Text style={styles.budgetLimit}>Limite: {fmt(orcamento)}</Text>
-            </View>
-            <View>
-              <Text style={[styles.budgetAvail, {color: saldoOrcamento >= 0 ? '#f7b731' : '#f25555'}]}>{fmt(saldoOrcamento)}</Text>
-              <Text style={styles.budgetSub}>disponível</Text>
-            </View>
-          </View>
-          <View style={styles.barTrack}>
-            <View style={[styles.barFill, { width: `${pct}%` as any, backgroundColor: barCor }]} />
-          </View>
-          <Text style={[styles.budgetPct, { color: barCor }]}>{pct.toFixed(1)}% consumido</Text>
+        <View style={[styles.card, styles.cardOrc]}>
+          <Text style={styles.cardLabel}>ORÇAMENTO DE {meses[mesAtual-1].toUpperCase()}</Text>
+          {orcamento > 0 ? (
+            <>
+              <Text style={[styles.cardValue, {color: saldoOrcamento >= 0 ? '#f7b731' : '#f25555'}]}>{fmt(saldoOrcamento)}</Text>
+              <Text style={styles.cardOrcInfo}>Limite: {fmt(orcamento)}</Text>
+              <Text style={styles.cardOrcInfo}>{pct.toFixed(1)}% consumido</Text>
+            </>
+          ) : (
+            <Text style={styles.cardOrcInfo}>Não definido</Text>
+          )}
         </View>
-      )}
+      </View>
 
       {topGastos.length > 0 && (
         <View style={styles.graficoCard}>
@@ -373,20 +379,20 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+      </ScrollView>
       <HelpModal
         visible={helpVisible}
         onClose={() => setHelpVisible(false)}
         title="Como usar o Dashboard"
         tips={[
-          'Toque no seu nome para editá-lo.',
-          'Os cards mostram Receitas, Despesas e Saldo do mês atual.',
-          'A barra de orçamento fica verde (< 70%), amarela (70–90%) ou vermelha (acima de 90%).',
+          "Toque na saudação 'Olá...' para informar seu nome.",
+          'Os cards mostram Receitas, Despesas, Saldo Real e Orçamento do mês atual.',
           'O banner de vencimentos exibe contas não pagas nos próximos N dias.',
           'Toque em ⚙️ N dias no banner para ajustar o prazo de alerta.',
           'Os gastos por categoria aparecem logo abaixo do saldo.',
         ]}
       />
-    </ScrollView>
+    </View>
   );
 }
 
@@ -411,24 +417,21 @@ function makeStyles(c: Colors) {
     alertaVazio: { marginHorizontal:16, marginBottom:12, backgroundColor:'rgba(37,208,126,0.06)', borderRadius:14, padding:14, borderWidth:1, borderColor:'rgba(37,208,126,0.2)', alignItems:'center' },
     alertaVazioTxt: { fontSize:12, color:'#25d07e', fontWeight:'600' },
     alertaVazioSub: { fontSize:11, color:c.textMuted, marginTop:3 },
+    atalhos: { flexDirection:'row', paddingHorizontal:16, gap:10, marginBottom:10 },
+    atalhoCard: { width:'47%', borderRadius:10, paddingVertical:9, paddingHorizontal:12, borderWidth:1, flexDirection:'row', alignItems:'center', gap:6 },
+    atalhoIco: { fontSize:18 },
+    atalhoTxt: { fontSize:12, fontWeight:'600' },
+    atalhoArrow: { fontSize:18 },
     cardsGrid: { flexDirection:'row', flexWrap:'wrap', paddingHorizontal:16, gap:10 },
-    card: { width:'47%', backgroundColor:c.card, borderRadius:16, padding:16, borderWidth:1, borderColor:c.border },
+    card: { width:'47%', backgroundColor:c.card, borderRadius:16, paddingVertical:10, paddingHorizontal:16, borderWidth:1, borderColor:c.border },
     cardRed: { borderTopWidth:3, borderTopColor:'#f25555' },
     cardGreen: { borderTopWidth:3, borderTopColor:'#25d07e' },
     cardBlue: { borderTopWidth:3, borderTopColor:'#5294ff' },
-    cardFull: { width:'100%' },
+    cardOrc: { borderTopWidth:3, borderTopColor:'#f7b731' },
     cardLabel: { fontSize:9, fontWeight:'600', color:c.textSec, letterSpacing:0.8, marginBottom:8 },
     cardValue: { fontSize:15, fontWeight:'700' },
     cardChange: { fontSize:9, color:c.textMuted, marginTop:4 },
-    budgetCard: { margin:16, backgroundColor:c.card, borderRadius:16, padding:18, borderWidth:1, borderColor:c.border },
-    budgetHeader: { flexDirection:'row', justifyContent:'space-between', marginBottom:14 },
-    budgetTitle: { fontSize:14, fontWeight:'600', color:c.text },
-    budgetLimit: { fontSize:11, color:c.textMuted, marginTop:2 },
-    budgetAvail: { fontSize:16, fontWeight:'700', textAlign:'right' },
-    budgetSub: { fontSize:11, color:c.textMuted, textAlign:'right' },
-    barTrack: { height:8, backgroundColor:c.barTrack, borderRadius:10, overflow:'hidden', marginBottom:6 },
-    barFill: { height:8, borderRadius:10 },
-    budgetPct: { fontSize:11, fontWeight:'700' },
+    cardOrcInfo: { fontSize:11, color:c.textMuted, marginTop:2 },
     graficoCard: { marginHorizontal:16, marginBottom:14, backgroundColor:c.card, borderRadius:16, padding:18, borderWidth:1, borderColor:c.borderSoft },
     graficoTitle: { fontSize:11, fontWeight:'700', color:c.textSec, letterSpacing:0.8, marginBottom:12 },
     barraEmpilhada: { flexDirection:'row', height:18, borderRadius:6, overflow:'hidden', backgroundColor:c.barTrack2 },

@@ -31,11 +31,11 @@ export default function TabLayout() {
         },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Início', tabBarIcon: () => <TabBarIcon symbol="🏠" /> }} />
-      <Tabs.Screen name="lancamentos" options={{ title: 'Lançamentos', tabBarIcon: () => <TabBarIcon symbol="📋" /> }} />
-      <Tabs.Screen name="orcamento" options={{ title: 'Orçamento', tabBarIcon: () => <TabBarIcon symbol="💰" /> }} />
-      <Tabs.Screen name="relatorios" options={{ title: 'Relatórios', tabBarIcon: () => <TabBarIcon symbol="📊" /> }} />
-      <Tabs.Screen name="configuracoes" options={{ title: 'Config.', tabBarIcon: () => <TabBarIcon symbol="⚙️" /> }} />
+      <Tabs.Screen name="index"        options={{ title: 'Resumo',      tabBarIcon: () => <TabBarIcon symbol="🏠" /> }} />
+      <Tabs.Screen name="lancamentos"  options={{ title: 'Lançamentos', tabBarIcon: () => <TabBarIcon symbol="📋" /> }} />
+      <Tabs.Screen name="orcamento"    options={{ title: 'Orçamento',   tabBarIcon: () => <TabBarIcon symbol="💰" /> }} />
+      <Tabs.Screen name="relatorios"   options={{ title: 'Relatórios',  tabBarIcon: () => <TabBarIcon symbol="📊" /> }} />
+      <Tabs.Screen name="configuracoes" options={{ title: 'Config.',    tabBarIcon: () => <TabBarIcon symbol="⚙️" /> }} />
       <Tabs.Screen name="cartoes" options={{ href: null }} />
       <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>

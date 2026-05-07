@@ -117,7 +117,7 @@ export default function OrcamentoScreen() {
 
   async function carregarDados() {
     const saved = await AsyncStorage.getItem(ORC_KEY);
-    if (saved) setOrcamento(parseFloat(saved));
+    setOrcamento(saved ? parseFloat(saved) : 0);
 
     const t = buscarTotaisMes(mesAtual, anoAtual);
     setTotais(t);

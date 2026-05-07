@@ -10,7 +10,6 @@ import { agendarNotificacoesVencimento, verificarAlertaOrcamento, resetarLembret
 import HelpModal, { helpBtnStyle, helpTxtStyle } from './HelpModal';
 import { Colors, useTheme } from './theme';
 
-const CONTADOR_KEY           = '@faladinheiro:contadorLancamentos';
 const DESBLOQUEADO_KEY       = '@faladinheiro:desbloqueado';
 const PRIMEIRO_LANCAMENTO_KEY = '@faladinheiro:primeiroLancamento';
 const LIMITE_GRATIS          = 150;
@@ -262,19 +261,18 @@ export default function NovoLancamentoScreen() {
   }
 
   async function salvar() {
-    // ── Verificação de limite do plano gratuito (híbrido) ───────────────────
-    const [statusDesbloqueado, contadorStr, primLancStr] = await Promise.all([
+    // ── Verificação de limite do plano gratuito ─────────────────────────────
+    const [statusDesbloqueado, primLancStr] = await Promise.all([
       AsyncStorage.getItem(DESBLOQUEADO_KEY),
-      AsyncStorage.getItem(CONTADOR_KEY),
       AsyncStorage.getItem(PRIMEIRO_LANCAMENTO_KEY),
     ]);
 
     if (statusDesbloqueado !== 'true') {
-      const contador = parseInt(contadorStr || '0', 10);
+      const total = buscarLancamentos().length;
       const primTs = primLancStr ? parseInt(primLancStr, 10) : null;
       const diasDecorridos = primTs ? Math.floor((Date.now() - primTs) / 86400000) : 0;
 
-      if (contador >= LIMITE_GRATIS || diasDecorridos >= LIMITE_DIAS) {
+      if (total >= LIMITE_GRATIS || diasDecorridos >= LIMITE_DIAS) {
         const motivo = diasDecorridos >= LIMITE_DIAS
           ? `Seu período gratuito de ${LIMITE_DIAS} dias encerrou.`
           : `Você já registrou ${LIMITE_GRATIS} lançamentos no plano gratuito.`;
@@ -302,15 +300,9 @@ export default function NovoLancamentoScreen() {
     const valorNum = parseFloat(valor.replace(',','.'));
     if (isNaN(valorNum) || valorNum <= 0) { Alert.alert('Atenção', 'Digite um valor válido.'); return; }
 
-    // Incrementa o contador e registra data do primeiro lançamento
-    const [contAtualStr, primExistente] = await Promise.all([
-      AsyncStorage.getItem(CONTADOR_KEY),
-      AsyncStorage.getItem(PRIMEIRO_LANCAMENTO_KEY),
-    ]);
-    const contAtual = parseInt(contAtualStr || '0', 10);
-    const ops: Promise<void>[] = [AsyncStorage.setItem(CONTADOR_KEY, String(contAtual + 1))];
-    if (!primExistente) ops.push(AsyncStorage.setItem(PRIMEIRO_LANCAMENTO_KEY, String(Date.now())));
-    await Promise.all(ops);
+    // Registra data do primeiro lançamento (para o limite de 30 dias)
+    const primExistente = await AsyncStorage.getItem(PRIMEIRO_LANCAMENTO_KEY);
+    if (!primExistente) await AsyncStorage.setItem(PRIMEIRO_LANCAMENTO_KEY, String(Date.now()));
     const totalParcelas = parseInt(parcelas) || 1;
     const totalParcelasBoleto = parseInt(parcelasBoleto) || 1;
     const formaPagDB = formaPag === 'Crédito' ? 'Credito' : formaPag === 'Débito' ? 'Debito' : formaPag;

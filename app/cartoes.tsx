@@ -229,11 +229,20 @@ export default function CartoesScreen() {
     const temVirgula = v.includes(',');
     const temPonto = v.includes('.');
     if (temVirgula && temPonto) {
+      // "1.200,50" → "1200.50"
       return v.replace(/\./g, '').replace(',', '.');
     }
     if (temVirgula) {
       const decimais = v.split(',')[1] || '';
       return decimais.length === 3 ? v.replace(',', '') : v.replace(',', '.');
+    }
+    if (temPonto) {
+      const partes = v.split('.');
+      // "1.500" / "10.000" / "1.000.000" → separador de milhar
+      if (partes.length > 2 || partes[partes.length - 1].length === 3) {
+        return partes.join('');
+      }
+      // "1.5" / "99.90" → separador decimal, manter
     }
     return v;
   }
