@@ -208,7 +208,7 @@ export default function LancamentosScreen() {
           <Text style={styles.progressTxt}>
             {showDiasProgress
               ? `${diasDecorridos} de ${LIMITE_DIAS} dias do período gratuito`
-              : `${totalLancamentos} de ${LIMITE_GRATIS} lançamentos gratuitos`}
+              : `${totalGeral} de ${LIMITE_GRATIS} lançamentos gratuitos`}
           </Text>
         </View>
       )}
