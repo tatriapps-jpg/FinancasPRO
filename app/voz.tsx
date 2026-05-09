@@ -1010,7 +1010,6 @@ export default function VozScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como usar o lançamento por voz"
         tips={[
-          'Aguarde o bip antes de começar a falar.',
           'Diga "despesa" ou "receita" para escolher o tipo.',
           'Para Pix, diga "é Pix" — funciona melhor do que só "Pix".',
           'Fale o valor por extenso: "dez mil reais", "cinquenta e cinco reais".',

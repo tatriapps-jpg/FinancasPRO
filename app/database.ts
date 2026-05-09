@@ -159,11 +159,12 @@ export function buscarLancamentos(): any[] {
 }
 
 export function buscarLancamentosPorMes(mes: number, ano: number): any[] {
+  const padded = String(mes).padStart(2, '0');
   return db.getAllSync(
     `SELECT * FROM lancamentos
-     WHERE dataVencimento LIKE ? OR ((dataVencimento IS NULL OR dataVencimento = '') AND data LIKE ?)
+     WHERE dataVencimento LIKE ? OR data LIKE ?
      ORDER BY createdAt DESC`,
-    [`%/${String(mes).padStart(2,'0')}/${ano}`, `%/${String(mes).padStart(2,'0')}/${ano}`]
+    [`%/${padded}/${ano}`, `%/${padded}/${ano}`]
   );
 }
 

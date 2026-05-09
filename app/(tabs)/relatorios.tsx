@@ -285,7 +285,6 @@ export default function RelatoriosScreen() {
           'O resumo mostra total de receitas, despesas e saldo do mês.',
           'O gráfico de barras exibe os gastos por categoria.',
           'Toque em "Exportar Excel" para salvar e compartilhar o relatório em XLSX.',
-          'Lançamentos em atraso aparecem em destaque no topo.',
         ]}
       />
     </View>

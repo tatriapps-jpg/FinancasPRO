@@ -2,9 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { buscarLancamentos, buscarLancamentosEmAtraso, buscarLancamentosPorMes, deletarGrupoLancamentos, deletarLancamento } from '../database';
+import { buscarCartoes, buscarLancamentos, buscarLancamentosEmAtraso, buscarLancamentosPorMes, deletarGrupoLancamentos, deletarLancamento } from '../database';
 import HelpModal, { helpBtnStyle, helpTxtStyle } from '../HelpModal';
 import { Colors, useTheme } from '../theme';
+import { buscarContas } from '../contas';
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const LIMITE_GRATIS          = 150;
@@ -21,6 +22,8 @@ export default function LancamentosScreen() {
   const [lancamentos, setLancamentos] = useState<any[]>([]);
   const [atrasados, setAtrasados] = useState<any[]>([]);
   const [totalGeral, setTotalGeral] = useState(0);
+  const [cartoes, setCartoes] = useState<any[]>([]);
+  const [contas, setContas] = useState<any[]>([]);
   const [busca, setBusca] = useState('');
   const [desbloqueado, setDesbloqueado] = useState(false);
   const [modalPaywall, setModalPaywall] = useState(false);
@@ -68,6 +71,8 @@ export default function LancamentosScreen() {
 
     setLancamentos(dados);
     setTotalGeral(buscarLancamentos().length);
+    setCartoes(buscarCartoes());
+    setContas(await buscarContas());
   }
 
   function navMesFiltro(dir: number) {
@@ -84,6 +89,18 @@ export default function LancamentosScreen() {
     const novo = !todosMeses;
     setTodosMeses(novo);
     carregarLancamentos(mesFiltro, anoFiltro, novo);
+  }
+
+  function vinculoLabel(l: any): string {
+    if (l.cartaoId) {
+      const c = cartoes.find((c: any) => c.id === l.cartaoId);
+      return c ? (c.apelido || `${c.bandeira} ****${c.ultimos4}`) : '';
+    }
+    if (l.contaId) {
+      const ct = contas.find((ct: any) => ct.id === l.contaId);
+      return ct ? ct.nome : '';
+    }
+    return '';
   }
 
   const fmt = (v: number) => 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -266,7 +283,7 @@ export default function LancamentosScreen() {
                   <Text style={styles.txName}>{t.descricao}</Text>
                   <View style={styles.txMeta}>
                     <Text style={styles.txTagAtrasado}>⚠️ Atrasado</Text>
-                    <Text style={styles.txSub}>{t.categoria}</Text>
+                    <Text style={styles.txSub}>{[t.categoria, vinculoLabel(t)].filter(Boolean).join(' · ')}</Text>
                   </View>
                 </View>
                 <View style={styles.txRight}>
@@ -313,7 +330,7 @@ export default function LancamentosScreen() {
                 <Text style={[styles.txTag, { color: tagColor[t.status] || colors.textSec, backgroundColor: (tagColor[t.status] || colors.textSec) + '22' }]}>
                   {tagLabel[t.status] || t.status}
                 </Text>
-                <Text style={styles.txSub}>{t.categoria}</Text>
+                <Text style={styles.txSub}>{[t.categoria, vinculoLabel(t)].filter(Boolean).join(' · ')}</Text>
               </View>
             </View>
             <View style={styles.txRight}>
@@ -382,7 +399,7 @@ export default function LancamentosScreen() {
           'Lançamentos em atraso aparecem em destaque no topo.',
           'Use o campo de busca para encontrar por descrição ou categoria.',
           'O botão + abre o formulário de novo lançamento.',
-          'O botão "Todos" exibe lançamentos de todos os meses juntos. Desative-o para filtrar pelo mês escolhido nas setas ‹ ›.',
+          'O botão "Todos" exibe lançamentos de todos os meses. Toque nele para ativar ou desativar. Quando ativo, as setas de mês ficam desabilitadas.',
         ]}
       />
     </View>
