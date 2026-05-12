@@ -61,14 +61,14 @@ export default function TabLayout() {
         <Tabs.Screen name="explore"  options={{ href: null }} />
       </Tabs>
 
-      {/* FAB de voz — centralizado sobre a tab bar */}
+      {/* FAB de voz — flutua ACIMA da tab bar, sem bloquear as abas */}
       <View
         pointerEvents="box-none"
         style={{
           position: 'absolute',
           left: 0,
           right: 0,
-          bottom: insets.bottom + 8,
+          bottom: 60 + insets.bottom + 4,
           alignItems: 'center',
           zIndex: 999,
         }}
@@ -81,7 +81,7 @@ export default function TabLayout() {
               borderRadius: 8,
               paddingHorizontal: 14,
               paddingVertical: 8,
-              marginBottom: 10,
+              marginBottom: 8,
               maxWidth: 220,
             }}
           >
@@ -94,9 +94,9 @@ export default function TabLayout() {
           onPress={handleVozPress}
           activeOpacity={0.85}
           style={{
-            width: 62,
-            height: 62,
-            borderRadius: 31,
+            width: 50,
+            height: 50,
+            borderRadius: 25,
             backgroundColor: '#5294ff',
             alignItems: 'center',
             justifyContent: 'center',
@@ -107,7 +107,7 @@ export default function TabLayout() {
             shadowRadius: 8,
           }}
         >
-          <Text style={{ fontSize: 28 }}>🎤</Text>
+          <Text style={{ fontSize: 22 }}>🎤</Text>
         </TouchableOpacity>
       </View>
     </View>
