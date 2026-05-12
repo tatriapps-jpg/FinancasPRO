@@ -759,7 +759,8 @@ export default function VozScreen() {
       inserirLancamentosParcelados({
         descricao: l.descricao, valorTotal: valorNum,
         categoria: l.categoria, formaPag: l.formaPag,
-        cartaoId: l.cartaoId, totalParcelas, dataCompra: hoje(),
+        cartaoId: l.cartaoId, contaId: l.contaId || '',
+        totalParcelas, dataCompra: hoje(),
         diaVencimento: parseInt(cartao?.vencimento || '20'),
         diaFechamento: parseInt(cartao?.fechamento || '10'),
         status: 'parcelado', obs: l.obs, tipo: l.tipo,

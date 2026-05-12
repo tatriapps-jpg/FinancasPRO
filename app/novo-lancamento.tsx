@@ -310,7 +310,8 @@ export default function NovoLancamentoScreen() {
     if (formaPag === 'Crédito' && cartaoSel && totalParcelas > 1) {
       inserirLancamentosParcelados({
         descricao, valorTotal: valorNum, categoria, formaPag: formaPagDB,
-        cartaoId: cartaoSel.id, totalParcelas, dataCompra: data,
+        cartaoId: cartaoSel.id, contaId: contaSel?.id || '',
+        totalParcelas, dataCompra: data,
         diaVencimento: parseInt(cartaoSel.vencimento) || 20,
         diaFechamento: parseInt(cartaoSel.fechamento) || 10,
         status, obs, tipo,

@@ -117,6 +117,7 @@ export function inserirLancamentosParcelados(dados: {
   categoria: string;
   formaPag: string;
   cartaoId: string;
+  contaId?: string;
   totalParcelas: number;
   dataCompra: string;
   diaVencimento: number;
@@ -139,10 +140,10 @@ export function inserirLancamentosParcelados(dados: {
     const id = `${grupoId}_${i+1}`;
     const valor = i === 0 ? centavosPrimeira / 100 : centavosBase / 100;
     db.runSync(
-      `INSERT INTO lancamentos (id, tipo, descricao, valor, categoria, formaPag, cartaoId, parcelas, parcelaAtual, totalParcelas, data, dataVencimento, status, obs, grupoId)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO lancamentos (id, tipo, descricao, valor, categoria, formaPag, cartaoId, contaId, parcelas, parcelaAtual, totalParcelas, data, dataVencimento, status, obs, grupoId)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, dados.tipo, `${dados.descricao} (${i+1}/${n})`, valor,
-       dados.categoria, dados.formaPag, dados.cartaoId, n, i + 1, n,
+       dados.categoria, dados.formaPag, dados.cartaoId, dados.contaId || '', n, i + 1, n,
        dados.dataCompra, dataVenc, 'parcelado', dados.obs, grupoId]
     );
   }

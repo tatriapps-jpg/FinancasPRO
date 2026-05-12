@@ -1,85 +1,138 @@
-# RESUMO DA SESSÃO — Fala, Dinheiro! (2026-04-29 a 2026-05-04)
+# RESUMO DA SESSÃO — Fala, Dinheiro! (atualizado 12/05/2026)
 
-## 1. O que está funcionando
+---
 
-- **APK release Android** gerado com sucesso (`assembleRelease` ~3–4min, 1054 tasks)
+## 1. STATUS ATUAL — O que está funcionando
+
+### Core do app
+- **APK release gerado** com sucesso em 2026-05-12 via `gradlew assembleRelease` (~3–4min)
 - **New Architecture** habilitada e estável
-- **Entrada por voz** completa: extenso, Pix (~20 variações), categoria por tipo, voltar etapa, placeholder adaptativo
-- **Botão "?" de ajuda** em 8 telas (index, lancamentos, orcamento, relatorios, voz, novo-lancamento, contas, cartoes)
-- **HelpModal.tsx** centralizado: exporta `helpBtnStyle`, `helpTxtStyle`, `HelpModal` default
-- **Crash "Novo Lançamento"** corrigido: `helpVisible` não estava declarado em `NovoLancamentoScreen`
-- **Notificações** com 4 funções ativas: vencimento, alerta orçamento, lembrete motivacional, configurar canal
-- **Categorias** normalizadas via `migrarCategorias()` no initDB
-- **Backup/restauração** JSON funcionando
+- **SQLite + AsyncStorage** funcionando corretamente
+- **Temas** claro/escuro via Context API
+- **Ordem das abas** correta: Resumo | Lançamentos | Orçamento | Relatórios | Config
+
+### Entrada de dados
+- **Formulário manual** (`novo-lancamento.tsx`): despesas, receitas, parcelamento crédito e boleto
+- **Receita no formulário manual** funcionando corretamente
+- **Entrada por voz** (`voz.tsx`): fluxo completo com auto-save após observação (sem tela de confirmação)
+  - Interpretes robustos para valores por extenso, Pix (~20 variações), formas de pagamento
+  - Modo Guiado (3 primeiras sessões) e Rápido
+  - Botão Voltar para desfazer etapa anterior
+  - FAB 🎤 centralizado sobre a tab bar, tooltip na 1ª abertura
+- **Arredondamento de parcelas** preciso: 1ª parcela recebe centavo residual, demais usam floor
+
+### Visualização e relatórios
+- **Lançamentos tab**: filtro por mês, busca, exibe cartão/conta/formaPag na linha; despesas de crédito aparecem no mês de compra E no mês de fatura
+- **Parcelas de crédito** exibem nome do cartão vinculado na lista de lançamentos
+- **Resumo (Dashboard)**: cards de receitas, despesas, saldo, orçamento do mês atual
+- **Orçamento**: gráfico donut multicor, projeção, alertas 80%/100%
+- **Relatórios**: comparativo mês-a-mês, exportação XLSX (mês/trimestre/ano)
+- **Extrato por conta**: botão "📄 Extrato" disponível na tela Contas (bug de vínculo — ver seção 2)
+
+### Configurações e segurança
+- **PIN** de 4 dígitos na abertura
+- **Backup/restauração** JSON (lançamentos, cartões, contas, categorias, orçamento)
+- **Categorias customizáveis** por tipo (despesa/receita)
+- **Notificações**: vencimentos (3d/1d/0d), alerta orçamento 80%/100%, motivacional (3 dias sem lançar), diário 20h, semanal domingo 10h
+- **HelpModals em todas as telas corrigidos** — layout funcional em todas as telas principais
+- **Botão "Entendi" visível** — substituído por seta (←) na tela de Ajuda rápida de Configurações; Pressable com layout corrigido nas demais telas
+
+### Paywall / Monetização
+- Limite gratuito: 150 lançamentos OU 30 dias (unificado, usa contagem real do SQLite)
+- Botão "Desbloquear" na tela Lançamentos redireciona para `paywall.tsx` com IAP real
+- SKU: `financaspro_premium` (Android) / `financaspro_premium_ios`
 
 ---
 
-## 2. O que está pendente / com bug
+## 2. BUGS CONHECIDOS — O que ainda precisa corrigir
 
-### Bug ativo — Botão "Entendi" invisível no Android
-O texto do botão de fechar do `HelpModal` não aparece — só a barra azul.
+### Bug ativo — Extrato de conta vazio
+O botão "📄 Extrato" em Contas gera o arquivo mas não encontra lançamentos vinculados.
 
-| # | Tentativa | Resultado |
-|---|-----------|-----------|
-| 1 | Remover `includeFontPadding: false`, adicionar `lineHeight: 20` | Não resolveu |
-| 2 | Estilos inline + `View` dentro de `TouchableOpacity` | Não resolveu |
-| 3 | `flex: 1` no box e no ScrollView (era `maxHeight: 340`) | Não resolveu |
-| 4 | **`Pressable` + `height: 48` explícito** (implementação atual) | Aguarda teste |
+**Causa provável:** o campo `contaId` não está sendo salvo corretamente ao inserir lançamentos (tanto no formulário manual quanto na voz). A função `gerarExtrato` filtra por `l.contaId === conta.id`, mas o contaId pode estar chegando vazio ao banco.
 
-**Estado atual do botão:**
-```tsx
-<Pressable
-  onPress={onClose}
-  style={{ marginTop: 20, backgroundColor: '#5294ff', borderRadius: 8,
-           height: 48, width: '100%', justifyContent: 'center', alignItems: 'center' }}
->
-  <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>Entendi</Text>
-</Pressable>
-```
-
-**Hipóteses ainda em aberto:**
-- `ScrollView flex:1` dentro de `box flex:1` pode ainda comprimir o botão
-- `Pressable` aninhado dentro de `Pressable` (overlay) pode absorver o toque
-- Possível solução alternativa: substituir o `Modal` inteiro por um `View` absoluto posicionado manualmente
-
-### Pendente para publicação na Play Store
-- [ ] Confirmar botão "Entendi" visível no dispositivo físico
-- [ ] Testes end-to-end: fluxo voz completo + parcelamento + IAP
-- [ ] Compra IAP em ambiente de produção (track interno / alpha)
-- [ ] Screenshots e assets para ficha da loja
-- [ ] Política de privacidade em URL pública
-- [ ] Keystore definitivo configurado para release
-- [ ] Gerar AAB (`gradlew bundleRelease`) — Play Store exige AAB, não APK
+**Para investigar:**
+- Verificar se `inserirLancamento` recebe e persiste `contaId` corretamente
+- Verificar se `inserirLancamentosParcelados` inclui `contaId` na query SQL (atualmente não inclui — coluna ausente no INSERT)
+- Confirmar que `debitarConta`/`creditarConta` são chamadas mas o `contaId` não é salvo no lançamento
 
 ---
 
-## 3. Próximos passos em ordem de prioridade
+## 3. IMPLEMENTADO MAS NÃO TESTADO no dispositivo físico
 
-1. **Testar APK atual no dispositivo físico** — confirmar se o `Pressable` com `height: 48` resolveu o botão "Entendi"
-2. **Se ainda invisível:** substituir o `Modal` do HelpModal por um `View` com `position: 'absolute'` cobrindo a tela inteira (elimina variáveis do sistema de Modal do Android)
-3. **Testar fluxo de voz completo** no dispositivo: tipo → descrição → valor → categoria → forma → confirmar
-4. **Testar parcelamento no crédito** (lançar, verificar N parcelas no banco, pagar fatura)
-5. **Testar IAP** — subir APK no track interno da Play Console e comprar o premium
-6. **Preparar ficha da loja**: título, descrição curta, descrição longa, screenshots (mín. 2), ícone 512px
-7. **Hospedar política de privacidade** — pode ser GitHub Pages ou qualquer URL pública
-8. **Gerar AAB** (`./gradlew bundleRelease`) e fazer upload na Play Console
+| Funcionalidade | Arquivo | O que fazer |
+|---|---|---|
+| Salvar automático por voz após observação | `voz.tsx` | Testar fluxo completo: tipo→desc→valor→cat→forma→obs→salvo |
+| FAB de voz centralizado na tab bar | `(tabs)/_layout.tsx` | Verificar posição, tooltip na 1ª abertura, overlap com aba Orçamento |
+| Arredondamento de parcelas | `database.ts` | Testar R$152,30 ÷ 3 → confirmar 50,78 + 50,76 + 50,76 |
+| Forma de pagamento na lista de lançamentos | `lancamentos.tsx` | Confirmar exibição de "Pix", "Dinheiro", cartão ou conta no subtitle |
 
 ---
 
-## 4. Decisões tomadas (não reverter)
+## 4. PRÓXIMOS PASSOS — Em ordem de prioridade
+
+1. **Corrigir bug do extrato de conta** — garantir que `contaId` é persistido no banco em todos os fluxos de inserção
+2. **Testar APK no dispositivo físico**:
+   - FAB de voz posicionado e funcional
+   - Auto-save após observação na voz
+   - Parcelamento crédito: arredondamento e exibição corretos
+   - Forma de pagamento visível na lista
+3. **Testar IAP** — subir APK no track interno da Play Console e executar compra real
+4. **Preparar ficha da Play Store**:
+   - Título: "Fala, Dinheiro! — Controle Financeiro"
+   - Descrição curta (80 chars)
+   - Descrição longa
+   - Screenshots (mín. 2, ideais 4–8)
+   - Ícone 512×512px (fundo `#1a5c3a`)
+5. **Hospedar Política de Privacidade** — GitHub Pages ou similar (URL pública obrigatória)
+6. **Keystore definitivo** — configurar assinatura de produção no `android/app/build.gradle`
+7. **Gerar AAB** (`gradlew bundleRelease`) — Play Store exige AAB, não APK
+8. **Upload na Play Console** — track interno → alpha → produção
+
+---
+
+## 5. DECISÕES TOMADAS — Funcionamentos, preços, estratégias
 
 | Decisão | Detalhe |
 |---------|---------|
 | **Package name** | `com.tatriapps.faladinheiro` — imutável após publicação |
 | **Nome do app** | "Fala, Dinheiro!" (slug Expo "FinancasPRO" por razão histórica) |
-| **Monetização** | Compra única (one-time purchase), sem assinatura. SKU: `financaspro_premium` |
+| **Monetização** | Compra única vitalícia (one-time purchase), sem assinatura |
+| **SKU** | `financaspro_premium` (Android) / `financaspro_premium_ios` |
+| **Preço de lançamento** | R$ 14,90 — promoção inicial |
+| **Preço definitivo** | R$ 19,90 — após período de lançamento |
 | **Limite gratuito** | 150 lançamentos no código; paywall exibe "100" (marketing) — diferença intencional |
+| **Limite de dias** | 30 dias de período gratuito a partir do 1º lançamento |
 | **Arquitetura de dados** | Lançamentos/cartões → SQLite; contas/categorias/configs → AsyncStorage |
 | **Datas** | Sempre strings `DD/MM/YYYY` — nunca objetos `Date` no banco |
 | **IDs** | Sempre `gerarId()` de `database.ts` — nunca `crypto.randomUUID()` |
 | **Velocidade de voz padrão** | 1.3 (Normal). Opções: 1.0 / 1.3 / 1.6 |
-| **Tutorial de voz** | Completo nas 3 primeiras sessões (`VOZ_TUTORIAL_LIMITE = 3`), depois resumido |
-| **HelpModal** | Centralizado em `app/HelpModal.tsx`; botão usa `Pressable`; overlay usa `Pressable` |
+| **Tutorial de voz** | Completo nas 3 primeiras sessões, depois resumido |
+| **Voz: sem tela de confirmação** | Auto-save após etapa de observação — fluxo mais ágil |
+| **HelpModal** | Centralizado em `app/HelpModal.tsx`; `Pressable` no botão; `maxHeight: '82%'` no box |
 | **Cor primária** | Verde `#1a5c3a` (marca/splash); Azul `#5294ff` (ações/UI) |
-| **Build** | `assembleRelease` direto — nunca `gradlew clean assembleRelease` sem limpar worklets |
-| **FileSystem** | `expo-file-system/legacy` (não o módulo padrão) |
+| **Build** | `assembleRelease` direto — nunca `gradlew clean assembleRelease` sem necessidade |
+| **FileSystem** | `expo-file-system/legacy` — decisão de compatibilidade |
+| **Parcelamento: crédito aparece no mês da compra** | `buscarLancamentosPorMes` usa `data OR dataVencimento` |
+| **Arredondamento de parcelas** | 1ª parcela recebe centavo residual; demais usam floor |
+| **FAB de voz** | Overlay sobre tab bar (`position: 'absolute'`, `zIndex: 999`), sem nova aba/rota |
+
+---
+
+## 6. V1.1 — Funcionalidades planejadas para após o lançamento
+
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| **Saldo remanescente entre meses** | Carregar saldo do mês anterior automaticamente no novo mês |
+| **Números maiores na tela Resumo** | Aumentar fonte dos valores nos cards do Dashboard |
+| **Transações recorrentes** | Registrar contas fixas mensais e lançá-las automaticamente |
+| **FAQ / Tutorial de voz** | Seção de perguntas frequentes e tutorial passo a passo da entrada por voz |
+| **Tour do app** | Walkthrough na 1ª abertura mostrando as principais funcionalidades |
+| **Vídeos explicativos** | Vídeos curtos embutidos no app ensinando a usar cada recurso |
+| **Metas financeiras** | Definir metas de poupança e acompanhar progresso |
+| **Relatório anual** | Gráfico de barras com total por mês ao longo do ano |
+| **Exportação PDF** | Alternativa ao XLSX para compartilhamento de relatórios |
+| **Widget Android** | Resumo de saldo e última despesa na tela inicial |
+| **Foto de comprovante** | Vincular foto/imagem ao lançamento (câmera/galeria) |
+| **Sincronização nuvem** | Backup automático para Google Drive ou similar |
+| **Compartilhar extrato** | Enviar resumo do mês por WhatsApp/e-mail como texto formatado |

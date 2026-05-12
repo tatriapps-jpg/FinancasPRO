@@ -103,32 +103,34 @@ Datas são sempre strings no formato `DD/MM/YYYY`.
 | `@financaspro:categorias_receita`       | JSON array de categorias         |
 | `@financaspro:vozVelocidade`            | 1.0, 1.3 ou 1.6                  |
 | `@financaspro:vozTutorial`              | número de usos do tutorial       |
+| `@faladinheiro:vozFabTooltip`           | '1' após tooltip do FAB exibido  |
+| `@faladinheiro:primeiroLancamento`      | timestamp ms do 1º lançamento    |
 
-## Status atual (2026-05-04)
+## Status atual (2026-05-12)
 
 ### O que está funcionando
-- APK release Android gerado com sucesso (`app-release.apk`) — builds ~3–4min
-- New Architecture habilitada e funcionando
-- Entrada por voz corrigida: extenso, Pix, categoria, voltar etapa, placeholder
-- Placeholder de descrição em novo-lancamento.tsx adaptativo (receita/despesa)
-- Todas as categorias normalizadas via migrarCategorias() no initDB
-- Botão "?" de ajuda contextual em 8 telas: index, lancamentos, orcamento, relatorios, voz, novo-lancamento, contas, cartoes
-- HelpModal.tsx centralizado com estilos exportados (helpBtnStyle, helpTxtStyle)
-- Crash ao abrir "Novo Lançamento" corrigido (helpVisible não declarado)
+- APK release Android gerado com sucesso em 2026-05-12 (`app-release.apk`) — builds ~3–4min
+- New Architecture habilitada e estável
+- Entrada por voz: extenso, Pix (~20 variações), categoria, voltar etapa, auto-save após observação
+- Despesas com cartão de crédito agora aparecem no mês da compra (Resumo, Orçamento, Lançamentos)
+- Parcelamentos com arredondamento preciso (aritmética inteira, 1ª parcela recebe o centavo residual)
+- FAB de voz 🎤 centralizado sobre a tab bar com tooltip na primeira abertura
+- Extrato por conta (XLSX) disponível na tela Contas
+- Lista de Lançamentos exibe cartão/conta/formaPag junto à categoria
+- HelpModal corrigido: `maxHeight: '82%'` no box, `flexShrink: 1` no scroll, botão "Entendi" sempre visível
+- Botão "?" em todas as telas principais incluindo Configurações
+- `buscarLancamentosPorMes` usa `data OR dataVencimento` — itens aparecem no mês de compra E no mês de fatura
+- Limites do plano gratuito unificados: todos usam `buscarLancamentos().length` (sem contador assíncrono)
+- Política de Privacidade sem header nativo (headerShown: false)
 
-### Bug em investigação ativa
-- **Botão "Entendi" do HelpModal aparece como barra azul sem texto no Android**
-  - Tentativa 1: removido `includeFontPadding: false`, adicionado `lineHeight: 20` — não resolveu
-  - Tentativa 2: estilos inline + `View` dentro do `TouchableOpacity` — não resolveu
-  - Tentativa 3: flex layout no `box` e `ScrollView` (maxHeight→flex:1) — não resolveu
-  - Tentativa 4 (atual): substituído `TouchableOpacity` por `Pressable`, `height: 48` explícito, overlay também usa `Pressable`
-  - Ainda não confirmado se resolveu — aguarda teste no dispositivo físico
+### Bug pendente de confirmação no dispositivo físico
+- **Botão "Entendi" do HelpModal**: após múltiplas tentativas de correção de layout, a versão atual usa `Pressable` + `maxHeight: '82%'` no box + `flexShrink: 1` no ScrollView. Aguarda teste em dispositivo físico Android.
 
 ### O que falta para publicar na Play Store
 - ⚠️ Confirmar botão "Entendi" do HelpModal visível no dispositivo físico
-- Testes end-to-end no dispositivo físico (especialmente fluxo de voz + parcelamento)
+- Testes end-to-end no dispositivo físico (fluxo de voz + parcelamento + FAB)
 - Verificar compra IAP em ambiente de produção (track interno / alpha da Play Store)
 - Screenshots e assets para a ficha da loja
 - Política de privacidade hospedada em URL pública
 - Configurar signing keystore definitivo para release
-- Enviar AAB (não APK) via `gradlew bundleRelease` para a Play Store
+- Gerar AAB (`gradlew bundleRelease`) — Play Store exige AAB, não APK

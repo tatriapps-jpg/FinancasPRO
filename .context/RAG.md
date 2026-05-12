@@ -11,10 +11,10 @@ Banco: `financaspro.db` (SQLite local via expo-sqlite)
 | `initDB()`                     | 9     | Cria tabelas, roda migrations de ALTER TABLE e migrarCategorias()      |
 | `migrarCategorias()`           | 61    | Normaliza categorias legadas (ex: "Alimentacao" → "Supermercado")      |
 | `inserirLancamento(item)`      | 89    | INSERT simples de 1 lançamento                                         |
-| `inserirLancamentosParcelados` | 114   | Gera N parcelas com vencimentos calculados, mesmo grupoId              |
+| `inserirLancamentosParcelados` | 114   | Gera N parcelas com arredondamento preciso: 1ª parcela recebe centavo residual, demais usam floor |
 | `calcularVencimento()`         | 146   | Calcula data de vencimento por índice de parcela, fechamento e venc.   |
 | `buscarLancamentos()`          | 157   | SELECT * ORDER BY createdAt DESC (todos os lançamentos)                |
-| `buscarLancamentosPorMes()`    | 161   | Filtra por dataVencimento LIKE %/MM/YYYY (cai em data se nulo)         |
+| `buscarLancamentosPorMes()`    | 161   | Filtra por `dataVencimento LIKE ? OR data LIKE ?` — itens aparecem no mês de compra E no mês de fatura |
 | `deletarLancamento(id)`        | 170   | DELETE por id                                                          |
 | `deletarGrupoLancamentos()`    | 174   | DELETE por grupoId (apaga todas as parcelas de um grupo)               |
 | `atualizarLancamento()`        | 178   | UPDATE básico: descricao, valor, categoria, status, dataPagamento      |
