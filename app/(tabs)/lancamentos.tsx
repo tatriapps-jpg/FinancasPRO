@@ -100,7 +100,12 @@ export default function LancamentosScreen() {
       const ct = contas.find((ct: any) => ct.id === l.contaId);
       return ct ? ct.nome : '';
     }
-    return '';
+    const mapFP: Record<string, string> = {
+      Credito: 'Crédito', Debito: 'Débito', Pix: 'Pix',
+      Dinheiro: 'Dinheiro', Boleto: 'Boleto',
+      'Transferência': 'Transferência', 'Depósito': 'Depósito', Outro: 'Outro',
+    };
+    return mapFP[l.formaPag] || l.formaPag || '';
   }
 
   const fmt = (v: number) => 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');

@@ -317,15 +317,19 @@ export default function NovoLancamentoScreen() {
       });
     } else if (formaPag === 'Boleto' && totalParcelasBoleto > 1) {
       const grupoId = gerarId();
-      const valorParcela = valorNum / totalParcelasBoleto;
-      for (let i = 0; i < totalParcelasBoleto; i++) {
+      const nB = totalParcelasBoleto;
+      const ctB = Math.round(valorNum * 100);
+      const cbBase = Math.floor(ctB / nB);
+      const cbPrimeira = ctB - cbBase * (nB - 1);
+      for (let i = 0; i < nB; i++) {
+        const valorParcela = i === 0 ? cbPrimeira / 100 : cbBase / 100;
         inserirLancamento({
           id: `${grupoId}_${i+1}`, tipo,
-          descricao: `${descricao} (${i+1}/${totalParcelasBoleto})`,
+          descricao: `${descricao} (${i+1}/${nB})`,
           valor: valorParcela, categoria, formaPag: formaPagDB,
           cartaoId: '', contaId: contaSel?.id || '',
-          parcelas: totalParcelasBoleto,
-          parcelaAtual: i + 1, totalParcelas: totalParcelasBoleto,
+          parcelas: nB,
+          parcelaAtual: i + 1, totalParcelas: nB,
           data, dataVencimento: addMes(dataVencBoleto, i),
           status: 'parcelado', obs, grupoId,
         });

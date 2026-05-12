@@ -731,7 +731,10 @@ export default function VozScreen() {
         const primeiraPalavra = t.split(' ')[0];
         const eNegacao = PALAVRAS_NEGACAO.some(p => t.includes(normalizar(p))) || PALAVRAS_NEGACAO.includes(primeiraPalavra) || t.trim().length < 5;
         const obs = eNegacao ? '' : capitalizarPalavras(texto);
-        avancarEtapa('confirmacao', { obs });
+        lancamentoRef.current = { ...lancamentoRef.current, obs };
+        setLancamento(lancamentoRef.current);
+        setTranscricao(''); textoFinal.current = ''; jaProcessou.current = false;
+        salvarDireto();
         break;
       }
     }
@@ -1018,6 +1021,7 @@ export default function VozScreen() {
           'Use 🔊 Guiado para perguntas detalhadas ou ⚡ Rápido para perguntas curtas.',
           'Toque em "◀ Voltar" para refazer a etapa anterior sem recomeçar tudo.',
           'Se ouvir "Não entendi, repita", tente falar mais devagar ou use palavras diferentes — cada dispositivo reconhece voz de forma distinta.',
+          'Para centavos, diga "cinquenta reais e trinta centavos". Evite dizer "152 com 30" pois pode ser interpretado incorretamente.',
         ]}
       />
     </View>

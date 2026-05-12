@@ -126,18 +126,23 @@ export function inserirLancamentosParcelados(dados: {
   tipo: string;
 }) {
   const grupoId = gerarId();
-  const valorParcela = dados.valorTotal / dados.totalParcelas;
+  const n = dados.totalParcelas;
+  // Arredondamento preciso: parcelas 2+ recebem floor, a 1ª recebe o ajuste da diferença
+  const centavosTotal = Math.round(dados.valorTotal * 100);
+  const centavosBase = Math.floor(centavosTotal / n);
+  const centavosPrimeira = centavosTotal - centavosBase * (n - 1);
   const [dia, mes, ano] = dados.dataCompra.split('/').map(Number);
   const dataCompraObj = new Date(ano, mes - 1, dia);
 
-  for (let i = 0; i < dados.totalParcelas; i++) {
+  for (let i = 0; i < n; i++) {
     const dataVenc = calcularVencimento(dataCompraObj, i, dados.diaFechamento, dados.diaVencimento);
     const id = `${grupoId}_${i+1}`;
+    const valor = i === 0 ? centavosPrimeira / 100 : centavosBase / 100;
     db.runSync(
       `INSERT INTO lancamentos (id, tipo, descricao, valor, categoria, formaPag, cartaoId, parcelas, parcelaAtual, totalParcelas, data, dataVencimento, status, obs, grupoId)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, dados.tipo, `${dados.descricao} (${i+1}/${dados.totalParcelas})`, valorParcela,
-       dados.categoria, dados.formaPag, dados.cartaoId, dados.totalParcelas, i + 1, dados.totalParcelas,
+      [id, dados.tipo, `${dados.descricao} (${i+1}/${n})`, valor,
+       dados.categoria, dados.formaPag, dados.cartaoId, n, i + 1, n,
        dados.dataCompra, dataVenc, 'parcelado', dados.obs, grupoId]
     );
   }
