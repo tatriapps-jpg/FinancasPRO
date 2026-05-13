@@ -694,7 +694,7 @@ export default function VozScreen() {
         const conta = contasRef.current.find(c =>
           t.includes(normalizar(c.nome)) ||
           t.includes(normalizar(c.banco)) ||
-          normalizar(c.nome).split(' ').some(palavra => palavra.length > 3 && t.includes(palavra))
+          normalizar(c.nome).split(' ').every(p => t.includes(p))
         ) || null;
         if (conta) {
           avancarEtapa('obs', { contaId: conta.id, contaNome: conta.nome });
@@ -715,7 +715,7 @@ export default function VozScreen() {
         const contaRec = contasRef.current.find(c =>
           t.includes(normalizar(c.nome)) ||
           t.includes(normalizar(c.banco)) ||
-          normalizar(c.nome).split(' ').some(palavra => palavra.length > 3 && t.includes(palavra))
+          normalizar(c.nome).split(' ').every(p => t.includes(p))
         ) || null;
         if (contaRec) {
           avancarEtapa('obs', { contaId: contaRec.id, contaNome: contaRec.nome });
