@@ -150,10 +150,11 @@ export function inserirLancamentosParcelados(dados: {
 }
 
 function calcularVencimento(dataCompra: Date, indiceParcela: number, diaFechamento: number, diaVencimento: number): string {
-  const mesCompra = dataCompra.getMonth(); // 0-based
-  const anoCompra = dataCompra.getFullYear();
-  let mesBase = mesCompra + 1 + indiceParcela;
-  let anoBase = anoCompra;
+  let mesBase = dataCompra.getMonth(); // 0-based
+  let anoBase = dataCompra.getFullYear();
+  // Avança para o próximo mês apenas se a compra já passou do dia de fechamento
+  if (dataCompra.getDate() > diaFechamento) mesBase += 1;
+  mesBase += indiceParcela;
   while (mesBase > 11) { mesBase -= 12; anoBase += 1; }
   const dia = String(diaVencimento).padStart(2, '0');
   const mes = String(mesBase + 1).padStart(2, '0');
