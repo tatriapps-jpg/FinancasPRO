@@ -92,20 +92,30 @@ export default function LancamentosScreen() {
   }
 
   function vinculoLabel(l: any): string {
-    if (l.cartaoId) {
-      const c = cartoes.find((c: any) => c.id === l.cartaoId);
-      return c ? (c.apelido || `${c.bandeira} ****${c.ultimos4}`) : '';
-    }
-    if (l.contaId) {
-      const ct = contas.find((ct: any) => ct.id === l.contaId);
-      return ct ? ct.nome : '';
-    }
     const mapFP: Record<string, string> = {
       Credito: 'Crédito', Debito: 'Débito', Pix: 'Pix',
       Dinheiro: 'Dinheiro', Boleto: 'Boleto',
       'Transferência': 'Transferência', 'Depósito': 'Depósito', Outro: 'Outro',
     };
-    return mapFP[l.formaPag] || l.formaPag || '';
+    const formaPagLabel = mapFP[l.formaPag] || l.formaPag || '';
+
+    if (l.cartaoId) {
+      const c = cartoes.find((c: any) => c.id === l.cartaoId);
+      return c ? (c.apelido || `${c.bandeira} ****${c.ultimos4}`) : formaPagLabel;
+    }
+
+    const comConta = ['Pix', 'Debito', 'Transferência', 'Depósito'].includes(l.formaPag);
+    if (l.contaId && comConta) {
+      const ct = contas.find((ct: any) => ct.id === l.contaId);
+      return ct ? `${formaPagLabel} · ${ct.nome}` : formaPagLabel;
+    }
+
+    if (l.contaId) {
+      const ct = contas.find((ct: any) => ct.id === l.contaId);
+      return ct ? ct.nome : formaPagLabel;
+    }
+
+    return formaPagLabel;
   }
 
   const fmt = (v: number) => 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
