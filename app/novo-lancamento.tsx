@@ -63,7 +63,7 @@ function Dropdown({
     <View style={{ marginBottom: 4 }}>
       <TouchableOpacity style={dd.btn} onPress={() => { setAberto(true); setBusca(''); }}>
         <Text style={[dd.btnTxt, !value && { color: colors.textMuted }]}>
-          {value || placeholder}
+          {renderItem ? (renderItem(value) || placeholder) : (value || placeholder)}
         </Text>
         <Text style={dd.arrow}>▾</Text>
       </TouchableOpacity>
