@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { carregarCategorias } from './categorias';
-import { buscarContas, debitarConta } from './contas';
+import { buscarContas, creditarConta, debitarConta } from './contas';
 import { buscarCartoes, buscarLancamentos, gerarId, inserirLancamento, inserirLancamentosParcelados } from './database';
 import { agendarNotificacoesVencimento, verificarAlertaOrcamento, resetarLembreteMotivacional } from './notificacoes';
 import HelpModal, { helpBtnStyle, helpTxtStyle } from './HelpModal';
@@ -16,6 +16,7 @@ const LIMITE_GRATIS          = 150;
 const LIMITE_DIAS            = 30;
 
 const FORMAS_PAG = ['Pix','Crédito','Débito','Dinheiro','Boleto','Transferência','Depósito','Outro'];
+const FORMAS_PAG_RECEITA = ['Pix','Transferência','Depósito','Dinheiro','Crédito'];
 const PARCELAS_OPTS = ['1','2','3','4','5','6','7','8','9','10','11','12','15','18','24'];
 const PARCELAS_BOLETO_OPTS = ['1','2','3','4','5','6','7','8','9','10','11','12'];
 
@@ -180,7 +181,7 @@ export default function NovoLancamentoScreen() {
       if (n > 1) setStatus('parcelado');
       else setStatus('pendente');
     }
-    if (formaPag !== 'Débito' && formaPag !== 'Pix') setContaSel(null);
+    if (!['Débito', 'Pix', 'Transferência', 'Depósito'].includes(formaPag)) setContaSel(null);
     if (formaPag !== 'Crédito') { setCartaoSel(null); setParcelas('1'); }
   }, [parcelasBoleto, formaPag]);
 
@@ -349,6 +350,9 @@ export default function NovoLancamentoScreen() {
     if (contaSel && (formaPag === 'Débito' || formaPag === 'Pix') && tipo === 'despesa') {
       await debitarConta(contaSel.id, valorNum);
     }
+    if (contaSel && tipo === 'receita') {
+      await creditarConta(contaSel.id, valorNum);
+    }
 
     await agendarNotificacoesVencimento();
     verificarAlertaOrcamento().catch(() => {});
@@ -358,6 +362,7 @@ export default function NovoLancamentoScreen() {
   }
 
   const mostraSelecaoConta = tipo === 'despesa' && (formaPag === 'Débito' || formaPag === 'Pix') && contas.length > 0;
+  const mostraSelecaoContaReceita = tipo === 'receita' && ['Pix', 'Transferência', 'Depósito'].includes(formaPag) && contas.length > 0;
   const cartaoOpts = cartoes.map(c => c.id);
   const cartaoLabel = (id: string) => { const c = cartoes.find(x => x.id === id); return c ? (c.apelido || `${c.bandeira} ****${c.ultimos4}`) : id; };
   const contaOpts = ['Nenhuma', ...contas.map(c => c.id)];
@@ -549,6 +554,38 @@ export default function NovoLancamentoScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+          </>}
+        </>}
+
+        {tipo === 'receita' && <>
+          <Text style={styles.lbl}>Forma de recebimento (opcional)</Text>
+          <Dropdown
+            label="Forma de recebimento"
+            value={formaPag}
+            placeholder="Toque para selecionar..."
+            opcoes={FORMAS_PAG_RECEITA}
+            onSelect={(f) => {
+              setFormaPag(f);
+              if (!['Pix', 'Transferência', 'Depósito'].includes(f)) setContaSel(null);
+            }}
+            colors={colors}
+          />
+          {mostraSelecaoContaReceita && <>
+            <Text style={styles.lbl}>Creditado na conta (opcional)</Text>
+            <Dropdown
+              label="Selecione a conta"
+              value={contaSel?.id || 'Nenhuma'}
+              placeholder="Nenhuma conta"
+              opcoes={contaOpts}
+              onSelect={(id) => { if (id === 'Nenhuma') setContaSel(null); else setContaSel(contas.find(c => c.id === id) || null); }}
+              renderItem={contaLabel}
+              colors={colors}
+            />
+            {contaSel && (
+              <View style={styles.contaInfo}>
+                <Text style={styles.contaInfoTxt}>✅ Creditado em: {contaSel.nome} · {contaSel.banco}</Text>
+              </View>
+            )}
           </>}
         </>}
 

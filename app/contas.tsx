@@ -156,7 +156,7 @@ export default function ContasScreen() {
       setExportandoId(conta.id);
       const todos = buscarTodosLancamentos();
       const lancamentos = todos
-        .filter((l: any) => l.contaId === conta.id)
+        .filter((l: any) => String(l.contaId ?? '') === String(conta.id ?? '')  && l.contaId)
         .sort((a: any, b: any) => {
           const toDate = (d: string) => {
             const p = d?.split('/');
