@@ -1,6 +1,7 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { carregarCategorias } from './categorias';
 import { atualizarGrupoLancamentos, atualizarLancamentoCompleto, buscarCartoes } from './database';
 import { agendarNotificacoesVencimento, verificarAlertaOrcamento, resetarLembreteMotivacional } from './notificacoes';
@@ -64,6 +65,19 @@ function Dropdown({
   );
 }
 
+function strToDate(d: string): Date {
+  const parts = d?.split('/');
+  if (parts?.length === 3) {
+    const [dia, mes, ano] = parts.map(Number);
+    if (!isNaN(dia) && !isNaN(mes) && !isNaN(ano)) return new Date(ano, mes - 1, dia);
+  }
+  return new Date();
+}
+
+function dateToStr(d: Date): string {
+  return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+}
+
 export default function EditarLancamentoScreen() {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -87,6 +101,14 @@ export default function EditarLancamentoScreen() {
   const [categoriasDesp, setCategoriasDesp] = useState<string[]>([]);
   const [categoriasRec, setCategoriasRec]   = useState<string[]>([]);
 
+  // DateTimePicker state
+  const [mostrarPickerData, setMostrarPickerData]         = useState(false);
+  const [mostrarPickerVenc, setMostrarPickerVenc]         = useState(false);
+  const [mostrarPickerPag, setMostrarPickerPag]           = useState(false);
+  const [dataObj, setDataObj]                             = useState(new Date());
+  const [dataVencObj, setDataVencObj]                     = useState(new Date());
+  const [dataPagObj, setDataPagObj]                       = useState(new Date());
+
   function hoje() {
     const d = new Date();
     return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
@@ -103,8 +125,16 @@ export default function EditarLancamentoScreen() {
     if (params.obs)          setObs(params.obs as string);
     if (params.tipo)         setTipo(params.tipo as string);
     if (params.dataPagamento) setDataPagamento(params.dataPagamento as string);
-    if (params.data)         setData(params.data as string);
-    if (params.dataVencimento) setDataVencimento(params.dataVencimento as string);
+    if (params.data) {
+      const d = params.data as string;
+      setData(d);
+      setDataObj(strToDate(d));
+    }
+    if (params.dataVencimento) {
+      const d = params.dataVencimento as string;
+      setDataVencimento(d);
+      setDataVencObj(strToDate(d));
+    }
     if (params.cartaoId)     setCartaoId(params.cartaoId as string);
     if (params.grupoId)      setGrupoId(params.grupoId as string);
     if (params.totalParcelas) setTotalParcelas(parseInt(params.totalParcelas as string) || 1);
@@ -113,7 +143,9 @@ export default function EditarLancamentoScreen() {
   function handleStatus(novoStatus: string) {
     setStatus(novoStatus);
     if (novoStatus === 'pago' && !dataPagamento) {
-      setDataPagamento(hoje());
+      const hoje_ = hoje();
+      setDataPagamento(hoje_);
+      setDataPagObj(strToDate(hoje_));
     }
     if (novoStatus !== 'pago') {
       setDataPagamento('');
@@ -151,184 +183,225 @@ export default function EditarLancamentoScreen() {
   }
 
   const ehGrupo = !!grupoId && totalParcelas > 1;
-  const cartaoAtual = cartoes.find(c => c.id === cartaoId);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backTxt}>Voltar</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Editar Lançamento</Text>
-        <View style={{ width: 70 }} />
-      </View>
-
-      <ScrollView style={styles.form} keyboardShouldPersistTaps="handled">
-
-        {/* Badge de tipo */}
-        <View style={styles.tipoBadgeRow}>
-          <View style={[styles.tipoBadge, tipo === 'receita' ? styles.tipoBadgeRec : styles.tipoBadgeDesp]}>
-            <Text style={styles.tipoBadgeTxt}>
-              {tipo === 'receita' ? '📈 Receita' : '📉 Despesa'}
-            </Text>
-          </View>
-          {ehGrupo && (
-            <View style={styles.parcelasBadge}>
-              <Text style={styles.parcelasBadgeTxt}>💳 {totalParcelas} parcelas</Text>
-            </View>
-          )}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
+    >
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Text style={styles.backTxt}>Voltar</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Editar Lançamento</Text>
+          <View style={{ width: 70 }} />
         </View>
 
-        {/* Informações básicas */}
-        <Text style={styles.sectionLbl}>INFORMAÇÕES</Text>
+        <ScrollView style={styles.form} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
 
-        <Text style={styles.lbl}>Descrição *</Text>
-        <TextInput style={styles.input} placeholderTextColor={colors.textMuted} value={descricao} onChangeText={setDescricao} />
-
-        <Text style={styles.lbl}>Valor R$ *</Text>
-        <TextInput style={styles.input} placeholderTextColor={colors.textMuted} keyboardType="numeric" value={valor} onChangeText={setValor} />
-
-        <Text style={styles.lbl}>Categoria</Text>
-        <Dropdown
-          label="Selecione a categoria"
-          value={categoria}
-          placeholder="Toque para selecionar..."
-          opcoes={tipo === 'despesa' ? categoriasDesp : categoriasRec}
-          onSelect={setCategoria}
-          colors={colors}
-        />
-
-        {/* Status */}
-        {tipo === 'despesa' && <>
-          <Text style={styles.sectionLbl}>PAGAMENTO</Text>
-
-          <Text style={styles.lbl}>Status</Text>
-          <View style={styles.payGrid}>
-            {[['pago','✅ Pago'],['pendente','⏳ Pendente'],['parcelado','💳 Parcelado']].map(([v,l]) => (
-              <TouchableOpacity key={v} style={[styles.payBtn, status===v && styles.payBtnOn]} onPress={() => handleStatus(v)}>
-                <Text style={[styles.payTxt, status===v && styles.payTxtOn]}>{l}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {status === 'pago' && (
-            <View style={styles.pagamentoBox}>
-              <Text style={styles.lbl}>Data do pagamento</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="DD/MM/AAAA"
-                placeholderTextColor={colors.textMuted}
-                value={dataPagamento}
-                onChangeText={setDataPagamento}
-                keyboardType="numeric"
-                maxLength={10}
-              />
-              <Text style={styles.pagamentoHint}>Preenchido automaticamente com a data de hoje. Altere se necessário.</Text>
+          {/* Badge de tipo */}
+          <View style={styles.tipoBadgeRow}>
+            <View style={[styles.tipoBadge, tipo === 'receita' ? styles.tipoBadgeRec : styles.tipoBadgeDesp]}>
+              <Text style={styles.tipoBadgeTxt}>
+                {tipo === 'receita' ? '📈 Receita' : '📉 Despesa'}
+              </Text>
             </View>
-          )}
-        </>}
-
-        {/* Datas */}
-        <Text style={styles.sectionLbl}>DATAS</Text>
-
-        <View style={styles.dateRow}>
-          <View style={styles.dateCol}>
-            <Text style={styles.lbl}>Data do lançamento</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="DD/MM/AAAA"
-              placeholderTextColor={colors.textMuted}
-              value={data}
-              onChangeText={setData}
-              keyboardType="numeric"
-              maxLength={10}
-            />
+            {ehGrupo && (
+              <View style={styles.parcelasBadge}>
+                <Text style={styles.parcelasBadgeTxt}>💳 {totalParcelas} parcelas</Text>
+              </View>
+            )}
           </View>
-          <View style={styles.dateCol}>
-            <Text style={styles.lbl}>Data de vencimento</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="DD/MM/AAAA"
-              placeholderTextColor={colors.textMuted}
-              value={dataVencimento}
-              onChangeText={setDataVencimento}
-              keyboardType="numeric"
-              maxLength={10}
-            />
-          </View>
-        </View>
 
-        {/* Cartão */}
-        {cartoes.length > 0 && (
-          <>
-            <Text style={styles.sectionLbl}>CARTÃO</Text>
-            <Text style={styles.lbl}>Cartão vinculado</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.cartaoChipRow}>
-                <TouchableOpacity
-                  style={[styles.cartaoChip, !cartaoId && styles.cartaoChipOn]}
-                  onPress={() => setCartaoId('')}
-                >
-                  <Text style={[styles.cartaoChipTxt, !cartaoId && styles.cartaoChipTxtOn]}>Nenhum</Text>
+          {/* Informações básicas */}
+          <Text style={styles.sectionLbl}>INFORMAÇÕES</Text>
+
+          <Text style={styles.lbl}>Descrição *</Text>
+          <TextInput style={styles.input} placeholderTextColor={colors.textMuted} value={descricao} onChangeText={setDescricao} />
+
+          <Text style={styles.lbl}>Valor R$ *</Text>
+          <TextInput style={styles.input} placeholderTextColor={colors.textMuted} keyboardType="numeric" value={valor} onChangeText={setValor} />
+
+          <Text style={styles.lbl}>Categoria</Text>
+          <Dropdown
+            label="Selecione a categoria"
+            value={categoria}
+            placeholder="Toque para selecionar..."
+            opcoes={tipo === 'despesa' ? categoriasDesp : categoriasRec}
+            onSelect={setCategoria}
+            colors={colors}
+          />
+
+          {/* Status */}
+          {tipo === 'despesa' && <>
+            <Text style={styles.sectionLbl}>PAGAMENTO</Text>
+
+            <Text style={styles.lbl}>Status</Text>
+            <View style={styles.payGrid}>
+              {[['pago','✅ Pago'],['pendente','⏳ Pendente'],['parcelado','💳 Parcelado']].map(([v,l]) => (
+                <TouchableOpacity key={v} style={[styles.payBtn, status===v && styles.payBtnOn]} onPress={() => handleStatus(v)}>
+                  <Text style={[styles.payTxt, status===v && styles.payTxtOn]}>{l}</Text>
                 </TouchableOpacity>
-                {cartoes.map(c => (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={[styles.cartaoChip, cartaoId === c.id && styles.cartaoChipOn]}
-                    onPress={() => setCartaoId(c.id)}
-                  >
-                    <Text style={[styles.cartaoChipTxt, cartaoId === c.id && styles.cartaoChipTxtOn]}>💳 {c.apelido}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </>
-        )}
-
-        {/* Parcelas */}
-        {ehGrupo && (
-          <>
-            <Text style={styles.sectionLbl}>PARCELAS</Text>
-            <View style={styles.grupoBox}>
-              <View style={styles.grupoRow}>
-                <View style={styles.grupoInfo}>
-                  <Text style={styles.grupoTitle}>Aplicar a todas as parcelas</Text>
-                  <Text style={styles.grupoSub}>Atualiza categoria e valor em todas as {totalParcelas} parcelas deste grupo</Text>
-                </View>
-                <Switch
-                  value={aplicarAoGrupo}
-                  onValueChange={setAplicarAoGrupo}
-                  trackColor={{ false: colors.barTrack, true: 'rgba(82,148,255,0.4)' }}
-                  thumbColor={aplicarAoGrupo ? '#5294ff' : colors.textMuted}
-                />
-              </View>
+              ))}
             </View>
-          </>
-        )}
 
-        {/* Observações */}
-        <Text style={styles.sectionLbl}>OBSERVAÇÕES</Text>
-        <TextInput
-          style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
-          placeholder="Anotação opcional..."
-          placeholderTextColor={colors.textMuted}
-          multiline
-          value={obs}
-          onChangeText={setObs}
-        />
+            {status === 'pago' && (
+              <View style={styles.pagamentoBox}>
+                <Text style={styles.lbl}>Data do pagamento</Text>
+                <TouchableOpacity
+                  style={[styles.input, styles.dateBtn]}
+                  onPress={() => setMostrarPickerPag(true)}
+                >
+                  <Text style={styles.dateBtnIco}>📅</Text>
+                  <Text style={[styles.dateBtnTxt, { color: dataPagamento ? colors.text : colors.textMuted }]}>
+                    {dataPagamento || 'DD/MM/AAAA'}
+                  </Text>
+                </TouchableOpacity>
+                {mostrarPickerPag && (
+                  <DateTimePicker
+                    value={dataPagObj}
+                    mode="date"
+                    display="calendar"
+                    locale="pt-BR"
+                    onChange={(_, d) => {
+                      setMostrarPickerPag(false);
+                      if (d) { setDataPagObj(d); setDataPagamento(dateToStr(d)); }
+                    }}
+                  />
+                )}
+                <Text style={styles.pagamentoHint}>Preenchido automaticamente com a data de hoje. Altere se necessário.</Text>
+              </View>
+            )}
+          </>}
 
-        <View style={{ height: 20 }} />
-      </ScrollView>
+          {/* Datas */}
+          <Text style={styles.sectionLbl}>DATAS</Text>
 
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.btnCancel} onPress={() => router.back()}>
-          <Text style={styles.btnCancelTxt}>Cancelar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.btnSave} onPress={salvar}>
-          <Text style={styles.btnSaveTxt}>Salvar alterações</Text>
-        </TouchableOpacity>
+          <View style={styles.dateRow}>
+            <View style={styles.dateCol}>
+              <Text style={styles.lbl}>Data do lançamento</Text>
+              <TouchableOpacity
+                style={[styles.input, styles.dateBtn]}
+                onPress={() => setMostrarPickerData(true)}
+              >
+                <Text style={styles.dateBtnIco}>📅</Text>
+                <Text style={[styles.dateBtnTxt, { color: data ? colors.text : colors.textMuted }]}>
+                  {data || 'DD/MM/AAAA'}
+                </Text>
+              </TouchableOpacity>
+              {mostrarPickerData && (
+                <DateTimePicker
+                  value={dataObj}
+                  mode="date"
+                  display="calendar"
+                  locale="pt-BR"
+                  onChange={(_, d) => {
+                    setMostrarPickerData(false);
+                    if (d) { setDataObj(d); setData(dateToStr(d)); }
+                  }}
+                />
+              )}
+            </View>
+            <View style={styles.dateCol}>
+              <Text style={styles.lbl}>Data de vencimento</Text>
+              <TouchableOpacity
+                style={[styles.input, styles.dateBtn]}
+                onPress={() => setMostrarPickerVenc(true)}
+              >
+                <Text style={styles.dateBtnIco}>📅</Text>
+                <Text style={[styles.dateBtnTxt, { color: dataVencimento ? colors.text : colors.textMuted }]}>
+                  {dataVencimento || 'DD/MM/AAAA'}
+                </Text>
+              </TouchableOpacity>
+              {mostrarPickerVenc && (
+                <DateTimePicker
+                  value={dataVencObj}
+                  mode="date"
+                  display="calendar"
+                  locale="pt-BR"
+                  onChange={(_, d) => {
+                    setMostrarPickerVenc(false);
+                    if (d) { setDataVencObj(d); setDataVencimento(dateToStr(d)); }
+                  }}
+                />
+              )}
+            </View>
+          </View>
+
+          {/* Cartão */}
+          {cartoes.length > 0 && (
+            <>
+              <Text style={styles.sectionLbl}>CARTÃO</Text>
+              <Text style={styles.lbl}>Cartão vinculado</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.cartaoChipRow}>
+                  <TouchableOpacity
+                    style={[styles.cartaoChip, !cartaoId && styles.cartaoChipOn]}
+                    onPress={() => setCartaoId('')}
+                  >
+                    <Text style={[styles.cartaoChipTxt, !cartaoId && styles.cartaoChipTxtOn]}>Nenhum</Text>
+                  </TouchableOpacity>
+                  {cartoes.map(c => (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={[styles.cartaoChip, cartaoId === c.id && styles.cartaoChipOn]}
+                      onPress={() => setCartaoId(c.id)}
+                    >
+                      <Text style={[styles.cartaoChipTxt, cartaoId === c.id && styles.cartaoChipTxtOn]}>💳 {c.apelido}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </>
+          )}
+
+          {/* Parcelas */}
+          {ehGrupo && (
+            <>
+              <Text style={styles.sectionLbl}>PARCELAS</Text>
+              <View style={styles.grupoBox}>
+                <View style={styles.grupoRow}>
+                  <View style={styles.grupoInfo}>
+                    <Text style={styles.grupoTitle}>Aplicar a todas as parcelas</Text>
+                    <Text style={styles.grupoSub}>Atualiza categoria e valor em todas as {totalParcelas} parcelas deste grupo</Text>
+                  </View>
+                  <Switch
+                    value={aplicarAoGrupo}
+                    onValueChange={setAplicarAoGrupo}
+                    trackColor={{ false: colors.barTrack, true: 'rgba(82,148,255,0.4)' }}
+                    thumbColor={aplicarAoGrupo ? '#5294ff' : colors.textMuted}
+                  />
+                </View>
+              </View>
+            </>
+          )}
+
+          {/* Observações */}
+          <Text style={styles.sectionLbl}>OBSERVAÇÕES</Text>
+          <TextInput
+            style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+            placeholder="Anotação opcional..."
+            placeholderTextColor={colors.textMuted}
+            multiline
+            value={obs}
+            onChangeText={setObs}
+          />
+
+          <View style={{ height: 20 }} />
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <TouchableOpacity style={styles.btnCancel} onPress={() => router.back()}>
+            <Text style={styles.btnCancelTxt}>Cancelar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.btnSave} onPress={salvar}>
+            <Text style={styles.btnSaveTxt}>Salvar alterações</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -343,6 +416,9 @@ function makeStyles(c: Colors) {
     sectionLbl: { fontSize:10.5, fontWeight:'700', color:c.textMuted, letterSpacing:0.8, marginTop:22, marginBottom:4 },
     lbl: { fontSize:11.5, fontWeight:'500', color:c.textSec, marginBottom:6, marginTop:12 },
     input: { backgroundColor:c.input, borderWidth:1, borderColor:c.border, borderRadius:11, padding:12, color:c.text, fontSize:14 },
+    dateBtn: { flexDirection:'row', alignItems:'center', gap:8 },
+    dateBtnIco: { fontSize:16 },
+    dateBtnTxt: { fontSize:14, fontWeight:'500' },
     tipoBadgeRow: { flexDirection:'row', gap:8, marginTop:16, marginBottom:4 },
     tipoBadge: { paddingHorizontal:14, paddingVertical:7, borderRadius:20, borderWidth:1 },
     tipoBadgeDesp: { backgroundColor:'rgba(242,85,85,0.1)', borderColor:'rgba(242,85,85,0.35)' },
