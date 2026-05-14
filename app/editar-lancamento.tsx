@@ -439,7 +439,7 @@ export default function EditarLancamentoScreen() {
 
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 16, 20) }]}>
           <TouchableOpacity style={styles.btnCancel} onPress={() => router.back()}>
             <Text style={styles.btnCancelTxt}>Cancelar</Text>
           </TouchableOpacity>
@@ -496,7 +496,7 @@ function makeStyles(c: Colors) {
     payTxtOn: { color:'#5294ff' },
     pagamentoBox: { backgroundColor:'rgba(37,208,126,0.06)', borderRadius:11, padding:12, borderWidth:1, borderColor:'rgba(37,208,126,0.2)', marginTop:8 },
     pagamentoHint: { fontSize:11, color:c.textMuted, marginTop:4, fontStyle:'italic' },
-    footer: { flexDirection:'row', gap:10, padding:16, paddingBottom:36, borderTopWidth:1, borderTopColor:c.borderSoft },
+    footer: { flexDirection:'row', gap:10, padding:16, borderTopWidth:1, borderTopColor:c.borderSoft },
     btnCancel: { flex:1, padding:14, backgroundColor:c.input, borderRadius:11, alignItems:'center', borderWidth:1, borderColor:c.border },
     btnCancelTxt: { color:c.textSec, fontWeight:'600', fontSize:14 },
     btnSave: { flex:2, padding:14, backgroundColor:'#5294ff', borderRadius:11, alignItems:'center' },
