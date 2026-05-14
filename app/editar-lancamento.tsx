@@ -1,17 +1,30 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { carregarCategorias } from './categorias';
+import { buscarContas, creditarConta, debitarConta } from './contas';
 import { atualizarGrupoLancamentos, atualizarLancamentoCompleto, buscarCartoes } from './database';
 import { agendarNotificacoesVencimento, verificarAlertaOrcamento, resetarLembreteMotivacional } from './notificacoes';
 import { Colors, useTheme } from './theme';
 
+type Conta = { id: string; nome: string; banco: string; tipo: string; saldo: string; };
+
+const FORMAS_COM_CONTA = ['Debito', 'Pix', 'Transferência', 'Depósito'];
+
+const MAP_FP: Record<string, string> = {
+  Credito: 'Crédito', Debito: 'Débito', Pix: 'Pix',
+  Dinheiro: 'Dinheiro', Boleto: 'Boleto',
+  'Transferência': 'Transferência', 'Depósito': 'Depósito', Outro: 'Outro',
+};
+
 function Dropdown({
-  label, value, placeholder, opcoes, onSelect, colors,
+  label, value, placeholder, opcoes, onSelect, colors, renderItem,
 }: {
   label: string; value: string; placeholder: string;
   opcoes: string[]; onSelect: (v: string) => void; colors: Colors;
+  renderItem?: (v: string) => string;
 }) {
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState('');
@@ -35,7 +48,9 @@ function Dropdown({
   return (
     <View style={{ marginBottom: 4 }}>
       <TouchableOpacity style={dd.btn} onPress={() => { setAberto(true); setBusca(''); }}>
-        <Text style={[dd.btnTxt, !value && { color: colors.textMuted }]}>{value || placeholder}</Text>
+        <Text style={[dd.btnTxt, !value && { color: colors.textMuted }]}>
+          {renderItem ? (renderItem(value) || placeholder) : (value || placeholder)}
+        </Text>
         <Text style={dd.arrow}>▾</Text>
       </TouchableOpacity>
       <Modal visible={aberto} transparent animationType="fade">
@@ -53,7 +68,9 @@ function Dropdown({
               renderItem={({ item }) => (
                 <TouchableOpacity style={[dd.item, value === item && dd.itemOn]}
                   onPress={() => { onSelect(item); setAberto(false); setBusca(''); }}>
-                  <Text style={[dd.itemTxt, value === item && dd.itemTxtOn]}>{item}</Text>
+                  <Text style={[dd.itemTxt, value === item && dd.itemTxtOn]}>
+                    {renderItem ? renderItem(item) : item}
+                  </Text>
                   {value === item && <Text style={dd.check}>✓</Text>}
                 </TouchableOpacity>
               )}
@@ -81,8 +98,14 @@ function dateToStr(d: Date): string {
 export default function EditarLancamentoScreen() {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
+  const insets = useSafeAreaInsets();
 
   const params = useLocalSearchParams();
+
+  // Valores originais — usados para desfazer o saldo antes de aplicar o novo
+  const originalValorNum  = useRef(0);
+  const originalContaId   = useRef('');
+  const originalFormaPag  = useRef('');
 
   const [descricao, setDescricao]           = useState('');
   const [valor, setValor]                   = useState('');
@@ -90,10 +113,14 @@ export default function EditarLancamentoScreen() {
   const [status, setStatus]                 = useState('pago');
   const [obs, setObs]                       = useState('');
   const [tipo, setTipo]                     = useState('despesa');
+  const [formaPag, setFormaPag]             = useState('');
   const [dataPagamento, setDataPagamento]   = useState('');
   const [data, setData]                     = useState('');
   const [dataVencimento, setDataVencimento] = useState('');
   const [cartaoId, setCartaoId]             = useState('');
+  const [contaId, setContaId]               = useState('');
+  const [contaSel, setContaSel]             = useState<Conta | null>(null);
+  const [contas, setContas]                 = useState<Conta[]>([]);
   const [grupoId, setGrupoId]               = useState('');
   const [totalParcelas, setTotalParcelas]   = useState(1);
   const [aplicarAoGrupo, setAplicarAoGrupo] = useState(false);
@@ -102,12 +129,12 @@ export default function EditarLancamentoScreen() {
   const [categoriasRec, setCategoriasRec]   = useState<string[]>([]);
 
   // DateTimePicker state
-  const [mostrarPickerData, setMostrarPickerData]         = useState(false);
-  const [mostrarPickerVenc, setMostrarPickerVenc]         = useState(false);
-  const [mostrarPickerPag, setMostrarPickerPag]           = useState(false);
-  const [dataObj, setDataObj]                             = useState(new Date());
-  const [dataVencObj, setDataVencObj]                     = useState(new Date());
-  const [dataPagObj, setDataPagObj]                       = useState(new Date());
+  const [mostrarPickerData, setMostrarPickerData] = useState(false);
+  const [mostrarPickerVenc, setMostrarPickerVenc] = useState(false);
+  const [mostrarPickerPag, setMostrarPickerPag]   = useState(false);
+  const [dataObj, setDataObj]                     = useState(new Date());
+  const [dataVencObj, setDataVencObj]             = useState(new Date());
+  const [dataPagObj, setDataPagObj]               = useState(new Date());
 
   function hoje() {
     const d = new Date();
@@ -118,26 +145,40 @@ export default function EditarLancamentoScreen() {
     setCartoes(buscarCartoes());
     carregarCategorias('despesa').then(c => setCategoriasDesp(c.sort((a, b) => a.localeCompare(b))));
     carregarCategorias('receita').then(c => setCategoriasRec(c.sort((a, b) => a.localeCompare(b))));
-    if (params.descricao)    setDescricao(params.descricao as string);
-    if (params.valor)        setValor(String(params.valor));
-    if (params.categoria)    setCategoria(params.categoria as string);
-    if (params.status)       setStatus(params.status as string);
-    if (params.obs)          setObs(params.obs as string);
-    if (params.tipo)         setTipo(params.tipo as string);
+
+    if (params.descricao)     setDescricao(params.descricao as string);
+    if (params.valor)         setValor(String(params.valor));
+    if (params.categoria)     setCategoria(params.categoria as string);
+    if (params.status)        setStatus(params.status as string);
+    if (params.obs)           setObs(params.obs as string);
+    if (params.tipo)          setTipo(params.tipo as string);
+    if (params.formaPag)      setFormaPag(params.formaPag as string);
     if (params.dataPagamento) setDataPagamento(params.dataPagamento as string);
+    if (params.cartaoId)      setCartaoId(params.cartaoId as string);
+    if (params.grupoId)       setGrupoId(params.grupoId as string);
+    if (params.totalParcelas) setTotalParcelas(parseInt(params.totalParcelas as string) || 1);
+
     if (params.data) {
       const d = params.data as string;
-      setData(d);
-      setDataObj(strToDate(d));
+      setData(d); setDataObj(strToDate(d));
     }
     if (params.dataVencimento) {
       const d = params.dataVencimento as string;
-      setDataVencimento(d);
-      setDataVencObj(strToDate(d));
+      setDataVencimento(d); setDataVencObj(strToDate(d));
     }
-    if (params.cartaoId)     setCartaoId(params.cartaoId as string);
-    if (params.grupoId)      setGrupoId(params.grupoId as string);
-    if (params.totalParcelas) setTotalParcelas(parseInt(params.totalParcelas as string) || 1);
+
+    // Salva os valores originais para recalcular saldo ao salvar
+    originalValorNum.current  = parseFloat(String(params.valor || '0').replace(',', '.')) || 0;
+    originalContaId.current   = String(params.contaId || '');
+    originalFormaPag.current  = String(params.formaPag || '');
+
+    // Carrega contas e inicializa a conta selecionada
+    buscarContas().then(lista => {
+      setContas(lista);
+      const cid = String(params.contaId || '');
+      setContaId(cid);
+      if (cid) setContaSel(lista.find(c => c.id === cid) || null);
+    });
   }, []);
 
   function handleStatus(novoStatus: string) {
@@ -147,28 +188,38 @@ export default function EditarLancamentoScreen() {
       setDataPagamento(hoje_);
       setDataPagObj(strToDate(hoje_));
     }
-    if (novoStatus !== 'pago') {
-      setDataPagamento('');
-    }
+    if (novoStatus !== 'pago') setDataPagamento('');
   }
 
   async function salvar() {
     if (!descricao.trim()) { Alert.alert('Atenção', 'Digite uma descrição.'); return; }
-    if (!valor.trim()) { Alert.alert('Atenção', 'Digite o valor.'); return; }
+    if (!valor.trim())     { Alert.alert('Atenção', 'Digite o valor.'); return; }
 
     const valorNum = parseFloat(valor.replace(',', '.'));
     if (isNaN(valorNum) || valorNum <= 0) { Alert.alert('Atenção', 'Digite um valor válido.'); return; }
 
+    // ── Ajuste de saldo: desfaz transação original e aplica a nova ──────────
+    const afetaContaOriginal = originalContaId.current &&
+      (tipo === 'receita' || FORMAS_COM_CONTA.includes(originalFormaPag.current));
+    const afetaContaNova = contaId &&
+      (tipo === 'receita' || FORMAS_COM_CONTA.includes(formaPag));
+
+    if (afetaContaOriginal) {
+      // Desfaz o efeito original no saldo
+      if (tipo === 'despesa') await creditarConta(originalContaId.current, originalValorNum.current);
+      else                    await debitarConta(originalContaId.current, originalValorNum.current);
+    }
+    if (afetaContaNova) {
+      // Aplica o novo efeito no saldo
+      if (tipo === 'despesa') await debitarConta(contaId, valorNum);
+      else                    await creditarConta(contaId, valorNum);
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     atualizarLancamentoCompleto(params.id as string, {
-      descricao,
-      valor: valorNum,
-      categoria,
-      status,
-      dataPagamento,
-      obs,
-      data,
-      dataVencimento,
-      cartaoId,
+      descricao, valor: valorNum, categoria, status,
+      dataPagamento, obs, data, dataVencimento, cartaoId,
+      contaId,
     });
 
     if (aplicarAoGrupo && grupoId && totalParcelas > 1) {
@@ -183,6 +234,13 @@ export default function EditarLancamentoScreen() {
   }
 
   const ehGrupo = !!grupoId && totalParcelas > 1;
+  const mostraSelecaoConta = FORMAS_COM_CONTA.includes(formaPag) && contas.length > 0;
+  const contaOpts  = ['Nenhuma', ...contas.map(c => c.id)];
+  const contaLabel = (id: string) => {
+    if (id === 'Nenhuma') return 'Nenhuma conta';
+    const c = contas.find(x => x.id === id);
+    return c ? `${c.nome} · ${c.banco}` : id;
+  };
 
   return (
     <KeyboardAvoidingView
@@ -199,15 +257,25 @@ export default function EditarLancamentoScreen() {
           <View style={{ width: 70 }} />
         </View>
 
-        <ScrollView style={styles.form} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+        <ScrollView
+          style={styles.form}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 32) }}
+        >
 
-          {/* Badge de tipo */}
+          {/* Badge de tipo + formaPag */}
           <View style={styles.tipoBadgeRow}>
             <View style={[styles.tipoBadge, tipo === 'receita' ? styles.tipoBadgeRec : styles.tipoBadgeDesp]}>
               <Text style={styles.tipoBadgeTxt}>
                 {tipo === 'receita' ? '📈 Receita' : '📉 Despesa'}
               </Text>
             </View>
+            {formaPag ? (
+              <View style={styles.formaPagBadge}>
+                <Text style={styles.formaPagBadgeTxt}>{MAP_FP[formaPag] || formaPag}</Text>
+              </View>
+            ) : null}
             {ehGrupo && (
               <View style={styles.parcelasBadge}>
                 <Text style={styles.parcelasBadgeTxt}>💳 {totalParcelas} parcelas</Text>
@@ -250,26 +318,15 @@ export default function EditarLancamentoScreen() {
             {status === 'pago' && (
               <View style={styles.pagamentoBox}>
                 <Text style={styles.lbl}>Data do pagamento</Text>
-                <TouchableOpacity
-                  style={[styles.input, styles.dateBtn]}
-                  onPress={() => setMostrarPickerPag(true)}
-                >
+                <TouchableOpacity style={[styles.input, styles.dateBtn]} onPress={() => setMostrarPickerPag(true)}>
                   <Text style={styles.dateBtnIco}>📅</Text>
                   <Text style={[styles.dateBtnTxt, { color: dataPagamento ? colors.text : colors.textMuted }]}>
                     {dataPagamento || 'DD/MM/AAAA'}
                   </Text>
                 </TouchableOpacity>
                 {mostrarPickerPag && (
-                  <DateTimePicker
-                    value={dataPagObj}
-                    mode="date"
-                    display="calendar"
-                    locale="pt-BR"
-                    onChange={(_, d) => {
-                      setMostrarPickerPag(false);
-                      if (d) { setDataPagObj(d); setDataPagamento(dateToStr(d)); }
-                    }}
-                  />
+                  <DateTimePicker value={dataPagObj} mode="date" display="calendar" locale="pt-BR"
+                    onChange={(_, d) => { setMostrarPickerPag(false); if (d) { setDataPagObj(d); setDataPagamento(dateToStr(d)); } }} />
                 )}
                 <Text style={styles.pagamentoHint}>Preenchido automaticamente com a data de hoje. Altere se necessário.</Text>
               </View>
@@ -282,53 +339,53 @@ export default function EditarLancamentoScreen() {
           <View style={styles.dateRow}>
             <View style={styles.dateCol}>
               <Text style={styles.lbl}>Data do lançamento</Text>
-              <TouchableOpacity
-                style={[styles.input, styles.dateBtn]}
-                onPress={() => setMostrarPickerData(true)}
-              >
+              <TouchableOpacity style={[styles.input, styles.dateBtn]} onPress={() => setMostrarPickerData(true)}>
                 <Text style={styles.dateBtnIco}>📅</Text>
-                <Text style={[styles.dateBtnTxt, { color: data ? colors.text : colors.textMuted }]}>
-                  {data || 'DD/MM/AAAA'}
-                </Text>
+                <Text style={[styles.dateBtnTxt, { color: data ? colors.text : colors.textMuted }]}>{data || 'DD/MM/AAAA'}</Text>
               </TouchableOpacity>
               {mostrarPickerData && (
-                <DateTimePicker
-                  value={dataObj}
-                  mode="date"
-                  display="calendar"
-                  locale="pt-BR"
-                  onChange={(_, d) => {
-                    setMostrarPickerData(false);
-                    if (d) { setDataObj(d); setData(dateToStr(d)); }
-                  }}
-                />
+                <DateTimePicker value={dataObj} mode="date" display="calendar" locale="pt-BR"
+                  onChange={(_, d) => { setMostrarPickerData(false); if (d) { setDataObj(d); setData(dateToStr(d)); } }} />
               )}
             </View>
             <View style={styles.dateCol}>
               <Text style={styles.lbl}>Data de vencimento</Text>
-              <TouchableOpacity
-                style={[styles.input, styles.dateBtn]}
-                onPress={() => setMostrarPickerVenc(true)}
-              >
+              <TouchableOpacity style={[styles.input, styles.dateBtn]} onPress={() => setMostrarPickerVenc(true)}>
                 <Text style={styles.dateBtnIco}>📅</Text>
-                <Text style={[styles.dateBtnTxt, { color: dataVencimento ? colors.text : colors.textMuted }]}>
-                  {dataVencimento || 'DD/MM/AAAA'}
-                </Text>
+                <Text style={[styles.dateBtnTxt, { color: dataVencimento ? colors.text : colors.textMuted }]}>{dataVencimento || 'DD/MM/AAAA'}</Text>
               </TouchableOpacity>
               {mostrarPickerVenc && (
-                <DateTimePicker
-                  value={dataVencObj}
-                  mode="date"
-                  display="calendar"
-                  locale="pt-BR"
-                  onChange={(_, d) => {
-                    setMostrarPickerVenc(false);
-                    if (d) { setDataVencObj(d); setDataVencimento(dateToStr(d)); }
-                  }}
-                />
+                <DateTimePicker value={dataVencObj} mode="date" display="calendar" locale="pt-BR"
+                  onChange={(_, d) => { setMostrarPickerVenc(false); if (d) { setDataVencObj(d); setDataVencimento(dateToStr(d)); } }} />
               )}
             </View>
           </View>
+
+          {/* Conta bancária — visível para Pix, Débito, Transferência, Depósito */}
+          {mostraSelecaoConta && <>
+            <Text style={styles.sectionLbl}>CONTA</Text>
+            <Text style={styles.lbl}>Conta vinculada</Text>
+            <Dropdown
+              label="Selecione a conta"
+              value={contaId || 'Nenhuma'}
+              placeholder="Nenhuma conta"
+              opcoes={contaOpts}
+              onSelect={(id) => {
+                if (id === 'Nenhuma') { setContaId(''); setContaSel(null); }
+                else { setContaId(id); setContaSel(contas.find(c => c.id === id) || null); }
+              }}
+              renderItem={contaLabel}
+              colors={colors}
+            />
+            {contaSel && (
+              <View style={styles.contaInfo}>
+                <Text style={styles.contaInfoTxt}>
+                  {tipo === 'receita' ? '✅ Creditado em: ' : '💳 Debitado de: '}
+                  {contaSel.nome} · {contaSel.banco}
+                </Text>
+              </View>
+            )}
+          </>}
 
           {/* Cartão */}
           {cartoes.length > 0 && (
@@ -337,18 +394,11 @@ export default function EditarLancamentoScreen() {
               <Text style={styles.lbl}>Cartão vinculado</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.cartaoChipRow}>
-                  <TouchableOpacity
-                    style={[styles.cartaoChip, !cartaoId && styles.cartaoChipOn]}
-                    onPress={() => setCartaoId('')}
-                  >
+                  <TouchableOpacity style={[styles.cartaoChip, !cartaoId && styles.cartaoChipOn]} onPress={() => setCartaoId('')}>
                     <Text style={[styles.cartaoChipTxt, !cartaoId && styles.cartaoChipTxtOn]}>Nenhum</Text>
                   </TouchableOpacity>
                   {cartoes.map(c => (
-                    <TouchableOpacity
-                      key={c.id}
-                      style={[styles.cartaoChip, cartaoId === c.id && styles.cartaoChipOn]}
-                      onPress={() => setCartaoId(c.id)}
-                    >
+                    <TouchableOpacity key={c.id} style={[styles.cartaoChip, cartaoId === c.id && styles.cartaoChipOn]} onPress={() => setCartaoId(c.id)}>
                       <Text style={[styles.cartaoChipTxt, cartaoId === c.id && styles.cartaoChipTxtOn]}>💳 {c.apelido}</Text>
                     </TouchableOpacity>
                   ))}
@@ -384,12 +434,9 @@ export default function EditarLancamentoScreen() {
             style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
             placeholder="Anotação opcional..."
             placeholderTextColor={colors.textMuted}
-            multiline
-            value={obs}
-            onChangeText={setObs}
+            multiline value={obs} onChangeText={setObs}
           />
 
-          <View style={{ height: 20 }} />
         </ScrollView>
 
         <View style={styles.footer}>
@@ -419,15 +466,19 @@ function makeStyles(c: Colors) {
     dateBtn: { flexDirection:'row', alignItems:'center', gap:8 },
     dateBtnIco: { fontSize:16 },
     dateBtnTxt: { fontSize:14, fontWeight:'500' },
-    tipoBadgeRow: { flexDirection:'row', gap:8, marginTop:16, marginBottom:4 },
+    tipoBadgeRow: { flexDirection:'row', flexWrap:'wrap', gap:8, marginTop:16, marginBottom:4 },
     tipoBadge: { paddingHorizontal:14, paddingVertical:7, borderRadius:20, borderWidth:1 },
     tipoBadgeDesp: { backgroundColor:'rgba(242,85,85,0.1)', borderColor:'rgba(242,85,85,0.35)' },
     tipoBadgeRec: { backgroundColor:'rgba(37,208,126,0.1)', borderColor:'rgba(37,208,126,0.35)' },
     tipoBadgeTxt: { fontSize:12, fontWeight:'700', color:c.text },
+    formaPagBadge: { paddingHorizontal:14, paddingVertical:7, borderRadius:20, backgroundColor:c.input, borderWidth:1, borderColor:c.border },
+    formaPagBadgeTxt: { fontSize:12, fontWeight:'600', color:c.textSec },
     parcelasBadge: { paddingHorizontal:14, paddingVertical:7, borderRadius:20, backgroundColor:'rgba(82,148,255,0.1)', borderWidth:1, borderColor:'rgba(82,148,255,0.35)' },
     parcelasBadgeTxt: { fontSize:12, fontWeight:'700', color:'#5294ff' },
     dateRow: { flexDirection:'row', gap:10 },
     dateCol: { flex:1 },
+    contaInfo: { backgroundColor:'rgba(37,208,126,0.08)', borderRadius:11, padding:12, marginTop:6, borderWidth:1, borderColor:'rgba(37,208,126,0.25)' },
+    contaInfoTxt: { fontSize:12, color:'#25d07e', fontWeight:'500' },
     cartaoChipRow: { flexDirection:'row', gap:8, paddingVertical:4 },
     cartaoChip: { paddingHorizontal:14, paddingVertical:8, backgroundColor:c.input, borderRadius:16, borderWidth:1, borderColor:c.border },
     cartaoChipOn: { backgroundColor:'rgba(82,148,255,0.18)', borderColor:'#5294ff' },
