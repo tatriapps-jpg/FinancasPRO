@@ -19,6 +19,9 @@ const MAP_FP: Record<string, string> = {
   'Transferência': 'Transferência', 'Depósito': 'Depósito', Outro: 'Outro',
 };
 
+// Opções de formaPag em formato DB (sem acento) — exibição via MAP_FP
+const FORMAS_PAG_KEYS = ['Pix', 'Credito', 'Debito', 'Dinheiro', 'Boleto', 'Transferência', 'Depósito', 'Outro'];
+
 function Dropdown({
   label, value, placeholder, opcoes, onSelect, colors, renderItem,
 }: {
@@ -191,6 +194,15 @@ export default function EditarLancamentoScreen() {
     if (novoStatus !== 'pago') setDataPagamento('');
   }
 
+  function handleFormaPag(novaForma: string) {
+    if (formaPag === 'Credito' && novaForma !== 'Credito') setCartaoId('');
+    if (FORMAS_COM_CONTA.includes(formaPag) && !FORMAS_COM_CONTA.includes(novaForma)) {
+      setContaId('');
+      setContaSel(null);
+    }
+    setFormaPag(novaForma);
+  }
+
   async function salvar() {
     if (!descricao.trim()) { Alert.alert('Atenção', 'Digite uma descrição.'); return; }
     if (!valor.trim())     { Alert.alert('Atenção', 'Digite o valor.'); return; }
@@ -219,7 +231,7 @@ export default function EditarLancamentoScreen() {
     atualizarLancamentoCompleto(params.id as string, {
       descricao, valor: valorNum, categoria, status,
       dataPagamento, obs, data, dataVencimento, cartaoId,
-      contaId,
+      contaId, formaPag,
     });
 
     if (aplicarAoGrupo && grupoId && totalParcelas > 1) {
@@ -264,24 +276,31 @@ export default function EditarLancamentoScreen() {
           contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 32) }}
         >
 
-          {/* Badge de tipo + formaPag */}
+          {/* Badge de tipo + parcelas */}
           <View style={styles.tipoBadgeRow}>
             <View style={[styles.tipoBadge, tipo === 'receita' ? styles.tipoBadgeRec : styles.tipoBadgeDesp]}>
               <Text style={styles.tipoBadgeTxt}>
                 {tipo === 'receita' ? '📈 Receita' : '📉 Despesa'}
               </Text>
             </View>
-            {formaPag ? (
-              <View style={styles.formaPagBadge}>
-                <Text style={styles.formaPagBadgeTxt}>{MAP_FP[formaPag] || formaPag}</Text>
-              </View>
-            ) : null}
             {ehGrupo && (
               <View style={styles.parcelasBadge}>
                 <Text style={styles.parcelasBadgeTxt}>💳 {totalParcelas} parcelas</Text>
               </View>
             )}
           </View>
+
+          {/* Forma de pagamento */}
+          <Text style={styles.sectionLbl}>FORMA DE PAGAMENTO</Text>
+          <Dropdown
+            label="Forma de pagamento"
+            value={formaPag}
+            placeholder="Selecione..."
+            opcoes={FORMAS_PAG_KEYS}
+            onSelect={handleFormaPag}
+            renderItem={(v) => MAP_FP[v] || v}
+            colors={colors}
+          />
 
           {/* Informações básicas */}
           <Text style={styles.sectionLbl}>INFORMAÇÕES</Text>
@@ -388,7 +407,7 @@ export default function EditarLancamentoScreen() {
           </>}
 
           {/* Cartão */}
-          {cartoes.length > 0 && (
+          {formaPag === 'Credito' && cartoes.length > 0 && (
             <>
               <Text style={styles.sectionLbl}>CARTÃO</Text>
               <Text style={styles.lbl}>Cartão vinculado</Text>

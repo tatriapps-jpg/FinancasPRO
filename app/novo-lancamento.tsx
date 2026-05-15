@@ -343,7 +343,7 @@ export default function NovoLancamentoScreen() {
         contaId: contaSel?.id || '',
         parcelas: totalParcelas, parcelaAtual: 1, totalParcelas,
         data, dataVencimento: formaPag === 'Boleto' ? dataVencBoleto : data,
-        status: formaPag === 'Boleto' ? 'pendente' : status, obs, grupoId: '',
+        status: (formaPag === 'Boleto' || formaPagDB === 'Credito') ? 'pendente' : status, obs, grupoId: '',
       });
     }
 

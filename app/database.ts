@@ -201,15 +201,16 @@ export function atualizarLancamentoCompleto(id: string, fields: {
   dataVencimento: string;
   cartaoId: string;
   contaId?: string;
+  formaPag?: string;
 }) {
   db.runSync(
     `UPDATE lancamentos
      SET descricao = ?, valor = ?, categoria = ?, status = ?, dataPagamento = ?,
-         obs = ?, data = ?, dataVencimento = ?, cartaoId = ?, contaId = ?
+         obs = ?, data = ?, dataVencimento = ?, cartaoId = ?, contaId = ?, formaPag = ?
      WHERE id = ?`,
     [fields.descricao, fields.valor, fields.categoria, fields.status,
      fields.dataPagamento, fields.obs, fields.data, fields.dataVencimento,
-     fields.cartaoId, fields.contaId ?? '', id]
+     fields.cartaoId, fields.contaId ?? '', fields.formaPag ?? '', id]
   );
 }
 
