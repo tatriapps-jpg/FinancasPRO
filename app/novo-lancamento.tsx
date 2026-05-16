@@ -308,7 +308,7 @@ export default function NovoLancamentoScreen() {
     const totalParcelasBoleto = parseInt(parcelasBoleto) || 1;
     const formaPagDB = formaPag === 'Crédito' ? 'Credito' : formaPag === 'Débito' ? 'Debito' : formaPag;
 
-    if (formaPag === 'Crédito' && cartaoSel && totalParcelas > 1) {
+    if (formaPag === 'Crédito' && cartaoSel) {
       inserirLancamentosParcelados({
         descricao, valorTotal: valorNum, categoria, formaPag: formaPagDB,
         cartaoId: cartaoSel.id, contaId: contaSel?.id || '',
@@ -343,7 +343,7 @@ export default function NovoLancamentoScreen() {
         contaId: contaSel?.id || '',
         parcelas: totalParcelas, parcelaAtual: 1, totalParcelas,
         data, dataVencimento: formaPag === 'Boleto' ? dataVencBoleto : data,
-        status: (formaPag === 'Boleto' || formaPagDB === 'Credito') ? 'pendente' : status, obs, grupoId: '',
+        status: formaPag === 'Boleto' ? 'pendente' : status, obs, grupoId: '',
       });
     }
 
