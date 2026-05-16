@@ -754,7 +754,7 @@ export default function VozScreen() {
     const valorNum = parseFloat(l.valor.replace(',', '.'));
     const totalParcelas = parseInt(l.parcelas) || 1;
 
-    if (l.formaPag === 'Credito' && l.cartaoId && totalParcelas > 1) {
+    if (l.formaPag === 'Credito' && l.cartaoId) {
       const cartao = cartoesRef.current.find(c => c.id === l.cartaoId);
       inserirLancamentosParcelados({
         descricao: l.descricao, valorTotal: valorNum,
