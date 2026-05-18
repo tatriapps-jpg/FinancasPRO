@@ -7,6 +7,9 @@ import HelpModal, { helpBtnStyle, helpTxtStyle } from './HelpModal';
 import { buscarContas, debitarConta } from './contas';
 import { atualizarCartao, buscarCartoes, buscarFaturaCartao, buscarLancamentosPorCartao, buscarTotalUsadoCartao, deletarCartao, gerarId, inserirCartao, pagarFaturaCartao } from './database';
 import { Colors, useTheme } from './theme';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import * as XLSX from 'xlsx';
 
 const CARTOES_KEY_LEGADO = '@financaspro:cartoes';
 
