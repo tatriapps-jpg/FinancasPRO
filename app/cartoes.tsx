@@ -608,5 +608,7 @@ function makeStyles(c: Colors) {
     dataBtnTxt: { fontSize: 14, color: c.text, fontWeight: '500' },
     btnConfirmarFatura: { backgroundColor: '#5294ff', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 16 },
     btnConfirmarFaturaTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
+    btnExtrato: { backgroundColor: 'rgba(37,208,126,0.15)', borderRadius: 10, padding: 11, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(37,208,126,0.35)', paddingHorizontal: 16 },
+    btnExtratoTxt: { fontSize: 13, color: '#25d07e', fontWeight: '700' },
   });
 }
