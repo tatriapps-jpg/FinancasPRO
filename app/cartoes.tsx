@@ -251,6 +251,70 @@ export default function CartoesScreen() {
     return v;
   }
 
+  async function gerarExtratoCartao(c: CartaoComUso) {
+    try {
+      setExportandoCartaoId(c.id);
+      const lancamentos = buscarLancamentosPorCartao(c.id).sort((a: any, b: any) => {
+        const toDate = (d: string) => {
+          const p = d?.split('/');
+          if (!p || p.length !== 3) return 0;
+          return new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0])).getTime();
+        };
+        return toDate(a.data) - toDate(b.data);
+      });
+
+      if (lancamentos.length === 0) {
+        Alert.alert('Sem lançamentos', 'Nenhum lançamento vinculado a este cartão.');
+        return;
+      }
+
+      const arredondar = (v: number) => Math.round(v * 100) / 100;
+      const dados = lancamentos.map((l: any) => ({
+        'Data': l.data || '',
+        'Vencimento': l.dataVencimento || '',
+        'Descrição': l.descricao || '',
+        'Categoria': l.categoria || '',
+        'Valor': arredondar(Number(l.valor || 0)),
+        'Parcela': Number(l.totalParcelas) > 1 ? `${l.parcelaAtual}/${l.totalParcelas}` : 'Único',
+        'Status': l.status || '',
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(dados);
+      ws['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 30 }, { wch: 18 }, { wch: 14 }, { wch: 10 }, { wch: 12 }];
+
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+      for (let row = range.s.r + 1; row <= range.e.r; row++) {
+        const cell = ws[XLSX.utils.encode_cell({ r: row, c: 4 })];
+        if (cell && cell.t === 'n') cell.z = '#,##0.00';
+      }
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, c.apelido.substring(0, 31));
+
+      const wbout = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+      const uint8 = new Uint8Array(wbout);
+      let binary = '';
+      for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+      const base64 = btoa(binary);
+
+      const dataHoje = new Date().toISOString().split('T')[0];
+      const nomeArquivo = `Extrato_${c.apelido.replace(/[^a-zA-Z0-9]/g, '_')}_${dataHoje}.xlsx`;
+      const uri = `${FileSystem.documentDirectory}${nomeArquivo}`;
+      await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
+
+      const disponivel = await Sharing.isAvailableAsync();
+      if (!disponivel) { Alert.alert('Erro', 'Compartilhamento não disponível.'); return; }
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        dialogTitle: `Extrato — ${c.apelido}`,
+      });
+    } catch (e: any) {
+      Alert.alert('Erro ao gerar extrato', e?.message || 'Tente novamente.');
+    } finally {
+      setExportandoCartaoId(null);
+    }
+  }
+
   const fmt = (v: number) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   function barCor(pct: number) {
