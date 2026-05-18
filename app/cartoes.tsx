@@ -52,6 +52,7 @@ export default function CartoesScreen() {
   const [mostrarCalFatura, setMostrarCalFatura] = useState(false);
   const [contasFatura, setContasFatura] = useState<Conta[]>([]);
   const [faturaItens, setFaturaItens] = useState<any[]>([]);
+  const [exportandoCartaoId, setExportandoCartaoId] = useState<string | null>(null);
   const [totalFatura, setTotalFatura] = useState(0);
   const [itensPendentes, setItensPendentes] = useState(0);
 
