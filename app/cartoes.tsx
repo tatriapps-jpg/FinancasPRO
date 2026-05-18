@@ -391,9 +391,18 @@ export default function CartoesScreen() {
 
               {!temLimite && <Text style={styles.semLimite}>Sem limite cadastrado</Text>}
 
-              <TouchableOpacity style={styles.btnFatura} onPress={() => abrirPagarFatura(c)}>
-                <Text style={styles.btnFaturaTxt}>💳 Pagar Fatura</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                <TouchableOpacity
+                  style={[styles.btnExtrato, exportandoCartaoId === c.id && { opacity: 0.5 }]}
+                  onPress={() => gerarExtratoCartao(c)}
+                  disabled={exportandoCartaoId === c.id}
+                >
+                  <Text style={styles.btnExtratoTxt}>📄 Extrato</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.btnFatura, { flex: 1, marginTop: 0 }]} onPress={() => abrirPagarFatura(c)}>
+                  <Text style={styles.btnFaturaTxt}>💳 Pagar Fatura</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           );
         })}
