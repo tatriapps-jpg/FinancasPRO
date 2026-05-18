@@ -56,6 +56,7 @@ export function initDB() {
   } catch (e) {}
 
   migrarCategorias();
+  migrarStatusParcelado();
 }
 
 function migrarCategorias() {
@@ -83,6 +84,14 @@ function migrarCategorias() {
         [para, de]
       );
     }
+  } catch (e) {}
+}
+
+function migrarStatusParcelado() {
+  try {
+    db.runSync(
+      `UPDATE lancamentos SET status = 'parcelado' WHERE status = 'pendente' AND cartaoId != '' AND cartaoId IS NOT NULL`
+    );
   } catch (e) {}
 }
 
