@@ -203,6 +203,9 @@ export default function HomeScreen() {
         <TouchableOpacity onPress={() => { setNomeInput(nomeUsuario); setModalNome(true); }} activeOpacity={0.8}>
           <Text style={styles.headerTitle}>Olá, {nomeUsuario || 'bem-vindo'}! 👋</Text>
           <Text style={styles.headerSub}>{meses[mesAtual-1]} {anoAtual}</Text>
+          {!nomeUsuario && (
+            <Text style={styles.headerDica}>👆 Toque aqui para personalizar seu app</Text>
+          )}
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setHelpVisible(true)} style={helpBtnStyle}>
           <Text style={helpTxtStyle}>?</Text>
@@ -487,6 +490,7 @@ function makeStyles(c: Colors) {
     header: { padding:22, paddingTop:50 },
     headerTitle: { fontSize:22, fontWeight:'700', color:c.text },
     headerSub: { fontSize:13, color:c.textMuted, marginTop:2 },
+    headerDica: { fontSize: 11, color: '#5294ff', marginTop: 4, fontStyle: 'italic' },
     alertaBox: { marginHorizontal:16, marginBottom:12, backgroundColor:'rgba(247,183,49,0.08)', borderRadius:14, padding:14, borderWidth:1, borderColor:'rgba(247,183,49,0.3)' },
     alertaHeader: { flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:10 },
     alertaTitle: { fontSize:12, fontWeight:'700', color:'#f7b731' },

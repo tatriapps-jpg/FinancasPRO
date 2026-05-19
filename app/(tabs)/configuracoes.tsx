@@ -207,15 +207,6 @@ export default function ConfiguracoesScreen() {
 
       <Text style={styles.sectionTitle}>CONTA E SEGURANÇA</Text>
       <View style={styles.group}>
-        <TouchableOpacity style={styles.row} onPress={() => { setNomeInput(nomeUsuario); setModalNome(true); }}>
-          <Text style={styles.rowIco}>👤</Text>
-          <View style={styles.rowInfo}>
-            <Text style={styles.rowTitle}>Meu nome</Text>
-            <Text style={styles.rowSub}>{nomeUsuario || 'Toque para definir seu nome'}</Text>
-          </View>
-          <Text style={styles.rowArrow}>›</Text>
-        </TouchableOpacity>
-        <View style={styles.divider} />
         <TouchableOpacity style={styles.row} onPress={resetPin}>
           <Text style={styles.rowIco}>🔐</Text>
           <View style={styles.rowInfo}>
