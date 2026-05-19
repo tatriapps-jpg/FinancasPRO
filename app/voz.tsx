@@ -72,6 +72,7 @@ const MAP_CATEGORIA: Record<string, string> = {
   luz: 'Energia', energia: 'Energia',
   agua: 'Moradia', água: 'Moradia', aluguel: 'Moradia',
   internet: 'Internet', condominio: 'Moradia', condomínio: 'Moradia',
+  vendas: 'Vendas', venda: 'Vendas',
   salario: 'Salário', salário: 'Salário', freelance: 'Freelance',
   oficina: 'Manutenção', mecanico: 'Manutenção', mecânico: 'Manutenção',
   reparo: 'Manutenção', encanador: 'Manutenção', eletricista: 'Manutenção',
@@ -712,11 +713,15 @@ export default function VozScreen() {
           avancarEtapa('obs', { contaId: '', contaNome: '' });
           return;
         }
-        const contaRec = contasRef.current.find(c =>
-          t.includes(normalizar(c.nome)) ||
-          t.includes(normalizar(c.banco)) ||
-          normalizar(c.nome).split(' ').every(p => t.includes(p))
-        ) || null;
+        const contaRec = contasRef.current.find(c => {
+          const nomeNorm = normalizar(c.nome).replace(/\s+/g, '');
+          const tSemEspaco = t.replace(/\s+/g, '');
+          return t.includes(normalizar(c.nome)) ||
+            t.includes(normalizar(c.banco)) ||
+            normalizar(c.nome).split(' ').every(p => p.length > 2 && t.includes(p)) ||
+            tSemEspaco.includes(nomeNorm) ||
+            nomeNorm.includes(tSemEspaco);
+        }) || null;
         if (contaRec) {
           avancarEtapa('obs', { contaId: contaRec.id, contaNome: contaRec.nome });
         } else if (contasRef.current.length === 1) {
