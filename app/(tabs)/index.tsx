@@ -503,7 +503,7 @@ function makeStyles(c: Colors) {
     alertaVal: { fontSize:13, color:'#f25555', fontWeight:'700' },
     alertaVerTodos: { marginTop:8, paddingTop:8, borderTopWidth:1, borderTopColor:c.borderLight, alignItems:'center' },
     alertaVerTodosTxt: { fontSize:12, color:'#5294ff', fontWeight:'600' },
-    alertaVazio: { marginHorizontal:16, marginBottom:12, backgroundColor:'rgba(37,208,126,0.06)', borderRadius:14, padding:14, borderWidth:1, borderColor:'rgba(37,208,126,0.2)', alignItems:'center' },
+    alertaVazio: { marginHorizontal:20, marginBottom:12, backgroundColor:'rgba(37,208,126,0.06)', borderRadius:14, padding:14, borderWidth:1, borderColor:'rgba(37,208,126,0.2)', alignItems:'center' },
     alertaVazioTxt: { fontSize:12, color:'#25d07e', fontWeight:'600' },
     alertaVazioSub: { fontSize:11, color:c.textMuted, marginTop:3 },
     atalhos: { flexDirection:'row', paddingHorizontal:16, gap:10, marginBottom:10 },
