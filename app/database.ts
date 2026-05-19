@@ -216,11 +216,11 @@ export function atualizarLancamentoCompleto(id: string, fields: {
   db.runSync(
     `UPDATE lancamentos
      SET descricao = ?, valor = ?, categoria = ?, status = ?, dataPagamento = ?,
-         obs = ?, data = ?, dataVencimento = ?, cartaoId = ?, contaId = ?, formaPag = ?
+         obs = ?, data = ?, dataVencimento = ?, cartaoId = ?, contaId = ?, formaPag = ?, totalParcelas = ?
      WHERE id = ?`,
     [fields.descricao, fields.valor, fields.categoria, fields.status,
      fields.dataPagamento, fields.obs, fields.data, fields.dataVencimento,
-     fields.cartaoId, fields.contaId ?? '', fields.formaPag ?? '', id]
+     fields.cartaoId, fields.contaId ?? '', fields.formaPag ?? '', fields.totalParcelas ?? 1, id]
   );
 }
 
