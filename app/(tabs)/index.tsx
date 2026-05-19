@@ -547,7 +547,7 @@ function makeStyles(c: Colors) {
     btnCancelTxt: { color:c.textSec, fontWeight:'600' },
     btnSave: { flex:1, padding:12, backgroundColor:'#5294ff', borderRadius:11, alignItems:'center' },
     btnSaveTxt: { color:'#fff', fontWeight:'600' },
-    patrimonioCard: { marginHorizontal: 16, marginBottom: 14, backgroundColor: c.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.borderSoft },
+    patrimonioCard: { marginHorizontal: 20, marginBottom: 14, backgroundColor: c.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.borderSoft },
     patrimonioTitle: { fontSize: 11, fontWeight: '700', color: c.textSec, letterSpacing: 0.8, marginBottom: 14 },
     patrimonioRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     patrimonioItem: { flex: 1, alignItems: 'center', gap: 4 },
