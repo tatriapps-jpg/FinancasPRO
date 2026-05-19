@@ -231,7 +231,7 @@ export default function EditarLancamentoScreen() {
     atualizarLancamentoCompleto(params.id as string, {
       descricao, valor: valorNum, categoria, status,
       dataPagamento, obs, data, dataVencimento, cartaoId,
-      contaId, formaPag,
+      contaId, formaPag, totalParcelas,
     });
 
     if (aplicarAoGrupo && grupoId && totalParcelas > 1) {

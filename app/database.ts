@@ -211,6 +211,7 @@ export function atualizarLancamentoCompleto(id: string, fields: {
   cartaoId: string;
   contaId?: string;
   formaPag?: string;
+  totalParcelas?: number;
 }) {
   db.runSync(
     `UPDATE lancamentos
