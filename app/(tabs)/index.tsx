@@ -2,11 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { buscarCartoes, buscarLancamentos, buscarLancamentosPorMes, buscarTotaisMes } from '../database';
+import { buscarCartoes, buscarLancamentos, buscarLancamentosPorMes, buscarTotaisMes, buscarTotalUsadoCartao } from '../database';
+import { buscarContas } from '../contas';
 import HelpModal, { helpBtnStyle, helpTxtStyle } from '../HelpModal';
 import { Colors, useTheme } from '../theme';
 
 const ALERTA_KEY = '@financaspro:diasAlerta';
+const ESPECIE_KEY = '@faladinheiro:dinheiroEspecie';
 const ORC_KEY = '@financaspro:orcamento';
 const NOME_KEY = '@financaspro:nomeUsuario';
 
@@ -33,6 +35,11 @@ export default function HomeScreen() {
   const [nomeUsuario, setNomeUsuario] = useState('');
   const [modalNome, setModalNome] = useState(false);
   const [nomeInput, setNomeInput] = useState('');
+  const [saldoBancos, setSaldoBancos] = useState(0);
+  const [creditoDisponivel, setCreditoDisponivel] = useState(0);
+  const [dinheiroEspecie, setDinheiroEspecie] = useState(0);
+  const [modalEspecie, setModalEspecie] = useState(false);
+  const [especieInput, setEspecieInput] = useState('');
 
   useFocusEffect(useCallback(() => { carregarDados(); }, []));
 
@@ -50,6 +57,24 @@ export default function HomeScreen() {
 
     const t = buscarTotaisMes(mesAtual, anoAtual);
     setTotais(t);
+
+    const contas = await buscarContas();
+    const totalBancos = contas.reduce((s: number, c: any) => s + (parseFloat(c.saldo) || 0), 0);
+    setSaldoBancos(totalBancos);
+
+    const cartoesLista = buscarCartoes();
+    const mesAtualN = new Date().getMonth() + 1;
+    const anoAtualN = new Date().getFullYear();
+    let totalCreditoDisp = 0;
+    for (const c of cartoesLista) {
+      const limite = parseFloat(c.limite) || 0;
+      const usado = buscarTotalUsadoCartao(c.id, mesAtualN, anoAtualN);
+      totalCreditoDisp += Math.max(0, limite - usado);
+    }
+    setCreditoDisponivel(totalCreditoDisp);
+
+    const savedEspecie = await AsyncStorage.getItem(ESPECIE_KEY);
+    setDinheiroEspecie(savedEspecie ? parseFloat(savedEspecie) : 0);
 
     const todos = buscarLancamentos();
     const despesasMes = buscarLancamentosPorMes(mesAtual, anoAtual).filter(l => l.tipo === 'despesa');
@@ -142,6 +167,13 @@ export default function HomeScreen() {
     setDiasAlerta(dias);
     setModalAlerta(false);
     carregarDados();
+  }
+
+  async function salvarEspecie() {
+    const valor = parseFloat(especieInput.replace(',', '.')) || 0;
+    await AsyncStorage.setItem(ESPECIE_KEY, String(valor));
+    setDinheiroEspecie(valor);
+    setModalEspecie(false);
   }
 
   const fmt = (v: number) => 'R$' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -253,6 +285,33 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      <View style={styles.patrimonioCard}>
+        <Text style={styles.patrimonioTitle}>💼 PATRIMÔNIO REAL</Text>
+        <View style={styles.patrimonioRow}>
+          <View style={styles.patrimonioItem}>
+            <Text style={styles.patrimonioIco}>🏦</Text>
+            <Text style={styles.patrimonioLbl}>Bancos</Text>
+            <Text style={[styles.patrimonioVal, { color: '#25d07e' }]}>{fmt(saldoBancos)}</Text>
+          </View>
+          <View style={styles.patrimonioDivider} />
+          <TouchableOpacity style={styles.patrimonioItem} onPress={() => { setEspecieInput(String(dinheiroEspecie)); setModalEspecie(true); }}>
+            <Text style={styles.patrimonioIco}>💵</Text>
+            <Text style={styles.patrimonioLbl}>Espécie</Text>
+            <Text style={[styles.patrimonioVal, { color: '#f7b731' }]}>{fmt(dinheiroEspecie)}</Text>
+          </TouchableOpacity>
+          <View style={styles.patrimonioDivider} />
+          <View style={styles.patrimonioItem}>
+            <Text style={styles.patrimonioIco}>💳</Text>
+            <Text style={styles.patrimonioLbl}>Crédito disp.</Text>
+            <Text style={[styles.patrimonioVal, { color: '#5294ff' }]}>{fmt(creditoDisponivel)}</Text>
+          </View>
+        </View>
+        <View style={styles.patrimonioTotal}>
+          <Text style={styles.patrimonioTotalLbl}>Disponível (bancos + espécie)</Text>
+          <Text style={styles.patrimonioTotalVal}>{fmt(saldoBancos + dinheiroEspecie)}</Text>
+        </View>
+      </View>
+
       {topGastos.length > 0 && (
         <View style={styles.graficoCard}>
           <Text style={styles.graficoTitle}>GASTOS POR CATEGORIA</Text>
@@ -324,6 +383,32 @@ export default function HomeScreen() {
               ))}
               <View style={{ height: 20 }} />
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={modalEspecie} animationType="fade" transparent>
+        <View style={styles.modalBg}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>💵 Dinheiro em espécie</Text>
+            <Text style={styles.modalSub}>Quanto você tem em dinheiro físico?</Text>
+            <TextInput
+              style={styles.modalInput}
+              keyboardType="numeric"
+              value={especieInput}
+              onChangeText={setEspecieInput}
+              placeholder="0,00"
+              placeholderTextColor="#666"
+              autoFocus
+            />
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={styles.btnCancel} onPress={() => setModalEspecie(false)}>
+                <Text style={styles.btnCancelTxt}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.btnSave} onPress={salvarEspecie}>
+                <Text style={styles.btnSaveTxt}>Salvar</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -458,5 +543,16 @@ function makeStyles(c: Colors) {
     btnCancelTxt: { color:c.textSec, fontWeight:'600' },
     btnSave: { flex:1, padding:12, backgroundColor:'#5294ff', borderRadius:11, alignItems:'center' },
     btnSaveTxt: { color:'#fff', fontWeight:'600' },
+    patrimonioCard: { marginHorizontal: 16, marginBottom: 14, backgroundColor: c.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.borderSoft },
+    patrimonioTitle: { fontSize: 11, fontWeight: '700', color: c.textSec, letterSpacing: 0.8, marginBottom: 14 },
+    patrimonioRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    patrimonioItem: { flex: 1, alignItems: 'center', gap: 4 },
+    patrimonioIco: { fontSize: 22 },
+    patrimonioLbl: { fontSize: 10, color: c.textMuted, fontWeight: '600' },
+    patrimonioVal: { fontSize: 13, fontWeight: '700' },
+    patrimonioDivider: { width: 1, height: 50, backgroundColor: c.borderLight },
+    patrimonioTotal: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.borderLight, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    patrimonioTotalLbl: { fontSize: 11, color: c.textMuted },
+    patrimonioTotalVal: { fontSize: 15, fontWeight: '700', color: c.text },
   });
 }
