@@ -620,6 +620,15 @@ export default function VozScreen() {
         }
 
         // Após categoria → sempre vai para formaPag (tanto despesa quanto receita)
+        const listaAtual = l.tipo === 'receita' ? categoriasRecRef.current : categoriasDispRef.current;
+        if (categoria && !listaAtual.includes(categoria) && !t.includes('automatico') && !t.includes('auto') && categoria !== 'Outros') {
+          lancamentoRef.current = { ...lancamentoRef.current, categoria };
+          setLancamento(lancamentoRef.current);
+          setEtapa('formaPag');
+          etapaRef.current = 'formaPag';
+          Speech.speak(`Categoria ${categoria} não cadastrada. Continuando assim mesmo.`, { language: 'pt-BR', rate: vozVelocidadeRef.current, onDone: () => setTimeout(() => falar(getPergunta('formaPag')), 300) });
+          return;
+        }
         avancarEtapa('formaPag', { categoria });
         break;
       }
