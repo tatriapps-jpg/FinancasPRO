@@ -423,6 +423,22 @@ export default function EditarLancamentoScreen() {
                   ))}
                 </View>
               </ScrollView>
+              <Text style={styles.lbl}>Parcelas</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.cartaoChipRow}>
+                  {['1','2','3','4','5','6','7','8','9','10','11','12'].map(p => (
+                    <TouchableOpacity
+                      key={p}
+                      style={[styles.cartaoChip, String(totalParcelas) === p && styles.cartaoChipOn]}
+                      onPress={() => setTotalParcelas(parseInt(p))}
+                    >
+                      <Text style={[styles.cartaoChipTxt, String(totalParcelas) === p && styles.cartaoChipTxtOn]}>
+                        {p === '1' ? 'Único' : `${p}x`}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
             </>
           )}
 
