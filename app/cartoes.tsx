@@ -540,7 +540,7 @@ export default function CartoesScreen() {
           'Toque em + para adicionar um novo cartão.',
           'Preencha apelido, bandeira, últimos 4 dígitos, dia de fechamento e dia de vencimento.',
           'O limite é opcional — serve para controle de gastos e alerta de uso.',
-          'Toque no cartão para ver a fatura e as parcelas em aberto.',
+          'Toque em "Pagar Fatura" para ver o total do mês e quitar os lançamentos do cartão.',
           '"Pagar fatura" marca todas as parcelas do mês como pagas.',
           'Ao lançar uma despesa no Crédito, o app pede o cartão e o número de parcelas.',
         ]}
