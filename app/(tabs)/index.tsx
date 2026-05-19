@@ -491,7 +491,7 @@ function makeStyles(c: Colors) {
     headerTitle: { fontSize:22, fontWeight:'700', color:c.text },
     headerSub: { fontSize:13, color:c.textMuted, marginTop:2 },
     headerDica: { fontSize: 11, color: '#5294ff', marginTop: 4, fontStyle: 'italic' },
-    alertaBox: { marginHorizontal:16, marginBottom:12, backgroundColor:'rgba(247,183,49,0.08)', borderRadius:14, padding:14, borderWidth:1, borderColor:'rgba(247,183,49,0.3)' },
+    alertaBox: { marginHorizontal:20, marginBottom:12, backgroundColor:'rgba(247,183,49,0.08)', borderRadius:14, padding:14, borderWidth:1, borderColor:'rgba(247,183,49,0.3)' },
     alertaHeader: { flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:10 },
     alertaTitle: { fontSize:12, fontWeight:'700', color:'#f7b731' },
     alertaConfig: { fontSize:12, color:'#5294ff', fontWeight:'600' },
