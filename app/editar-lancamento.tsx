@@ -5,7 +5,7 @@ import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, Sty
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { carregarCategorias } from './categorias';
 import { buscarContas, creditarConta, debitarConta } from './contas';
-import { atualizarGrupoLancamentos, atualizarLancamentoCompleto, buscarCartoes, deletarGrupoLancamentos, inserirLancamentosParcelados } from './database';
+import { atualizarGrupoLancamentos, atualizarLancamentoCompleto, buscarCartoes, deletarGrupoLancamentos, deletarLancamento, inserirLancamentosParcelados } from './database';
 import { agendarNotificacoesVencimento, verificarAlertaOrcamento, resetarLembreteMotivacional } from './notificacoes';
 import { Colors, useTheme } from './theme';
 
@@ -196,6 +196,7 @@ export default function EditarLancamentoScreen() {
 
   function handleFormaPag(novaForma: string) {
     if (formaPag === 'Credito' && novaForma !== 'Credito') setCartaoId('');
+    if (formaPag === 'Credito' && novaForma !== 'Credito') { if (grupoId) deletarGrupoLancamentos(grupoId); setGrupoId(''); setTotalParcelas(1); }
     if (FORMAS_COM_CONTA.includes(formaPag) && !FORMAS_COM_CONTA.includes(novaForma)) {
       setContaId('');
       setContaSel(null);
@@ -234,6 +235,7 @@ export default function EditarLancamentoScreen() {
       const diaFechamento = cartaoSel ? parseInt(cartaoSel.fechamento) || 1 : 1;
       const diaVencimento = cartaoSel ? parseInt(cartaoSel.vencimento) || 10 : 10;
       if (grupoId) deletarGrupoLancamentos(grupoId);
+      else { deletarLancamento(params.id as string); }
       inserirLancamentosParcelados({ descricao: descricao.trim(), valorTotal: valorNum, categoria, formaPag: 'Credito', cartaoId: cartaoId || '', contaId: contaId || '', totalParcelas, dataCompra: data || hoje(), diaVencimento, diaFechamento, status: 'parcelado', obs, tipo });
       await agendarNotificacoesVencimento();
       verificarAlertaOrcamento().catch(() => {});
