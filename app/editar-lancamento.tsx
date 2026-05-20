@@ -5,7 +5,7 @@ import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, Sty
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { carregarCategorias } from './categorias';
 import { buscarContas, creditarConta, debitarConta } from './contas';
-import { atualizarGrupoLancamentos, atualizarLancamentoCompleto, buscarCartoes } from './database';
+import { atualizarGrupoLancamentos, atualizarLancamentoCompleto, buscarCartoes, deletarGrupoLancamentos, inserirLancamentosParcelados } from './database';
 import { agendarNotificacoesVencimento, verificarAlertaOrcamento, resetarLembreteMotivacional } from './notificacoes';
 import { Colors, useTheme } from './theme';
 
@@ -201,6 +201,7 @@ export default function EditarLancamentoScreen() {
       setContaSel(null);
     }
     setFormaPag(novaForma);
+    if (novaForma === 'Credito') handleStatus('parcelado');
   }
 
   async function salvar() {
@@ -227,6 +228,20 @@ export default function EditarLancamentoScreen() {
       else                    await creditarConta(contaId, valorNum);
     }
     // ────────────────────────────────────────────────────────────────────────
+
+    if (formaPag === 'Credito' && tipo === 'despesa') {
+      const cartaoSel = cartoes.find((c: any) => c.id === cartaoId);
+      const diaFechamento = cartaoSel ? parseInt(cartaoSel.fechamento) || 1 : 1;
+      const diaVencimento = cartaoSel ? parseInt(cartaoSel.vencimento) || 10 : 10;
+      if (grupoId) deletarGrupoLancamentos(grupoId);
+      inserirLancamentosParcelados({ descricao: descricao.trim(), valorTotal: valorNum, categoria, formaPag: 'Credito', cartaoId: cartaoId || '', contaId: contaId || '', totalParcelas, dataCompra: data || hoje(), diaVencimento, diaFechamento, status: 'parcelado', obs, tipo });
+      await agendarNotificacoesVencimento();
+      verificarAlertaOrcamento().catch(() => {});
+      resetarLembreteMotivacional().catch(() => {});
+      Alert.alert('✅ Lançamento atualizado!', `${totalParcelas}x no crédito salvo com sucesso.`);
+      router.back();
+      return;
+    }
 
     atualizarLancamentoCompleto(params.id as string, {
       descricao, valor: valorNum, categoria, status,
@@ -301,6 +316,42 @@ export default function EditarLancamentoScreen() {
             renderItem={(v) => MAP_FP[v] || v}
             colors={colors}
           />
+
+          {/* Cartão */}
+          {formaPag === 'Credito' && cartoes.length > 0 && (
+            <>
+              <Text style={styles.sectionLbl}>CARTÃO</Text>
+              <Text style={styles.lbl}>Cartão vinculado</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.cartaoChipRow}>
+                  <TouchableOpacity style={[styles.cartaoChip, !cartaoId && styles.cartaoChipOn]} onPress={() => setCartaoId('')}>
+                    <Text style={[styles.cartaoChipTxt, !cartaoId && styles.cartaoChipTxtOn]}>Nenhum</Text>
+                  </TouchableOpacity>
+                  {cartoes.map(c => (
+                    <TouchableOpacity key={c.id} style={[styles.cartaoChip, cartaoId === c.id && styles.cartaoChipOn]} onPress={() => setCartaoId(c.id)}>
+                      <Text style={[styles.cartaoChipTxt, cartaoId === c.id && styles.cartaoChipTxtOn]}>💳 {c.apelido}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+              <Text style={styles.lbl}>Parcelas</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.cartaoChipRow}>
+                  {['1','2','3','4','5','6','7','8','9','10','11','12'].map(p => (
+                    <TouchableOpacity
+                      key={p}
+                      style={[styles.cartaoChip, String(totalParcelas) === p && styles.cartaoChipOn]}
+                      onPress={() => setTotalParcelas(parseInt(p))}
+                    >
+                      <Text style={[styles.cartaoChipTxt, String(totalParcelas) === p && styles.cartaoChipTxtOn]}>
+                        {p === '1' ? 'Único' : `${p}x`}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </>
+          )}
 
           {/* Informações básicas */}
           <Text style={styles.sectionLbl}>INFORMAÇÕES</Text>
@@ -405,42 +456,6 @@ export default function EditarLancamentoScreen() {
               </View>
             )}
           </>}
-
-          {/* Cartão */}
-          {formaPag === 'Credito' && cartoes.length > 0 && (
-            <>
-              <Text style={styles.sectionLbl}>CARTÃO</Text>
-              <Text style={styles.lbl}>Cartão vinculado</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.cartaoChipRow}>
-                  <TouchableOpacity style={[styles.cartaoChip, !cartaoId && styles.cartaoChipOn]} onPress={() => setCartaoId('')}>
-                    <Text style={[styles.cartaoChipTxt, !cartaoId && styles.cartaoChipTxtOn]}>Nenhum</Text>
-                  </TouchableOpacity>
-                  {cartoes.map(c => (
-                    <TouchableOpacity key={c.id} style={[styles.cartaoChip, cartaoId === c.id && styles.cartaoChipOn]} onPress={() => setCartaoId(c.id)}>
-                      <Text style={[styles.cartaoChipTxt, cartaoId === c.id && styles.cartaoChipTxtOn]}>💳 {c.apelido}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-              <Text style={styles.lbl}>Parcelas</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.cartaoChipRow}>
-                  {['1','2','3','4','5','6','7','8','9','10','11','12'].map(p => (
-                    <TouchableOpacity
-                      key={p}
-                      style={[styles.cartaoChip, String(totalParcelas) === p && styles.cartaoChipOn]}
-                      onPress={() => setTotalParcelas(parseInt(p))}
-                    >
-                      <Text style={[styles.cartaoChipTxt, String(totalParcelas) === p && styles.cartaoChipTxtOn]}>
-                        {p === '1' ? 'Único' : `${p}x`}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            </>
-          )}
 
           {/* Parcelas */}
           {ehGrupo && (
