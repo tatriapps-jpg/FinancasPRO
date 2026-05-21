@@ -16,6 +16,8 @@ export default function ConfiguracoesScreen() {
 
   const [helpVisible, setHelpVisible] = useState(false);
   const [modalZerar, setModalZerar] = useState(false);
+  const [modalResetTotal, setModalResetTotal] = useState(false);
+  const [pinResetInput, setPinResetInput] = useState('');
   const [modalResetOrcamento, setModalResetOrcamento] = useState(false);
   const [modalRestaurar, setModalRestaurar] = useState(false);
   const [modalAjuda, setModalAjuda] = useState(false);
@@ -139,6 +141,19 @@ export default function ConfiguracoesScreen() {
     zerarLancamentos();
     setModalZerar(false);
     Alert.alert('✅ Pronto!', 'Todos os lançamentos foram apagados.');
+  }
+
+  async function executarResetTotal() {
+    const pinSalvo = await AsyncStorage.getItem('@financaspro:pin');
+    if (pinResetInput !== pinSalvo) {
+      Alert.alert('PIN incorreto', 'Digite o PIN correto para confirmar o reset.');
+      return;
+    }
+    zerarLancamentos();
+    await AsyncStorage.multiRemove(['@financaspro:contas','@financaspro:orcamento','@financaspro:diasAlerta','@financaspro:categorias_despesa','@financaspro:categorias_receita','@financaspro:nomeUsuario','@financaspro:pin']);
+    setModalResetTotal(false);
+    setPinResetInput('');
+    Alert.alert('✅ Reset concluído', 'O aplicativo foi restaurado ao estado inicial.', [{ text: 'OK', onPress: () => router.replace('/pin') }]);
   }
 
   const fmt = (d: string) => {
@@ -296,6 +311,15 @@ export default function ConfiguracoesScreen() {
           </View>
           <Text style={styles.rowArrow}>›</Text>
         </TouchableOpacity>
+        <View style={styles.divider} />
+        <TouchableOpacity style={styles.row} onPress={() => { setPinResetInput(''); setModalResetTotal(true); }}>
+          <Text style={styles.rowIco}>⚠️</Text>
+          <View style={styles.rowInfo}>
+            <Text style={[styles.rowTitle, { color: '#f25555' }]}>Resetar Aplicativo</Text>
+            <Text style={styles.rowSub}>Apaga todos os dados e volta ao início</Text>
+          </View>
+          <Text style={styles.rowArrow}>›</Text>
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.sectionTitle}>SOBRE</Text>
@@ -337,6 +361,26 @@ export default function ConfiguracoesScreen() {
       </View>
 
       <View style={{ height: 40 }} />
+
+      {/* Modal Reset Total */}
+      <Modal visible={modalResetTotal} transparent animationType="fade">
+        <View style={styles.modalBg}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalIco}>⚠️</Text>
+            <Text style={styles.modalTitle}>Resetar Aplicativo</Text>
+            <Text style={styles.modalSub}>Esta ação apaga todos os dados: lançamentos, contas, cartões, categorias e configurações.</Text>
+            <TextInput style={styles.modalInput} placeholder="Digite seu PIN..." placeholderTextColor={colors.textMuted} value={pinResetInput} onChangeText={setPinResetInput} keyboardType="numeric" secureTextEntry maxLength={6} autoFocus />
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={styles.btnCancel} onPress={() => { setModalResetTotal(false); setPinResetInput(''); }}>
+                <Text style={styles.btnCancelTxt}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.btnSave, { backgroundColor: '#f25555' }]} onPress={executarResetTotal}>
+                <Text style={styles.btnSaveTxt}>Resetar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modal Nome */}
       <Modal visible={modalNome} transparent animationType="fade">
