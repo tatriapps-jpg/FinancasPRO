@@ -3,7 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { router, useFocusEffect } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useState } from 'react';
-import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import HelpModal, { helpBtnStyle, helpTxtStyle } from './HelpModal';
 import * as XLSX from 'xlsx';
 import { buscarTodosLancamentos, gerarId } from './database';
@@ -292,6 +292,7 @@ export default function ContasScreen() {
       </TouchableOpacity>
 
       <Modal visible={modal} animationType="slide" transparent>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={styles.modalBg}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>Nova Conta</Text>
@@ -321,6 +322,7 @@ export default function ContasScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={modalEditarSaldo} animationType="slide" transparent>
