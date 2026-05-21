@@ -5,7 +5,7 @@ import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, Sty
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { carregarCategorias } from './categorias';
 import { buscarContas, creditarConta, debitarConta } from './contas';
-import { atualizarGrupoLancamentos, atualizarLancamentoCompleto, buscarCartoes, deletarGrupoLancamentos, deletarLancamento, inserirLancamentosParcelados } from './database';
+import { atualizarGrupoLancamentos, atualizarLancamentoCompleto, buscarCartoes, deletarGrupoLancamentos, deletarLancamento, gerarId, inserirLancamento, inserirLancamentosParcelados } from './database';
 import { agendarNotificacoesVencimento, verificarAlertaOrcamento, resetarLembreteMotivacional } from './notificacoes';
 import { Colors, useTheme } from './theme';
 
@@ -196,7 +196,7 @@ export default function EditarLancamentoScreen() {
 
   function handleFormaPag(novaForma: string) {
     if (formaPag === 'Credito' && novaForma !== 'Credito') setCartaoId('');
-    if (formaPag === 'Credito' && novaForma !== 'Credito') { if (grupoId) deletarGrupoLancamentos(grupoId); setGrupoId(''); setTotalParcelas(1); }
+    if (formaPag === 'Credito' && novaForma !== 'Credito') handleStatus('pago');
     if (FORMAS_COM_CONTA.includes(formaPag) && !FORMAS_COM_CONTA.includes(novaForma)) {
       setContaId('');
       setContaSel(null);
@@ -213,9 +213,10 @@ export default function EditarLancamentoScreen() {
     if (isNaN(valorNum) || valorNum <= 0) { Alert.alert('Atenção', 'Digite um valor válido.'); return; }
 
     // ── Ajuste de saldo: desfaz transação original e aplica a nova ──────────
-    const afetaContaOriginal = originalContaId.current &&
+    const ehConversaoCredito = originalFormaPag.current === 'Credito' && formaPag !== 'Credito';
+    const afetaContaOriginal = !ehConversaoCredito && originalContaId.current &&
       (tipo === 'receita' || FORMAS_COM_CONTA.includes(originalFormaPag.current));
-    const afetaContaNova = contaId &&
+    const afetaContaNova = !ehConversaoCredito && contaId &&
       (tipo === 'receita' || FORMAS_COM_CONTA.includes(formaPag));
 
     if (afetaContaOriginal) {
@@ -245,8 +246,26 @@ export default function EditarLancamentoScreen() {
       return;
     }
 
+    if (originalFormaPag.current === 'Credito' && formaPag !== 'Credito') {
+      if (grupoId) deletarGrupoLancamentos(grupoId);
+      const totalParc = parseInt(String(params.totalParcelas)) || 1;
+      const valorTotal = valorNum * totalParc;
+      const descLimpa = descricao.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim();
+      inserirLancamento({ id: gerarId(), tipo, descricao: descLimpa, valor: valorTotal, categoria, formaPag, cartaoId: '', contaId, parcelas: 1, parcelaAtual: 1, totalParcelas: 1, data: data || hoje(), dataVencimento: '', status: 'pago', obs, grupoId: '' });
+      if (contaId && (tipo === 'receita' || FORMAS_COM_CONTA.includes(formaPag))) {
+        if (tipo === 'despesa') await debitarConta(contaId, valorTotal);
+        else await creditarConta(contaId, valorTotal);
+      }
+      await agendarNotificacoesVencimento();
+      verificarAlertaOrcamento().catch(() => {});
+      resetarLembreteMotivacional().catch(() => {});
+      Alert.alert('✅ Lançamento atualizado!', 'Convertido para ' + MAP_FP[formaPag] + ' com sucesso.');
+      router.back();
+      return;
+    }
+
     atualizarLancamentoCompleto(params.id as string, {
-      descricao, valor: valorNum, categoria, status,
+      descricao, valor: originalFormaPag.current === 'Credito' && formaPag !== 'Credito' ? valorNum * (parseInt(String(params.totalParcelas)) || 1) : valorNum, categoria, status,
       dataPagamento, obs, data, dataVencimento, cartaoId,
       contaId, formaPag, totalParcelas,
     });
