@@ -5,7 +5,7 @@ import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity
 import { buscarCartoes, buscarLancamentos, buscarLancamentosEmAtraso, buscarLancamentosPorMes, deletarGrupoLancamentos, deletarLancamento } from '../database';
 import HelpModal, { helpBtnStyle, helpTxtStyle } from '../HelpModal';
 import { Colors, useTheme } from '../theme';
-import { buscarContas } from '../contas';
+import { buscarContas, creditarConta, debitarConta } from '../contas';
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const LIMITE_GRATIS          = 150;
@@ -158,6 +158,34 @@ export default function LancamentosScreen() {
     }
   }
 
+  const ESPECIE_KEY = '@faladinheiro:dinheiroEspecie';
+  const FORMAS_COM_CONTA = ['Pix', 'Debito', 'Transferência', 'Depósito'];
+
+  async function restaurarSaldoAoExcluir(item: any) {
+    if (item.tipo === 'despesa') {
+      if (item.formaPag === 'Dinheiro') {
+        const saved = await AsyncStorage.getItem(ESPECIE_KEY);
+        const atual = parseFloat(saved || '0');
+        await AsyncStorage.setItem(ESPECIE_KEY, String(atual + item.valor));
+      } else if (item.contaId && FORMAS_COM_CONTA.includes(item.formaPag)) {
+        await creditarConta(item.contaId, item.valor);
+      }
+    } else if (item.tipo === 'receita') {
+      if (item.contaId && FORMAS_COM_CONTA.includes(item.formaPag)) {
+        await debitarConta(item.contaId, item.valor);
+      }
+    }
+  }
+
+  async function restaurarSaldoGrupoAoExcluir(grupoId: string) {
+    const { buscarTodosLancamentos } = require('../database');
+    const todos = buscarTodosLancamentos();
+    const parcelas = todos.filter((l: any) => l.grupoId === grupoId);
+    for (const p of parcelas) {
+      await restaurarSaldoAoExcluir(p);
+    }
+  }
+
   function deletar(item: any) {
     const ehGrupo = item.grupoId && (item.totalParcelas || 1) > 1;
 
@@ -167,8 +195,8 @@ export default function LancamentosScreen() {
         `"${item.descricao}"\n\nEste lançamento faz parte de um grupo parcelado. O que deseja excluir?`,
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: 'Só esta parcela', onPress: () => { deletarLancamento(item.id); carregarLancamentos(); } },
-          { text: 'Todas as parcelas', style: 'destructive', onPress: () => { deletarGrupoLancamentos(item.grupoId); carregarLancamentos(); } },
+          { text: 'Só esta parcela', onPress: async () => { await restaurarSaldoAoExcluir(item); deletarLancamento(item.id); carregarLancamentos(); } },
+          { text: 'Todas as parcelas', style: 'destructive', onPress: async () => { await restaurarSaldoGrupoAoExcluir(item.grupoId); deletarGrupoLancamentos(item.grupoId); carregarLancamentos(); } },
         ]
       );
     } else {
@@ -177,7 +205,7 @@ export default function LancamentosScreen() {
         `Deseja excluir "${item.descricao}"?`,
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: 'Excluir', style: 'destructive', onPress: () => { deletarLancamento(item.id); carregarLancamentos(); } },
+          { text: 'Excluir', style: 'destructive', onPress: async () => { await restaurarSaldoAoExcluir(item); deletarLancamento(item.id); carregarLancamentos(); } },
         ]
       );
     }
