@@ -150,6 +150,7 @@ export default function ConfiguracoesScreen() {
       return;
     }
     zerarLancamentos();
+    restaurarCartoes([]);
     await AsyncStorage.multiRemove(['@financaspro:contas','@financaspro:orcamento','@financaspro:diasAlerta','@financaspro:categorias_despesa','@financaspro:categorias_receita','@financaspro:nomeUsuario','@financaspro:pin']);
     setModalResetTotal(false);
     setPinResetInput('');
