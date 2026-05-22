@@ -55,14 +55,15 @@ FinancasPRO/
 │   │   ├── relatorios.tsx       # Relatórios por mês
 │   │   ├── orcamento.tsx        # Orçamento mensal
 │   │   └── configuracoes.tsx    # Configurações gerais
-│   ├── _layout.tsx              # Root layout (ThemeProvider, initDB, PIN check)
+│   ├── _layout.tsx              # Root layout (ThemeProvider, initDB, PIN check, garantirContaEspecie)
 │   ├── database.ts              # Toda a camada SQLite (CRUD)
 │   ├── theme.tsx                # ThemeProvider, cores dark/light
 │   ├── voz.tsx                  # Entrada por voz (tela completa)
 │   ├── novo-lancamento.tsx      # Formulário manual de lançamento
 │   ├── editar-lancamento.tsx    # Edição de lançamento existente
 │   ├── cartoes.tsx              # CRUD de cartões de crédito
-│   ├── contas.tsx               # CRUD de contas bancárias
+│   ├── contas.tsx               # CRUD de contas bancárias (exclui especie_fixa da lista)
+│   ├── dinheiro.tsx             # Tela de controle de dinheiro em espécie (NOVO 2026-05-22)
 │   ├── categorias.tsx           # CRUD de categorias personalizadas
 │   ├── paywall.tsx              # Tela de compra premium
 │   ├── pin.tsx                  # Tela de PIN / desbloqueio
@@ -98,7 +99,7 @@ Datas são sempre strings no formato `DD/MM/YYYY`.
 | `@financaspro:orcamento`                | valor numérico como string       |
 | `@financaspro:diasAlerta`               | dias antecipação vencimento      |
 | `@financaspro:pin`                      | PIN de 4 dígitos                 |
-| `@financaspro:contas`                   | JSON array de contas             |
+| `@financaspro:contas`                   | JSON array de contas (inclui especie_fixa) |
 | `@financaspro:categorias_despesa`       | JSON array de categorias         |
 | `@financaspro:categorias_receita`       | JSON array de categorias         |
 | `@financaspro:vozVelocidade`            | 1.0, 1.3 ou 1.6                  |
@@ -106,7 +107,19 @@ Datas são sempre strings no formato `DD/MM/YYYY`.
 | `@faladinheiro:vozFabTooltip`           | '1' após tooltip do FAB exibido  |
 | `@faladinheiro:primeiroLancamento`      | timestamp ms do 1º lançamento    |
 
-## Status atual (2026-05-12)
+## Conta especial: `especie_fixa`
+
+Criada automaticamente em `_layout.tsx → inicializar()` via `garantirContaEspecie()` (`database.ts`).
+- **id:** `'especie_fixa'` (fixo, nunca muda)
+- **nome:** `'Dinheiro em Espécie'`
+- **banco:** `'Espécie'`
+- **tipo:** `'Espécie'`
+- **saldo:** atualizado automaticamente via `creditarConta`/`debitarConta` quando `formaPag === 'Dinheiro'`
+- **Regras:** não pode ser excluída nem ter saldo editado manualmente via tela Contas; gerenciada pela tela `dinheiro.tsx`
+- **Visibilidade:** filtrada da lista em `contas.tsx → loadContas()` (não aparece como conta bancária normal)
+- **Exibida em:** painel Patrimônio Real na home (`index.tsx`) como "Espécie", e na tela `dinheiro.tsx`
+
+## Status atual (2026-05-22)
 
 ### O que está funcionando
 - APK release Android gerado com sucesso em 2026-05-12 (`app-release.apk`) — builds ~3–4min
@@ -115,20 +128,26 @@ Datas são sempre strings no formato `DD/MM/YYYY`.
 - Despesas com cartão de crédito agora aparecem no mês da compra (Resumo, Orçamento, Lançamentos)
 - Parcelamentos com arredondamento preciso (aritmética inteira, 1ª parcela recebe o centavo residual)
 - FAB de voz 🎤 centralizado sobre a tab bar com tooltip na primeira abertura
-- Extrato por conta (XLSX) disponível na tela Contas
+- Extrato por conta (XLSX) disponível na tela Contas; extrato por cartão (XLSX) disponível em Cartões
 - Lista de Lançamentos exibe cartão/conta/formaPag junto à categoria
 - HelpModal corrigido: `maxHeight: '82%'` no box, `flexShrink: 1` no scroll, botão "Entendi" sempre visível
 - Botão "?" em todas as telas principais incluindo Configurações
 - `buscarLancamentosPorMes` usa `data OR dataVencimento` — itens aparecem no mês de compra E no mês de fatura
 - Limites do plano gratuito unificados: todos usam `buscarLancamentos().length` (sem contador assíncrono)
 - Política de Privacidade sem header nativo (headerShown: false)
+- Painel "💼 Patrimônio Real" na home: bancos, espécie e crédito disponível nos cartões
+- Conta `especie_fixa` criada automaticamente; saldo atualizado por lançamentos com formaPag 'Dinheiro'
+- Tela `dinheiro.tsx`: controle de dinheiro em espécie com histórico, edição manual e extrato XLSX
+- Opção "Resetar Aplicativo" em Configurações com confirmação por PIN
+- Reparcelamento ao editar lançamento de crédito: deleta grupo/parcela e recria via `inserirLancamentosParcelados`
+- Ao excluir lançamento, saldo da conta/espécie é restaurado automaticamente
 
 ### Bug pendente de confirmação no dispositivo físico
 - **Botão "Entendi" do HelpModal**: após múltiplas tentativas de correção de layout, a versão atual usa `Pressable` + `maxHeight: '82%'` no box + `flexShrink: 1` no ScrollView. Aguarda teste em dispositivo físico Android.
 
 ### O que falta para publicar na Play Store
 - ⚠️ Confirmar botão "Entendi" do HelpModal visível no dispositivo físico
-- Testes end-to-end no dispositivo físico (fluxo de voz + parcelamento + FAB)
+- Testes end-to-end no dispositivo físico (fluxo de voz + parcelamento + FAB + especie_fixa)
 - Verificar compra IAP em ambiente de produção (track interno / alpha da Play Store)
 - Screenshots e assets para a ficha da loja
 - Política de privacidade hospedada em URL pública
