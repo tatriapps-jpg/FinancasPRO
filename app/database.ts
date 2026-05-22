@@ -57,6 +57,7 @@ export function initDB() {
 
   migrarCategorias();
   migrarStatusParcelado();
+  garantirContaEspecie();
 }
 
 function migrarCategorias() {
@@ -93,6 +94,18 @@ function migrarStatusParcelado() {
       `UPDATE lancamentos SET status = 'parcelado' WHERE status = 'pendente' AND cartaoId != '' AND cartaoId IS NOT NULL`
     );
   } catch (e) {}
+}
+
+async function garantirContaEspecie() {
+  const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+  const CONTAS_KEY = '@financaspro:contas';
+  const saved = await AsyncStorage.getItem(CONTAS_KEY);
+  const lista = saved ? JSON.parse(saved) : [];
+  const jaExiste = lista.some((c: any) => c.id === 'especie_fixa');
+  if (!jaExiste) {
+    lista.push({ id: 'especie_fixa', nome: 'Dinheiro em Espécie', banco: 'Espécie', tipo: 'Espécie', saldo: '0' });
+    await AsyncStorage.setItem(CONTAS_KEY, JSON.stringify(lista));
+  }
 }
 
 export function inserirLancamento(item: {

@@ -792,12 +792,15 @@ export default function VozScreen() {
       });
     }
 
-    if (l.contaId) {
-      if (l.tipo === 'despesa' && (l.formaPag === 'Debito' || l.formaPag === 'Pix' || l.formaPag === 'Transferência')) {
-        await debitarConta(l.contaId, valorNum);
-      } else if (l.tipo === 'receita') {
-        await creditarConta(l.contaId, valorNum);
-      }
+    if (l.tipo === 'despesa' && l.formaPag === 'Dinheiro') {
+      await debitarConta('especie_fixa', valorNum);
+    } else if (l.contaId && l.tipo === 'despesa' && (l.formaPag === 'Debito' || l.formaPag === 'Pix' || l.formaPag === 'Transferência')) {
+      await debitarConta(l.contaId, valorNum);
+    }
+    if (l.tipo === 'receita' && l.formaPag === 'Dinheiro') {
+      await creditarConta('especie_fixa', valorNum);
+    } else if (l.contaId && l.tipo === 'receita') {
+      await creditarConta(l.contaId, valorNum);
     }
 
     await agendarNotificacoesVencimento();

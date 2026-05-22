@@ -19,7 +19,12 @@
       "Bash(where python *)",
       "Bash(where py *)",
       "Bash(grep -n \"confirmacao\\\\|confirma\\\\|resumo\\\\|valor\\\\|fmt\\\\|toFixed\\\\|toLocale\\\\|Intl\\\\|R\\\\$\\\\|formatVal\" /c/Users/usuario/FinancasPRO/app/voz.tsx)",
-      "Bash(grep -i \"confirm\\\\|resumo\\\\|valor\\\\|fmt\\\\|R\\\\$\\\\|format\")"
+      "Bash(grep -i \"confirm\\\\|resumo\\\\|valor\\\\|fmt\\\\|R\\\\$\\\\|format\")",
+      "Bash(Get-ChildItem *)",
+      "Bash(gradlew assembleRelease)",
+      "Bash(npx jest *)",
+      "Bash(Start-Sleep -Seconds 12)",
+      "Bash(Get-Content \"C:\\\\Users\\\\usuario\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-usuario-FinancasPRO\\\\fadfce12-2b65-4d06-95da-24646a8bc050\\\\tasks\\\\bx4727gss.output\" -Raw)"
     ]
   }
 }

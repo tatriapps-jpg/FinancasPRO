@@ -347,11 +347,16 @@ export default function NovoLancamentoScreen() {
       });
     }
 
-    if (contaSel && (formaPag === 'Débito' || formaPag === 'Pix') && tipo === 'despesa') {
+    if (tipo === 'despesa' && formaPag === 'Dinheiro') {
+      await debitarConta('especie_fixa', valorNum);
+    } else if (contaSel && (formaPag === 'Débito' || formaPag === 'Pix') && tipo === 'despesa') {
       await debitarConta(contaSel.id, valorNum);
     }
     if (contaSel && tipo === 'receita') {
       await creditarConta(contaSel.id, valorNum);
+    }
+    if (tipo === 'receita' && formaPag === 'Dinheiro') {
+      await creditarConta('especie_fixa', valorNum);
     }
 
     await agendarNotificacoesVencimento();

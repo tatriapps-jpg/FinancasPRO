@@ -8,7 +8,6 @@ import HelpModal, { helpBtnStyle, helpTxtStyle } from '../HelpModal';
 import { Colors, useTheme } from '../theme';
 
 const ALERTA_KEY = '@financaspro:diasAlerta';
-const ESPECIE_KEY = '@faladinheiro:dinheiroEspecie';
 const ORC_KEY = '@financaspro:orcamento';
 const NOME_KEY = '@financaspro:nomeUsuario';
 
@@ -37,9 +36,6 @@ export default function HomeScreen() {
   const [nomeInput, setNomeInput] = useState('');
   const [saldoBancos, setSaldoBancos] = useState(0);
   const [creditoDisponivel, setCreditoDisponivel] = useState(0);
-  const [dinheiroEspecie, setDinheiroEspecie] = useState(0);
-  const [modalEspecie, setModalEspecie] = useState(false);
-  const [especieInput, setEspecieInput] = useState('');
 
   useFocusEffect(useCallback(() => { carregarDados(); }, []));
 
@@ -73,8 +69,6 @@ export default function HomeScreen() {
     }
     setCreditoDisponivel(totalCreditoDisp);
 
-    const savedEspecie = await AsyncStorage.getItem(ESPECIE_KEY);
-    setDinheiroEspecie(savedEspecie ? parseFloat(savedEspecie) : 0);
 
     const todos = buscarLancamentos();
     const despesasMes = buscarLancamentosPorMes(mesAtual, anoAtual).filter(l => l.tipo === 'despesa');
@@ -167,13 +161,6 @@ export default function HomeScreen() {
     setDiasAlerta(dias);
     setModalAlerta(false);
     carregarDados();
-  }
-
-  async function salvarEspecie() {
-    const valor = parseFloat(especieInput.replace(',', '.')) || 0;
-    await AsyncStorage.setItem(ESPECIE_KEY, String(valor));
-    setDinheiroEspecie(valor);
-    setModalEspecie(false);
   }
 
   const fmt = (v: number) => 'R$' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -297,12 +284,6 @@ export default function HomeScreen() {
             <Text style={[styles.patrimonioVal, { color: '#25d07e' }]}>{fmt(saldoBancos)}</Text>
           </View>
           <View style={styles.patrimonioDivider} />
-          <TouchableOpacity style={styles.patrimonioItem} onPress={() => { setEspecieInput(String(dinheiroEspecie)); setModalEspecie(true); }}>
-            <Text style={styles.patrimonioIco}>💵</Text>
-            <Text style={styles.patrimonioLbl}>Espécie</Text>
-            <Text style={[styles.patrimonioVal, { color: '#f7b731' }]}>{fmt(dinheiroEspecie)}</Text>
-          </TouchableOpacity>
-          <View style={styles.patrimonioDivider} />
           <View style={styles.patrimonioItem}>
             <Text style={styles.patrimonioIco}>💳</Text>
             <Text style={styles.patrimonioLbl}>Crédito disp.</Text>
@@ -310,8 +291,8 @@ export default function HomeScreen() {
           </View>
         </View>
         <View style={styles.patrimonioTotal}>
-          <Text style={styles.patrimonioTotalLbl}>Disponível (bancos + espécie)</Text>
-          <Text style={styles.patrimonioTotalVal}>{fmt(saldoBancos + dinheiroEspecie)}</Text>
+          <Text style={styles.patrimonioTotalLbl}>Saldo total em contas</Text>
+          <Text style={styles.patrimonioTotalVal}>{fmt(saldoBancos)}</Text>
         </View>
       </View>
 
@@ -386,32 +367,6 @@ export default function HomeScreen() {
               ))}
               <View style={{ height: 20 }} />
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={modalEspecie} animationType="fade" transparent>
-        <View style={styles.modalBg}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>💵 Dinheiro em espécie</Text>
-            <Text style={styles.modalSub}>Quanto você tem em dinheiro físico?</Text>
-            <TextInput
-              style={styles.modalInput}
-              keyboardType="numeric"
-              value={especieInput}
-              onChangeText={setEspecieInput}
-              placeholder="0,00"
-              placeholderTextColor="#666"
-              autoFocus
-            />
-            <View style={styles.modalBtns}>
-              <TouchableOpacity style={styles.btnCancel} onPress={() => setModalEspecie(false)}>
-                <Text style={styles.btnCancelTxt}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.btnSave} onPress={salvarEspecie}>
-                <Text style={styles.btnSaveTxt}>Salvar</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
       </Modal>

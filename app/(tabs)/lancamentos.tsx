@@ -164,9 +164,7 @@ export default function LancamentosScreen() {
   async function restaurarSaldoAoExcluir(item: any) {
     if (item.tipo === 'despesa') {
       if (item.formaPag === 'Dinheiro') {
-        const saved = await AsyncStorage.getItem(ESPECIE_KEY);
-        const atual = parseFloat(saved || '0');
-        await AsyncStorage.setItem(ESPECIE_KEY, String(atual + item.valor));
+        await creditarConta('especie_fixa', item.valor);
       } else if (item.contaId && FORMAS_COM_CONTA.includes(item.formaPag)) {
         await creditarConta(item.contaId, item.valor);
       }

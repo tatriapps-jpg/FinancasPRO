@@ -94,6 +94,10 @@ export default function ContasScreen() {
   }
 
   async function excluirConta(id: string) {
+    if (id === 'especie_fixa') {
+      Alert.alert('Atenção', 'A conta Dinheiro em Espécie não pode ser excluída.');
+      return;
+    }
     Alert.alert(
       'Excluir conta',
       'Deseja excluir esta conta? O saldo será removido.',
@@ -115,6 +119,10 @@ export default function ContasScreen() {
 
   async function editarSaldo() {
     if (!contaEditando) return;
+    if (contaEditando.id === 'especie_fixa') {
+      Alert.alert('Atenção', 'O saldo do Dinheiro em Espécie é atualizado automaticamente pelos lançamentos.');
+      return;
+    }
     const normalizado = parseBRValue(novoSaldoInput.trim());
     const novoSaldo = parseFloat(normalizado);
     if (isNaN(novoSaldo)) { Alert.alert('Atenção', 'Digite um valor válido.'); return; }
@@ -273,15 +281,19 @@ export default function ContasScreen() {
             >
               <Text style={styles.extratoTxt}>📄 Extrato</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => { setContaEditando(c); setNovoSaldoInput(c.saldo || '0'); setModalEditarSaldo(true); }}
-              style={styles.editSaldoBtn}
-            >
-              <Text style={styles.editSaldoTxt}>✏️</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => excluirConta(c.id)} style={styles.delBtn}>
-              <Text style={styles.delTxt}>🗑</Text>
-            </TouchableOpacity>
+            {c.id !== 'especie_fixa' && (
+              <TouchableOpacity
+                onPress={() => { setContaEditando(c); setNovoSaldoInput(c.saldo || '0'); setModalEditarSaldo(true); }}
+                style={styles.editSaldoBtn}
+              >
+                <Text style={styles.editSaldoTxt}>✏️</Text>
+              </TouchableOpacity>
+            )}
+            {c.id !== 'especie_fixa' && (
+              <TouchableOpacity onPress={() => excluirConta(c.id)} style={styles.delBtn}>
+                <Text style={styles.delTxt}>🗑</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ))}
         <View style={{ height: 100 }} />
