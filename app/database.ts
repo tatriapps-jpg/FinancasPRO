@@ -97,8 +97,9 @@ function migrarStatusParcelado() {
 }
 
 export async function garantirContaEspecie() {
-  const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
   const CONTAS_KEY = '@financaspro:contas';
+  try {
   const saved = await AsyncStorage.getItem(CONTAS_KEY);
   const lista = saved ? JSON.parse(saved) : [];
   const jaExiste = lista.some((c: any) => c.id === 'especie_fixa');
@@ -106,6 +107,7 @@ export async function garantirContaEspecie() {
     lista.push({ id: 'especie_fixa', nome: 'Dinheiro em Espécie', banco: 'Espécie', tipo: 'Espécie', saldo: '0' });
     await AsyncStorage.setItem(CONTAS_KEY, JSON.stringify(lista));
   }
+  } catch (e) {}
 }
 
 export function inserirLancamento(item: {

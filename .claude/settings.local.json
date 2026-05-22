@@ -24,7 +24,8 @@
       "Bash(gradlew assembleRelease)",
       "Bash(npx jest *)",
       "Bash(Start-Sleep -Seconds 12)",
-      "Bash(Get-Content \"C:\\\\Users\\\\usuario\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-usuario-FinancasPRO\\\\fadfce12-2b65-4d06-95da-24646a8bc050\\\\tasks\\\\bx4727gss.output\" -Raw)"
+      "Bash(Get-Content \"C:\\\\Users\\\\usuario\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-usuario-FinancasPRO\\\\fadfce12-2b65-4d06-95da-24646a8bc050\\\\tasks\\\\bx4727gss.output\" -Raw)",
+      "Bash(git rm *)"
     ]
   }
 }
