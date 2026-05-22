@@ -242,7 +242,7 @@ export default function ConfiguracoesScreen() {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.sectionTitle}>CARTÕES E CONTAS</Text>
+      <Text style={styles.sectionTitle}>CARTÕES, CONTAS E DINHEIRO</Text>
       <View style={styles.group}>
         <TouchableOpacity style={styles.row} onPress={() => router.push('/cartoes' as any)}>
           <Text style={styles.rowIco}>💳</Text>
@@ -258,6 +258,15 @@ export default function ConfiguracoesScreen() {
           <View style={styles.rowInfo}>
             <Text style={styles.rowTitle}>Minhas Contas</Text>
             <Text style={styles.rowSub}>Cadastrar contas bancárias</Text>
+          </View>
+          <Text style={styles.rowArrow}>›</Text>
+        </TouchableOpacity>
+        <View style={styles.divider} />
+        <TouchableOpacity style={styles.row} onPress={() => router.push('/dinheiro' as any)}>
+          <Text style={styles.rowIco}>💵</Text>
+          <View style={styles.rowInfo}>
+            <Text style={styles.rowTitle}>Dinheiro em Espécie</Text>
+            <Text style={styles.rowSub}>Controle do dinheiro em mãos</Text>
           </View>
           <Text style={styles.rowArrow}>›</Text>
         </TouchableOpacity>

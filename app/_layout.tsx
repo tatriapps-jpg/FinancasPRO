@@ -77,6 +77,7 @@ function RootContent() {
         <Stack.Screen name="editar-lancamento" options={{ headerShown: false }} />
         <Stack.Screen name="cartoes" options={{ headerShown: false }} />
         <Stack.Screen name="contas" options={{ headerShown: false }} />
+        <Stack.Screen name="dinheiro" options={{ headerShown: false }} />
         <Stack.Screen name="categorias" options={{ headerShown: false }} />
         <Stack.Screen name="camera" options={{ headerShown: false }} />
         <Stack.Screen name="qrcode" options={{ headerShown: false }} />

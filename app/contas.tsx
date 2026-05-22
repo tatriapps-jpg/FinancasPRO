@@ -78,7 +78,7 @@ export default function ContasScreen() {
 
   async function loadContas() {
     const saved = await AsyncStorage.getItem(CONTAS_KEY);
-    if (saved) setContas(JSON.parse(saved));
+    if (saved) setContas(JSON.parse(saved).filter((c: Conta) => c.id !== 'especie_fixa'));
   }
 
   async function salvarConta() {
