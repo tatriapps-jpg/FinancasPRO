@@ -14,7 +14,7 @@ const CONTAS_KEY = '@financaspro:contas';
 const TIPOS = ['Corrente', 'Poupança', 'Investimento', 'Digital', 'Outro'];
 const TIPO_ICON: Record<string, string> = {
   'Corrente': '🏦', 'Poupança': '🐷', 'Investimento': '📈',
-  'Digital': '📱', 'Outro': '💰'
+  'Digital': '📱', 'Outro': '💰', 'Espécie': '💵'
 };
 
 type Conta = {

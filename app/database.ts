@@ -57,7 +57,6 @@ export function initDB() {
 
   migrarCategorias();
   migrarStatusParcelado();
-  garantirContaEspecie();
 }
 
 function migrarCategorias() {

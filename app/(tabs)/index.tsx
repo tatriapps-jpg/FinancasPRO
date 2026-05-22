@@ -35,6 +35,7 @@ export default function HomeScreen() {
   const [modalNome, setModalNome] = useState(false);
   const [nomeInput, setNomeInput] = useState('');
   const [saldoBancos, setSaldoBancos] = useState(0);
+  const [saldoEspecie, setSaldoEspecie] = useState(0);
   const [creditoDisponivel, setCreditoDisponivel] = useState(0);
 
   useFocusEffect(useCallback(() => { carregarDados(); }, []));
@@ -55,8 +56,10 @@ export default function HomeScreen() {
     setTotais(t);
 
     const contas = await buscarContas();
-    const totalBancos = contas.reduce((s: number, c: any) => s + (parseFloat(c.saldo) || 0), 0);
+    const totalBancos = contas.filter((c: any) => c.id !== 'especie_fixa').reduce((s: number, c: any) => s + (parseFloat(c.saldo) || 0), 0);
+    const especie = contas.find((c: any) => c.id === 'especie_fixa');
     setSaldoBancos(totalBancos);
+    setSaldoEspecie(especie ? parseFloat(especie.saldo) || 0 : 0);
 
     const cartoesLista = buscarCartoes();
     const mesAtualN = new Date().getMonth() + 1;
@@ -285,14 +288,20 @@ export default function HomeScreen() {
           </View>
           <View style={styles.patrimonioDivider} />
           <View style={styles.patrimonioItem}>
+            <Text style={styles.patrimonioIco}>💵</Text>
+            <Text style={styles.patrimonioLbl}>Espécie</Text>
+            <Text style={[styles.patrimonioVal, { color: '#f7b731' }]}>{fmt(saldoEspecie)}</Text>
+          </View>
+          <View style={styles.patrimonioDivider} />
+          <View style={styles.patrimonioItem}>
             <Text style={styles.patrimonioIco}>💳</Text>
             <Text style={styles.patrimonioLbl}>Crédito disp.</Text>
             <Text style={[styles.patrimonioVal, { color: '#5294ff' }]}>{fmt(creditoDisponivel)}</Text>
           </View>
         </View>
         <View style={styles.patrimonioTotal}>
-          <Text style={styles.patrimonioTotalLbl}>Saldo total em contas</Text>
-          <Text style={styles.patrimonioTotalVal}>{fmt(saldoBancos)}</Text>
+          <Text style={styles.patrimonioTotalLbl}>Disponível (bancos + espécie)</Text>
+          <Text style={styles.patrimonioTotalVal}>{fmt(saldoBancos + saldoEspecie)}</Text>
         </View>
       </View>
 

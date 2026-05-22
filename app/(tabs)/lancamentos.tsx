@@ -158,7 +158,6 @@ export default function LancamentosScreen() {
     }
   }
 
-  const ESPECIE_KEY = '@faladinheiro:dinheiroEspecie';
   const FORMAS_COM_CONTA = ['Pix', 'Debito', 'Transferência', 'Depósito'];
 
   async function restaurarSaldoAoExcluir(item: any) {
@@ -169,14 +168,16 @@ export default function LancamentosScreen() {
         await creditarConta(item.contaId, item.valor);
       }
     } else if (item.tipo === 'receita') {
-      if (item.contaId && FORMAS_COM_CONTA.includes(item.formaPag)) {
+      if (item.formaPag === 'Dinheiro') {
+        await debitarConta('especie_fixa', item.valor);
+      } else if (item.contaId && FORMAS_COM_CONTA.includes(item.formaPag)) {
         await debitarConta(item.contaId, item.valor);
       }
     }
   }
 
   async function restaurarSaldoGrupoAoExcluir(grupoId: string) {
-    const { buscarTodosLancamentos } = require('../database');
+    const { buscarTodosLancamentos } = await import('../database');
     const todos = buscarTodosLancamentos();
     const parcelas = todos.filter((l: any) => l.grupoId === grupoId);
     for (const p of parcelas) {

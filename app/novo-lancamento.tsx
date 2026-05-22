@@ -349,7 +349,7 @@ export default function NovoLancamentoScreen() {
 
     if (tipo === 'despesa' && formaPag === 'Dinheiro') {
       await debitarConta('especie_fixa', valorNum);
-    } else if (contaSel && (formaPag === 'Débito' || formaPag === 'Pix') && tipo === 'despesa') {
+    } else if (contaSel && (formaPag === 'Débito' || formaPag === 'Debito' || formaPag === 'Pix') && tipo === 'despesa') {
       await debitarConta(contaSel.id, valorNum);
     }
     if (contaSel && tipo === 'receita') {
