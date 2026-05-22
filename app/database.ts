@@ -96,7 +96,7 @@ function migrarStatusParcelado() {
   } catch (e) {}
 }
 
-async function garantirContaEspecie() {
+export async function garantirContaEspecie() {
   const AsyncStorage = require('@react-native-async-storage/async-storage').default;
   const CONTAS_KEY = '@financaspro:contas';
   const saved = await AsyncStorage.getItem(CONTAS_KEY);

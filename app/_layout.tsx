@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { initConnection, endConnection } from 'react-native-iap';
-import { initDB } from './database';
+import { initDB, garantirContaEspecie } from './database';
 import { configurarNotificacoes } from './notificacoes';
 import { ThemeProvider, useTheme } from './theme';
 
@@ -51,6 +51,7 @@ function RootContent() {
     ]);
     setDesbloqueado(status === 'true');
     setTemPin(!!pin);
+    await garantirContaEspecie();
     setPronto(true);
     configurarNotificacoes().catch(() => {});
   }
