@@ -150,7 +150,12 @@ export default function EditarLancamentoScreen() {
     carregarCategorias('receita').then(c => setCategoriasRec(c.sort((a, b) => a.localeCompare(b))));
 
     if (params.descricao)     setDescricao(params.descricao as string);
-    if (params.valor)         setValor(String(params.valor));
+    if (params.valor) {
+      const vNum = parseFloat(String(params.valor).replace(',', '.')) || 0;
+      const nParc = parseInt(String(params.totalParcelas || '1')) || 1;
+      const fp = String(params.formaPag || '');
+      setValor(String(fp === 'Credito' && nParc > 1 ? vNum * nParc : vNum));
+    }
     if (params.categoria)     setCategoria(params.categoria as string);
     if (params.status)        setStatus(params.status as string);
     if (params.obs)           setObs(params.obs as string);
