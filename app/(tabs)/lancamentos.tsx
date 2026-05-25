@@ -216,7 +216,7 @@ export default function LancamentosScreen() {
       params: {
         id: item.id,
         descricao: item.descricao,
-        valor: String(item.valor),
+        valor: String(item.formaPag === 'Credito' && (item.totalParcelas || 1) > 1 ? item.valor * (item.totalParcelas || 1) : item.valor),
         categoria: item.categoria,
         status: item.status,
         obs: item.obs || '',
