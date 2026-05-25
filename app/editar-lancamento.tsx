@@ -250,7 +250,7 @@ export default function EditarLancamentoScreen() {
       if (grupoId) deletarGrupoLancamentos(grupoId);
       const totalParc = parseInt(String(params.totalParcelas)) || 1;
       const valorTotal = valorNum * totalParc;
-      const descLimpa = descricao.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim();
+      const descLimpa = descricao.replace(/\s*\(\d+\/\d+\)\s*/g, '').trim();
       inserirLancamento({ id: gerarId(), tipo, descricao: descLimpa, valor: valorTotal, categoria, formaPag, cartaoId: '', contaId, parcelas: 1, parcelaAtual: 1, totalParcelas: 1, data: data || hoje(), dataVencimento: '', status: 'pago', obs, grupoId: '' });
       if (contaId && (tipo === 'receita' || FORMAS_COM_CONTA.includes(formaPag))) {
         if (tipo === 'despesa') await debitarConta(contaId, valorTotal);
