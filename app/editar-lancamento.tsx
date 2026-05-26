@@ -176,7 +176,10 @@ export default function EditarLancamentoScreen() {
     }
 
     // Salva os valores originais para recalcular saldo ao salvar
-    originalValorNum.current  = parseFloat(String(params.valor || '0').replace(',', '.')) || 0;
+    const _fp = String(params.formaPag || '');
+    const _nParc = parseInt(String(params.totalParcelas || '1')) || 1;
+    const _vRaw = parseFloat(String(params.valor || '0').replace(',', '.')) || 0;
+    originalValorNum.current = _fp === 'Credito' && _nParc > 1 ? _vRaw * _nParc : _vRaw;
     originalContaId.current   = String(params.contaId || '');
     originalFormaPag.current  = String(params.formaPag || '');
 
@@ -242,7 +245,7 @@ export default function EditarLancamentoScreen() {
       const diaVencimento = cartaoSel ? parseInt(cartaoSel.vencimento) || 10 : 10;
       if (grupoId) deletarGrupoLancamentos(grupoId);
       else { deletarLancamento(params.id as string); }
-      inserirLancamentosParcelados({ descricao: descricao.trim(), valorTotal: valorNum, categoria, formaPag: 'Credito', cartaoId: cartaoId || '', contaId: contaId || '', totalParcelas, dataCompra: data || hoje(), diaVencimento, diaFechamento, status: 'parcelado', obs, tipo });
+      inserirLancamentosParcelados({ descricao: descricao.replace(/\s*\(\d+\/\d+\)\s*/g, '').trim(), valorTotal: valorNum, categoria, formaPag: 'Credito', cartaoId: cartaoId || '', contaId: contaId || '', totalParcelas, dataCompra: data || hoje(), diaVencimento, diaFechamento, status: 'parcelado', obs, tipo });
       await agendarNotificacoesVencimento();
       verificarAlertaOrcamento().catch(() => {});
       resetarLembreteMotivacional().catch(() => {});
