@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useEffect, useState } from 'react';
 import { Alert, Linking, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { buscarCartoes, buscarTodosLancamentos, restaurarCartoes, restaurarLancamentos, zerarLancamentos } from '../database';
+import { buscarCartoes, buscarTodosLancamentos, buscarTransferencias, restaurarCartoes, restaurarLancamentos, restaurarTransferencias, zerarLancamentos } from '../database';
 import HelpModal, { helpBtnStyle, helpTxtStyle } from '../HelpModal';
 import { Colors, useTheme } from '../theme';
 
@@ -63,11 +63,13 @@ export default function ConfiguracoesScreen() {
       const catDesp = await AsyncStorage.getItem('@financaspro:categorias_despesa');
       const catRec = await AsyncStorage.getItem('@financaspro:categorias_receita');
 
+      const transferencias = buscarTransferencias();
       const backup = {
         versao: '1.0',
         data: new Date().toISOString(),
         lancamentos,
         cartoes,
+        transferencias,
         contas: contas ? JSON.parse(contas) : [],
         orcamento: orcamento || '5000',
         diasAlerta: alerta || '3',
@@ -119,6 +121,7 @@ export default function ConfiguracoesScreen() {
       if (!backupInfo) return;
       restaurarLancamentos(backupInfo.lancamentos || []);
       restaurarCartoes(backupInfo.cartoes || []);
+      restaurarTransferencias(backupInfo.transferencias || []);
       await AsyncStorage.setItem('@financaspro:contas', JSON.stringify(backupInfo.contas || []));
       if (backupInfo.orcamento) await AsyncStorage.setItem('@financaspro:orcamento', backupInfo.orcamento);
       if (backupInfo.diasAlerta) await AsyncStorage.setItem('@financaspro:diasAlerta', backupInfo.diasAlerta);
@@ -151,6 +154,7 @@ export default function ConfiguracoesScreen() {
     }
     zerarLancamentos();
     restaurarCartoes([]);
+    restaurarTransferencias([]);
     await AsyncStorage.multiRemove(['@financaspro:contas','@financaspro:orcamento','@financaspro:diasAlerta','@financaspro:categorias_despesa','@financaspro:categorias_receita','@financaspro:nomeUsuario','@financaspro:pin']);
     setModalResetTotal(false);
     setPinResetInput('');
@@ -163,6 +167,7 @@ export default function ConfiguracoesScreen() {
   };
 
   const ajudaItens = [
+    { ico: '←', titulo: 'Voltar às telas', desc: 'Use a seta azul no canto superior esquerdo para voltar à tela anterior sem perder o que foi digitado.' },
     { ico: '📋', titulo: 'Lançamentos', desc: 'Toque em + para adicionar. Toque para editar, pressione e segure para excluir.' },
     { ico: '💳', titulo: 'Parcelamento', desc: 'Selecione Crédito, escolha o cartão e as parcelas. O app calcula os vencimentos automaticamente.' },
     { ico: '📊', titulo: 'Orçamento', desc: 'Define o limite mensal de gastos. Só despesas são descontadas — receitas não interferem.' },
@@ -267,6 +272,15 @@ export default function ConfiguracoesScreen() {
           <View style={styles.rowInfo}>
             <Text style={styles.rowTitle}>Dinheiro em Espécie</Text>
             <Text style={styles.rowSub}>Controle do dinheiro em mãos</Text>
+          </View>
+          <Text style={styles.rowArrow}>›</Text>
+        </TouchableOpacity>
+        <View style={styles.divider} />
+        <TouchableOpacity style={styles.row} onPress={() => router.push('/transferencias' as any)}>
+          <Text style={styles.rowIco}>🔄</Text>
+          <View style={styles.rowInfo}>
+            <Text style={styles.rowTitle}>Transferências</Text>
+            <Text style={styles.rowSub}>Mover dinheiro entre contas</Text>
           </View>
           <Text style={styles.rowArrow}>›</Text>
         </TouchableOpacity>
@@ -492,13 +506,14 @@ export default function ConfiguracoesScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como usar as Configurações"
         tips={[
-          'APARÊNCIA: alterne entre tema claro e escuro, e ajuste a velocidade da leitura por voz.',
-          'CONTA E SEGURANÇA: defina seu nome, altere o PIN ou bloqueie o app imediatamente.',
-          'CARTÕES E CONTAS: cadastre cartões de crédito e contas bancárias para uso nos lançamentos.',
-          'CATEGORIAS: crie, edite ou exclua categorias personalizadas de despesa e receita.',
-          'DADOS: faça backup de todos os dados em JSON, restaure um backup anterior ou apague todos os lançamentos.',
-          'Resetar Orçamento remove o limite mensal definido — o card de orçamento voltará a exibir "Não definido".',
-          'SOBRE: acesse a ajuda rápida, envie feedback por e-mail ou leia a política de privacidade.',
+          { titulo: 'Aparência', texto: 'Alterne entre tema claro e escuro. Ajuste a velocidade da voz (Lenta, Normal ou Rápido) para o lançamento por voz.' },
+          { titulo: 'Conta e Segurança', texto: 'Defina seu nome, altere o PIN ou bloqueie o app imediatamente.' },
+          { titulo: 'Cartões e Contas', texto: 'Cadastre cartões de crédito, contas bancárias e registre transferências entre contas.' },
+          { titulo: 'Categorias', texto: 'Crie, edite ou exclua categorias personalizadas de despesa e receita.' },
+          { titulo: 'Dados', texto: 'Faça backup de todos os dados em JSON, restaure um backup anterior ou apague todos os lançamentos.' },
+          { titulo: 'Resetar Orçamento', texto: 'Remove o limite mensal definido — o card de orçamento voltará a exibir "Não definido".' },
+          { titulo: 'Resetar Aplicativo', texto: 'Apaga todos os dados e volta o app ao estado inicial — use com cautela.' },
+          { titulo: 'Sobre', texto: 'Acesse a ajuda rápida, envie feedback por e-mail ou leia a política de privacidade.' },
         ]}
       />
 

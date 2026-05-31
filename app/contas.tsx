@@ -6,15 +6,14 @@ import { useCallback, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import HelpModal, { helpBtnStyle, helpTxtStyle } from './HelpModal';
 import * as XLSX from 'xlsx';
-import { buscarTodosLancamentos, gerarId } from './database';
+import { buscarTodosLancamentos, buscarTransferenciasPorConta, gerarId } from './database';
 import { Colors, useTheme } from './theme';
 
 const CONTAS_KEY = '@financaspro:contas';
 
-const TIPOS = ['Corrente', 'Poupança', 'Investimento', 'Digital', 'Outro'];
+const TIPOS = ['Corrente', 'Poupança', 'Investimento'];
 const TIPO_ICON: Record<string, string> = {
-  'Corrente': '🏦', 'Poupança': '🐷', 'Investimento': '📈',
-  'Digital': '📱', 'Outro': '💰', 'Espécie': '💵'
+  'Corrente': '🏦', 'Poupança': '🐷', 'Investimento': '📈', 'Espécie': '💵'
 };
 
 type Conta = {
@@ -162,33 +161,53 @@ export default function ContasScreen() {
   async function gerarExtrato(conta: Conta) {
     try {
       setExportandoId(conta.id);
+      const toDate = (d: string) => {
+        const p = d?.split('/');
+        if (!p || p.length !== 3) return 0;
+        return new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0])).getTime();
+      };
       const todos = buscarTodosLancamentos();
       const lancamentos = todos
         .filter((l: any) => String(l.contaId ?? '') === String(conta.id ?? '')  && l.contaId)
-        .sort((a: any, b: any) => {
-          const toDate = (d: string) => {
-            const p = d?.split('/');
-            if (!p || p.length !== 3) return 0;
-            return new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0])).getTime();
-          };
-          return toDate(a.data) - toDate(b.data);
-        });
+        .sort((a: any, b: any) => toDate(a.data) - toDate(b.data));
 
-      if (lancamentos.length === 0) {
+      const transferencias = buscarTransferenciasPorConta(conta.id);
+      if (lancamentos.length === 0 && transferencias.length === 0) {
         Alert.alert('Sem lançamentos', 'Nenhum lançamento vinculado a esta conta.');
         return;
       }
 
       const arredondar = (v: number) => Math.round(v * 100) / 100;
-      const dados = lancamentos.map((l: any) => ({
+      const linhasLanc = lancamentos.map((l: any) => ({
+        _ts: toDate(l.data),
         'Data': l.data || '',
         'Descrição': l.descricao || '',
         'Categoria': l.categoria || '',
         'Forma Pag.': l.formaPag || '',
-        'Valor': arredondar(Number(l.valor || 0)),
+        'Valor': 'R$ ' + Number(l.valor||0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         'Tipo': l.tipo === 'despesa' ? 'Saída' : 'Entrada',
         'Status': l.status || '',
       }));
+      const linhasTransf = transferencias.map((t: any) => {
+        const ehSaida = t.contaOrigemId === conta.id;
+        const isEspecie = (ehSaida ? t.contaDestinoId : t.contaOrigemId) === 'especie_fixa';
+        const nomeDestino = contas.find((c: any) => c.id === t.contaDestinoId)?.nome || t.contaDestinoId;
+        const nomeOrigem = contas.find((c: any) => c.id === t.contaOrigemId)?.nome || t.contaOrigemId;
+        const desc = ehSaida
+          ? (isEspecie ? 'Saque' : 'Transferência para ' + nomeDestino)
+          : (isEspecie ? 'Saque de Espécie' : 'Transferência de ' + nomeOrigem);
+        return { _ts: toDate(t.data), 'Data': t.data || '', 'Descrição': desc, 'Categoria': 'Transferência', 'Forma Pag.': '—', 'Valor': 'R$ ' + Number(t.valor||0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 'Tipo': ehSaida ? 'Saída' : 'Entrada', 'Status': 'concluído' };
+      });
+      const linhaInicial = {
+        'Data': '',
+        'Descrição': 'Saldo inicial',
+        'Categoria': '',
+        'Forma Pag.': '',
+        'Valor': 'R$ ' + Number(conta?.saldo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        'Tipo': '',
+        'Status': '',
+      };
+      const dados = [linhaInicial, ...[...linhasLanc, ...linhasTransf].sort((a,b) => a._ts - b._ts).map(({ _ts, ...rest }) => rest)];
 
       const ws = XLSX.utils.json_to_sheet(dados);
       ws['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }];
@@ -338,6 +357,7 @@ export default function ContasScreen() {
       </Modal>
 
       <Modal visible={modalEditarSaldo} animationType="slide" transparent>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={styles.modalBg}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>✏️ Editar Saldo</Text>
@@ -365,18 +385,20 @@ export default function ContasScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
       <HelpModal
         visible={helpVisible}
         onClose={() => setHelpVisible(false)}
         title="Como cadastrar contas"
         tips={[
-          'Toque em + para adicionar uma conta bancária.',
-          'Preencha nome, banco, tipo (Corrente, Poupança, etc.) e saldo inicial.',
-          'O saldo é atualizado automaticamente ao registrar despesas em Débito ou Pix.',
-          'Receitas também creditam automaticamente a conta selecionada.',
-          'Toque em uma conta para editar ou ajustar o saldo.',
-          'Pressione e segure para excluir a conta.',
+          { titulo: 'Adicionar conta', texto: 'Toque em + para adicionar uma conta bancária.' },
+          { titulo: 'Cadastro', texto: 'Preencha nome, banco, tipo (Corrente, Poupança ou Investimento) e saldo inicial.' },
+          { titulo: 'Saldo automático', texto: 'O saldo é atualizado automaticamente ao registrar despesas em Débito ou Pix.' },
+          { titulo: 'Receitas', texto: 'Receitas também creditam automaticamente a conta selecionada.' },
+          { titulo: 'Editar e excluir', texto: 'Toque em uma conta para editar o saldo. Toque na lixeira para excluir.' },
+          { titulo: 'Extrato Excel', texto: 'Use o botão Extrato para exportar o histórico da conta em Excel.' },
+          { titulo: 'Transferências', texto: 'Registre transferências entre contas em Configurações → Transferências.' },
         ]}
       />
     </View>

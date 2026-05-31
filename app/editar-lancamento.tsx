@@ -7,6 +7,7 @@ import { carregarCategorias } from './categorias';
 import { buscarContas, creditarConta, debitarConta } from './contas';
 import { atualizarGrupoLancamentos, atualizarLancamentoCompleto, buscarCartoes, deletarGrupoLancamentos, deletarLancamento, gerarId, inserirLancamento, inserirLancamentosParcelados } from './database';
 import { agendarNotificacoesVencimento, verificarAlertaOrcamento, resetarLembreteMotivacional } from './notificacoes';
+import HelpModal, { helpBtnStyle, helpTxtStyle } from './HelpModal';
 import { Colors, useTheme } from './theme';
 
 type Conta = { id: string; nome: string; banco: string; tipo: string; saldo: string; };
@@ -126,6 +127,7 @@ export default function EditarLancamentoScreen() {
   const [contas, setContas]                 = useState<Conta[]>([]);
   const [grupoId, setGrupoId]               = useState('');
   const [totalParcelas, setTotalParcelas]   = useState(1);
+  const [helpVisible, setHelpVisible] = useState(false);
   const [aplicarAoGrupo, setAplicarAoGrupo] = useState(false);
   const [cartoes, setCartoes]               = useState<{ id: string; apelido: string }[]>([]);
   const [categoriasDesp, setCategoriasDesp] = useState<string[]>([]);
@@ -154,7 +156,7 @@ export default function EditarLancamentoScreen() {
       const vNum = parseFloat(String(params.valor).replace(',', '.')) || 0;
       const nParc = parseInt(String(params.totalParcelas || '1')) || 1;
       const fp = String(params.formaPag || '');
-      setValor(String(fp === 'Credito' && nParc > 1 ? vNum * nParc : vNum));
+      setValor(String(vNum));
     }
     if (params.categoria)     setCategoria(params.categoria as string);
     if (params.status)        setStatus(params.status as string);
@@ -179,7 +181,7 @@ export default function EditarLancamentoScreen() {
     const _fp = String(params.formaPag || '');
     const _nParc = parseInt(String(params.totalParcelas || '1')) || 1;
     const _vRaw = parseFloat(String(params.valor || '0').replace(',', '.')) || 0;
-    originalValorNum.current = _fp === 'Credito' && _nParc > 1 ? _vRaw * _nParc : _vRaw;
+    originalValorNum.current = _vRaw;
     originalContaId.current   = String(params.contaId || '');
     originalFormaPag.current  = String(params.formaPag || '');
 
@@ -256,8 +258,7 @@ export default function EditarLancamentoScreen() {
 
     if (originalFormaPag.current === 'Credito' && formaPag !== 'Credito') {
       if (grupoId) deletarGrupoLancamentos(grupoId);
-      const totalParc = parseInt(String(params.totalParcelas)) || 1;
-      const valorTotal = valorNum * totalParc;
+      const valorTotal = valorNum;
       const descLimpa = descricao.replace(/\s*\(\d+\/\d+\)\s*/g, '').trim();
       inserirLancamento({ id: gerarId(), tipo, descricao: descLimpa, valor: valorTotal, categoria, formaPag, cartaoId: '', contaId, parcelas: 1, parcelaAtual: 1, totalParcelas: 1, data: data || hoje(), dataVencimento: '', status: 'pago', obs, grupoId: '' });
       if (contaId && (tipo === 'receita' || FORMAS_COM_CONTA.includes(formaPag))) {
@@ -273,7 +274,7 @@ export default function EditarLancamentoScreen() {
     }
 
     atualizarLancamentoCompleto(params.id as string, {
-      descricao, valor: originalFormaPag.current === 'Credito' && formaPag !== 'Credito' ? valorNum * (parseInt(String(params.totalParcelas)) || 1) : valorNum, categoria, status,
+      descricao, valor: valorNum, categoria, status,
       dataPagamento, obs, data, dataVencimento, cartaoId,
       contaId, formaPag, totalParcelas,
     });
@@ -310,7 +311,9 @@ export default function EditarLancamentoScreen() {
             <Text style={styles.backTxt}>Voltar</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Editar Lançamento</Text>
-          <View style={{ width: 70 }} />
+          <TouchableOpacity onPress={() => setHelpVisible(true)} style={helpBtnStyle}>
+            <Text style={helpTxtStyle}>?</Text>
+          </TouchableOpacity>
         </View>
 
         <ScrollView
@@ -527,6 +530,18 @@ export default function EditarLancamentoScreen() {
           </TouchableOpacity>
         </View>
       </View>
+      <HelpModal
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title="Editar Lançamento"
+        tips={[
+          { titulo: 'O que editar', texto: 'Edite descrição, valor, categoria, status ou data do lançamento.' },
+          { titulo: 'Parcelado no crédito', texto: 'Para despesas parceladas no crédito, você pode aplicar as alterações a todas as parcelas do grupo.' },
+          { titulo: 'Aplicar ao grupo', texto: 'Atualiza categoria e valor em todas as parcelas restantes do mesmo grupo.' },
+          { titulo: 'Parcela individual', texto: 'Se não ativar essa opção, apenas a parcela atual será alterada.' },
+          { titulo: 'Status', texto: 'O status "Pago" indica que o valor já saiu da conta. "Pendente" ainda não foi debitado.' },
+        ]}
+      />
     </KeyboardAvoidingView>
   );
 }

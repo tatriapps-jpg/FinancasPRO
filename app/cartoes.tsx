@@ -274,7 +274,7 @@ export default function CartoesScreen() {
         'Vencimento': l.dataVencimento || '',
         'Descrição': l.descricao || '',
         'Categoria': l.categoria || '',
-        'Valor': arredondar(Number(l.valor || 0)),
+        'Valor': 'R$ ' + Number(l.valor||0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         'Parcela': Number(l.totalParcelas) > 1 ? `${l.parcelaAtual}/${l.totalParcelas}` : 'Único',
         'Status': l.status || '',
       }));
@@ -537,12 +537,14 @@ export default function CartoesScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como cadastrar cartões"
         tips={[
-          'Toque em + para adicionar um novo cartão.',
-          'Preencha apelido, bandeira, últimos 4 dígitos, dia de fechamento e dia de vencimento.',
-          'O limite é opcional — serve para controle de gastos e alerta de uso.',
-          'Toque em "Pagar Fatura" para ver o total do mês e quitar os lançamentos do cartão.',
-          '"Pagar fatura" marca todas as parcelas do mês como pagas.',
-          'Ao lançar uma despesa no Crédito, o app pede o cartão e o número de parcelas.',
+          { titulo: 'Adicionar cartão', texto: 'Toque em + para adicionar um novo cartão.' },
+          { titulo: 'Cadastro', texto: 'Preencha apelido, bandeira, últimos 4 dígitos, dia de fechamento e dia de vencimento.' },
+          { titulo: 'Limite', texto: 'O limite é opcional — serve para controle de gastos e alerta de uso.' },
+          { titulo: 'Pagar Fatura', texto: 'Toque em "Pagar Fatura" para ver o total do mês e quitar os lançamentos do cartão.' },
+          { titulo: 'Baixa automática', texto: '"Pagar fatura" marca todas as parcelas do mês como pagas.' },
+          { titulo: 'Parcelamento', texto: 'Ao lançar uma despesa no Crédito, o app pede o cartão e o número de parcelas.' },
+          { titulo: 'Extrato Excel', texto: 'Use o botão Extrato para exportar o histórico do cartão em Excel.' },
+          { titulo: 'Excluir', texto: 'Toque na lixeira para excluir um cartão.' },
         ]}
       />
     </View>

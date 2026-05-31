@@ -154,7 +154,7 @@ export default function OrcamentoScreen() {
   }
 
   const orcamentoAtivo = orcamento > 0;
-  const fmt = (v: number) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const fmt = (v: number) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const disponivel = orcamento - totais.totalGasto;
   const pct = orcamento > 0 ? Math.min(100, (totais.totalGasto / orcamento) * 100) : 0;
   const barCor = pct < 70 ? '#25d07e' : pct < 90 ? '#f7b731' : '#f25555';
@@ -320,12 +320,13 @@ export default function OrcamentoScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como definir seu orçamento"
         tips={[
-          'Toque em ✏️ Editar para definir ou alterar o limite mensal de gastos.',
-          'Digite 0 para desativar o orçamento.',
-          'A barra de progresso mostra o percentual do orçamento já utilizado.',
-          'Verde: menos de 70%. Amarelo: 70–90%. Vermelho: acima de 90%.',
-          'O gráfico de rosca mostra os gastos divididos por categoria.',
-          'Você receberá uma notificação ao atingir 80% e 100% do limite.',
+          { titulo: 'Definir limite', texto: 'Toque em ✏️ Editar para definir ou alterar o limite mensal de gastos.' },
+          { titulo: 'Desativar', texto: 'Digite 0 para desativar o orçamento.' },
+          { titulo: 'Barra de progresso', texto: 'Verde: menos de 70%. Amarelo: 70–90%. Vermelho: acima de 90%.' },
+          { titulo: 'Gráfico de rosca', texto: 'Mostra os gastos divididos por categoria.' },
+          { titulo: 'Projeção do mês', texto: 'Estima quanto você vai gastar até o fim do mês com base na média diária atual.' },
+          { titulo: 'Renovação automática', texto: 'O orçamento é mensal e se renova automaticamente todo mês.' },
+          { titulo: 'Notificações', texto: 'Você receberá uma notificação ao atingir 80% e 100% do limite.' },
         ]}
       />
     </View>

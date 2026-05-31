@@ -95,7 +95,8 @@ export default function LancamentosScreen() {
     const mapFP: Record<string, string> = {
       Credito: 'Crédito', Debito: 'Débito', Pix: 'Pix',
       Dinheiro: 'Dinheiro', Boleto: 'Boleto',
-      'Transferência': 'Transferência', 'Depósito': 'Depósito', Outro: 'Outro',
+      'Transferência': 'Transferência', 'Depósito': 'Depósito',
+      Outro: 'Outro',
     };
     const formaPagLabel = mapFP[l.formaPag] || l.formaPag || '';
 
@@ -216,7 +217,7 @@ export default function LancamentosScreen() {
       params: {
         id: item.id,
         descricao: item.descricao,
-        valor: String(item.formaPag === 'Credito' && (item.totalParcelas || 1) > 1 ? item.valor * (item.totalParcelas || 1) : item.valor),
+        valor: String(item.formaPag === 'Credito' && (item.totalParcelas || 1) > 1 ? Math.round(item.valor * (item.totalParcelas || 1) * 100) / 100 : item.valor),
         categoria: item.categoria,
         status: item.status,
         obs: item.obs || '',
@@ -436,14 +437,15 @@ export default function LancamentosScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como ver seus lançamentos"
         tips={[
-          'Lançamentos são listados do mais recente ao mais antigo.',
-          'Use o filtro de mês (setas ‹ ›) para navegar entre os períodos.',
-          'Toque em um lançamento para editar.',
-          'Pressione e segure para excluir (pede confirmação).',
-          'Lançamentos em atraso aparecem em destaque no topo.',
-          'Use o campo de busca para encontrar por descrição ou categoria.',
-          'O botão + abre o formulário de novo lançamento.',
-          'O botão "Todos" exibe lançamentos de todos os meses. Toque nele para ativar ou desativar. Quando ativo, as setas de mês ficam desabilitadas.',
+          { titulo: 'Ordenação', texto: 'Lançamentos são listados do mais recente ao mais antigo.' },
+          { titulo: 'Filtro de mês', texto: 'Use as setas ‹ › para navegar entre os períodos.' },
+          { titulo: 'Editar', texto: 'Toque em um lançamento para editar.' },
+          { titulo: 'Excluir', texto: 'Pressione e segure para excluir (pede confirmação).' },
+          { titulo: 'Em atraso', texto: 'Lançamentos em atraso aparecem em destaque no topo.' },
+          { titulo: 'Busca', texto: 'Use o campo de busca para encontrar por descrição ou categoria.' },
+          { titulo: 'Ver todos os meses', texto: 'O botão "Todos" exibe lançamentos de todos os meses. Toque nele para ativar ou desativar. Quando ativo, as setas de mês ficam desabilitadas.' },
+          { titulo: 'Lançamento por voz', texto: 'Toque no microfone 🎤 para registrar um lançamento por voz.' },
+          { titulo: 'Novo lançamento', texto: 'Use o botão + no canto inferior direito para abrir o formulário de novo lançamento.' },
         ]}
       />
     </View>

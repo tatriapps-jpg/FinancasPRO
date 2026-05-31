@@ -323,6 +323,60 @@ export function buscarTodosLancamentos(): any[] {
   return db.getAllSync('SELECT * FROM lancamentos ORDER BY dataVencimento ASC');
 }
 
+export function initTransferencias() {
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS transferencias (
+      id TEXT PRIMARY KEY,
+      contaOrigemId TEXT NOT NULL,
+      contaDestinoId TEXT NOT NULL,
+      valor REAL NOT NULL,
+      data TEXT,
+      obs TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+}
+
+export function inserirTransferencia(t: {
+  id: string;
+  contaOrigemId: string;
+  contaDestinoId: string;
+  valor: number;
+  data: string;
+  obs: string;
+}) {
+  db.runSync(
+    `INSERT INTO transferencias (id, contaOrigemId, contaDestinoId, valor, data, obs)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [t.id, t.contaOrigemId, t.contaDestinoId, t.valor, t.data, t.obs]
+  );
+}
+
+export function buscarTransferencias(): any[] {
+  return db.getAllSync(`SELECT * FROM transferencias ORDER BY createdAt DESC`);
+}
+
+export function buscarTransferenciasPorConta(contaId: string): any[] {
+  return db.getAllSync(
+    `SELECT * FROM transferencias WHERE contaOrigemId = ? OR contaDestinoId = ? ORDER BY createdAt DESC`,
+    [contaId, contaId]
+  );
+}
+
+export function deletarTransferencia(id: string) {
+  db.runSync('DELETE FROM transferencias WHERE id = ?', [id]);
+}
+
+export function restaurarTransferencias(lista: any[]) {
+  db.runSync('DELETE FROM transferencias');
+  for (const t of lista) {
+    db.runSync(
+      `INSERT OR REPLACE INTO transferencias (id, contaOrigemId, contaDestinoId, valor, data, obs, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [t.id, t.contaOrigemId, t.contaDestinoId, t.valor, t.data || '', t.obs || '', t.createdAt || '']
+    );
+  }
+}
+
 export function zerarLancamentos() {
   db.runSync('DELETE FROM lancamentos');
 }

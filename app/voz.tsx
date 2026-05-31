@@ -31,7 +31,7 @@ const PERGUNTAS_COMPLETAS: Record<Etapa, string> = {
   descricao: '',
   valor: 'Qual é o valor?',
   categoria: 'Qual é a categoria? Por exemplo: Supermercado, Saúde, Transporte. Ou diga automático.',
-  formaPag: 'Qual a forma de pagamento? Crédito, Débito, Pix, Dinheiro, Boleto ou Outro.',
+  formaPag: 'Qual a forma de pagamento? Crédito, Débito, Pix, Dinheiro ou Boleto.',
   cartao: 'Qual cartão deseja usar?',
   parcelas: 'Quantas parcelas? Diga o número. Um para pagamento único.',
   conta: 'De qual conta será debitado?',
@@ -325,7 +325,7 @@ const PALAVRAS_NEGACAO = ['não', 'nao', 'nãoo', 'naoo', 'nan', 'num', 'non', '
 // ─── dicas de pronúncia ─────────────────────────────────────────────────────
 
 const DICAS = [
-  { titulo: '🔔 Aguarde o bip', texto: 'Só fale após ouvir o bip de início. O app precisa de um instante para ativar o microfone — falar antes pode fazer o áudio ser cortado.' },
+  { titulo: '🎙 Aguarde um instante', texto: 'O app precisa de um momento para ativar o microfone. Aguarde antes de falar.' },
   { titulo: '💰 Valores por extenso', texto: 'Diga o valor por extenso: "cinquenta reais", "cento e vinte reais e cinquenta centavos", "dois mil e trezentos". Evite falar apenas números isolados.' },
   { titulo: '💳 Formas de pagamento', texto: 'Diga: "pix", "crédito", "débito", "dinheiro", "boleto", "transferência" ou "depósito". O app reconhece variações como "cartão", "cartão de crédito", "à vista".' },
   { titulo: '🏷️ Cartões e contas', texto: 'Use apelidos simples como "Nubank" ou "Itaú" — não é necessário informar número, bandeira ou dados reais. O app busca pelo nome que você cadastrou.' },
@@ -333,6 +333,8 @@ const DICAS = [
   { titulo: '🔢 Parcelas', texto: 'Diga o número de parcelas por extenso: "três", "seis", "doze". Para pagamento único diga "um" ou "à vista". Parcelamento só funciona com cartão de crédito.' },
   { titulo: '✅ Observações', texto: 'Na etapa de observações, diga qualquer anotação que queira registrar. Diga "não" para pular esta etapa e ir direto para a confirmação.' },
   { titulo: '🎙️ Dica de dispositivo', texto: 'Cada aparelho reconhece voz de forma diferente. Se o app disser "Não entendi", tente falar mais devagar, mais alto ou use palavras alternativas para o mesmo comando.' },
+  { titulo: '👁 Olhe a tela nas primeiras vezes', texto: 'O app exibe na tela o que entendeu de cada etapa. Nas primeiras vezes, acompanhe visualmente para aprender o ritmo certo.' },
+  { titulo: '🐢 Velocidade da voz', texto: 'Nas configurações você pode ajustar a velocidade da voz do app: Lenta, Normal ou Rápida. Se a voz estiver muito rápida, reduza nas configurações.' },
 ];
 
 // ─── componente principal ───────────────────────────────────────────────────
@@ -427,8 +429,8 @@ export default function VozScreen() {
 
   function getPerguntaDescricao(tipo: 'despesa' | 'receita'): string {
     if (!usarTutorialRef.current) return 'Descrição?';
-    if (tipo === 'receita') return 'Qual é a descrição? De onde ou de quem você recebeu? Por exemplo: Empresa X, Apartamento, Venda de Carro.';
-    return 'Qual é a descrição? Por exemplo: Super X, Farmácia Y ou Juca Eletricista.';
+    if (tipo === 'receita') return 'Qual é a descrição? De onde ou de quem você recebeu?';
+    return 'Qual é a descrição?';
   }
 
   function getPerguntaContaReceita(): string {

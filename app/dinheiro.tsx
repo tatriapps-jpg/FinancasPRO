@@ -3,9 +3,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { router, useFocusEffect } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useState } from 'react';
-import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as XLSX from 'xlsx';
-import { buscarTodosLancamentos } from './database';
+import { buscarTodosLancamentos, buscarTransferenciasPorConta } from './database';
 import HelpModal, { helpBtnStyle, helpTxtStyle } from './HelpModal';
 import { Colors, useTheme } from './theme';
 
@@ -28,36 +28,59 @@ export default function DinheiroScreen() {
     const lista = saved ? JSON.parse(saved) : [];
     const especie = lista.find((c: any) => c.id === 'especie_fixa');
     setSaldo(especie ? parseFloat(especie.saldo) || 0 : 0);
+    const toDate = (d: string) => { const p = d?.split('/'); if (!p || p.length !== 3) return 0; return new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0])).getTime(); };
+    const hoje = new Date();
+    const mesAtual = hoje.getMonth();
+    const anoAtual = hoje.getFullYear();
+    const doMesAtual = (data: string) => {
+      const p = data?.split('/');
+      if (!p || p.length !== 3) return false;
+      return Number(p[1]) - 1 === mesAtual && Number(p[2]) === anoAtual;
+    };
     const todos = buscarTodosLancamentos();
-    const movs = todos.filter((l: any) => l.formaPag === 'Dinheiro').sort((a: any, b: any) => {
-      const toDate = (d: string) => { const p = d?.split('/'); if (!p || p.length !== 3) return 0; return new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0])).getTime(); };
-      return toDate(b.data) - toDate(a.data);
-    });
-    setMovimentacoes(movs);
+    const movs = todos
+      .filter((l: any) => (l.formaPag === 'Dinheiro' || l.formaPag === 'Espécie' || l.contaId === 'especie_fixa') && doMesAtual(l.data))
+      .sort((a: any, b: any) => toDate(b.data) - toDate(a.data));
+    const transf = buscarTransferenciasPorConta('especie_fixa');
+    const nomeConta = (id: string) => {
+      if (id === 'especie_fixa') return 'Dinheiro em Espécie';
+      const c = lista.find((x: any) => x.id === id);
+      return c ? c.nome : id;
+    };
+    const linhasTransf = transf
+      .filter((t: any) => doMesAtual(t.data))
+      .map((t: any) => {
+        const ehEntrada = t.contaDestinoId === 'especie_fixa';
+        return {
+          id: t.id,
+          descricao: ehEntrada ? `Transferência de ${nomeConta(t.contaOrigemId)}` : `Transferência para ${nomeConta(t.contaDestinoId)}`,
+          valor: t.valor,
+          tipo: ehEntrada ? 'receita' : 'despesa',
+          data: t.data || '',
+          formaPag: 'Transferência',
+          status: 'concluído',
+        };
+      });
+    setMovimentacoes([...movs, ...linhasTransf].sort((a, b) => toDate(b.data) - toDate(a.data)));
   }
 
   async function editarSaldo() {
-    const valor = parseFloat(novoSaldoInput.replace(',', '.')) || 0;
+    const valorStr = novoSaldoInput.trim().replace(',', '.');
+    const valor = parseFloat(valorStr);
+    if (isNaN(valor)) { Alert.alert('Atenção', 'Digite um valor válido.'); return; }
     const saved = await AsyncStorage.getItem(CONTAS_KEY);
     const lista = saved ? JSON.parse(saved) : [];
-    const novas = lista.map((c: any) => c.id === 'especie_fixa' ? { ...c, saldo: String(valor) } : c);
+    const jaExiste = lista.some((c: any) => c.id === 'especie_fixa');
+    let novas;
+    if (jaExiste) {
+      novas = lista.map((c: any) => c.id === 'especie_fixa' ? { ...c, saldo: String(valor) } : c);
+    } else {
+      novas = [...lista, { id: 'especie_fixa', nome: 'Dinheiro em Espécie', banco: 'Espécie', tipo: 'Espécie', saldo: String(valor) }];
+    }
     await AsyncStorage.setItem(CONTAS_KEY, JSON.stringify(novas));
+    setSaldo(valor);
     setModalEditar(false);
     setNovoSaldoInput('');
-    carregarDados();
-  }
-
-  async function zerarSaldo() {
-    Alert.alert('Zerar saldo', 'Deseja zerar o saldo do dinheiro em espécie?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Zerar', style: 'destructive', onPress: async () => {
-        const saved = await AsyncStorage.getItem(CONTAS_KEY);
-        const lista = saved ? JSON.parse(saved) : [];
-        const novas = lista.map((c: any) => c.id === 'especie_fixa' ? { ...c, saldo: '0' } : c);
-        await AsyncStorage.setItem(CONTAS_KEY, JSON.stringify(novas));
-        carregarDados();
-      }}
-    ]);
   }
 
   async function gerarExtrato() {
@@ -67,14 +90,22 @@ export default function DinheiroScreen() {
         Alert.alert('Sem movimentações', 'Nenhum lançamento em dinheiro encontrado.');
         return;
       }
-      const dados = movimentacoes.map((l: any) => ({
+      const linhaInicial = {
+        'Data': '',
+        'Descrição': 'Saldo inicial',
+        'Categoria': '',
+        'Tipo': '',
+        'Valor': 'R$ ' + Number(saldo).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        'Status': '',
+      };
+      const dados = [linhaInicial, ...movimentacoes.map((l: any) => ({
         'Data': l.data || '',
         'Descrição': l.descricao || '',
         'Categoria': l.categoria || '',
         'Tipo': l.tipo === 'despesa' ? 'Saída' : 'Entrada',
-        'Valor': Math.round(Number(l.valor || 0) * 100) / 100,
+        'Valor': 'R$ ' + Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         'Status': l.status || '',
-      }));
+      }))];
       const ws = XLSX.utils.json_to_sheet(dados);
       ws['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 12 }];
       const wb = XLSX.utils.book_new();
@@ -124,9 +155,6 @@ export default function DinheiroScreen() {
             <TouchableOpacity style={[styles.btnExtrato, exportando && { opacity: 0.5 }]} onPress={gerarExtrato} disabled={exportando}>
               <Text style={styles.btnExtratoTxt}>📄 Extrato Excel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.btnZerar} onPress={zerarSaldo}>
-              <Text style={styles.btnZerarTxt}>🗑 Zerar</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -134,7 +162,7 @@ export default function DinheiroScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyIco}>💵</Text>
             <Text style={styles.emptyTxt}>Nenhuma movimentação em dinheiro</Text>
-            <Text style={styles.emptySub}>Lançamentos com forma "Dinheiro" aparecem aqui</Text>
+            <Text style={styles.emptySub}>Lançamentos com forma Dinheiro e transferências envolvendo Dinheiro em Espécie aparecem aqui</Text>
           </View>
         )}
 
@@ -163,6 +191,7 @@ export default function DinheiroScreen() {
       </ScrollView>
 
       <Modal visible={modalEditar} transparent animationType="fade">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={styles.modalBg}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>✏️ Editar saldo em espécie</Text>
@@ -171,6 +200,7 @@ export default function DinheiroScreen() {
               style={styles.modalInput}
               keyboardType="numeric"
               value={novoSaldoInput}
+              selectTextOnFocus
               onChangeText={setNovoSaldoInput}
               placeholder="0,00"
               placeholderTextColor={colors.textMuted}
@@ -186,6 +216,7 @@ export default function DinheiroScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <HelpModal
@@ -193,10 +224,11 @@ export default function DinheiroScreen() {
         onClose={() => setHelpVisible(false)}
         title="Dinheiro em Espécie"
         tips={[
-          'Aqui você controla o dinheiro físico que tem em mãos.',
-          'O saldo é atualizado automaticamente quando você registra lançamentos com forma "Dinheiro".',
-          'Use "Editar saldo" para corrigir o valor manualmente se necessário.',
-          'Exporte o extrato em Excel para ver todas as movimentações em dinheiro.',
+          { titulo: 'Dinheiro em Espécie', texto: 'Aqui você controla o dinheiro físico que tem em mãos.' },
+          { titulo: 'Saldo automático', texto: 'O saldo é atualizado automaticamente quando você registra lançamentos com forma "Dinheiro".' },
+          { titulo: 'Transferências', texto: 'Transferências envolvendo Dinheiro em Espécie também aparecem nesta tela.' },
+          { titulo: 'Histórico', texto: 'A tela mostra apenas as movimentações do mês atual. Para ver todo o histórico, exporte o Extrato Excel.' },
+          { titulo: 'Editar saldo', texto: 'Use "Editar saldo" para corrigir o valor manualmente sempre que necessário.' },
         ]}
       />
     </View>
@@ -218,8 +250,6 @@ function makeStyles(c: Colors) {
     btnEditarTxt: { fontSize: 13, color: '#5294ff', fontWeight: '700' },
     btnExtrato: { backgroundColor: 'rgba(37,208,126,0.15)', borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(37,208,126,0.35)' },
     btnExtratoTxt: { fontSize: 13, color: '#25d07e', fontWeight: '700' },
-    btnZerar: { backgroundColor: 'rgba(242,85,85,0.12)', borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(242,85,85,0.3)' },
-    btnZerarTxt: { fontSize: 13, color: '#f25555', fontWeight: '700' },
     empty: { alignItems: 'center', padding: 48 },
     emptyIco: { fontSize: 48, marginBottom: 12 },
     emptyTxt: { fontSize: 15, color: c.textSec, fontWeight: '600' },

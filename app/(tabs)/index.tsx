@@ -437,11 +437,13 @@ export default function HomeScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como usar o Dashboard"
         tips={[
-          "Toque na saudação 'Olá...' para informar seu nome.",
-          'Os cards mostram Receitas, Despesas, Saldo Real e Orçamento do mês atual.',
-          'O banner de vencimentos exibe contas não pagas nos próximos N dias.',
-          'Toque em ⚙️ N dias no banner para ajustar o prazo de alerta.',
-          'Os gastos por categoria aparecem logo abaixo do saldo.',
+          { titulo: 'Personalizar nome', texto: 'Toque na saudação "Olá..." para informar seu nome.' },
+          { titulo: 'Cards do mês', texto: 'Os cards mostram Receitas, Despesas, Saldo Real e Orçamento do mês atual.' },
+          { titulo: 'Saldo Real', texto: 'Receitas menos Despesas do mês — não é o patrimônio total.' },
+          { titulo: 'Banner de vencimentos', texto: 'Exibe contas não pagas nos próximos N dias. Toque em ⚙️ para ajustar o prazo.' },
+          { titulo: 'Cartões e Bancos', texto: 'Atalhos para gerenciar seus cartões de crédito e contas bancárias.' },
+          { titulo: 'Patrimônio Real', texto: 'Mostra o total em Bancos, Dinheiro em Espécie e Crédito disponível nos cartões. Disponível = Bancos + Espécie.' },
+          { titulo: 'Gastos por categoria', texto: 'Aparecem logo abaixo com barras proporcionais ao valor gasto.' },
         ]}
       />
     </View>

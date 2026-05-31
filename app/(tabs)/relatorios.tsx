@@ -104,7 +104,7 @@ export default function RelatoriosScreen() {
           'Tipo': l.tipo === 'despesa' ? 'Despesa' : 'Receita',
           'Categoria': l.categoria || '',
           'Forma Pag.': l.formaPag || '',
-          'Valor': arredondar(Number(l.valor || 0)),
+          'Valor': 'R$ ' + Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
           'Status': l.status || '',
           'Observação': l.obs || '',
         };
@@ -117,9 +117,9 @@ export default function RelatoriosScreen() {
 
       if (comTotais) {
         dados.push({} as any);
-        dados.push({ 'Descrição': 'TOTAL RECEITAS', 'Valor': arredondar(totais.receita) } as any);
-        dados.push({ 'Descrição': 'TOTAL DESPESAS', 'Valor': arredondar(totais.gasto) } as any);
-        dados.push({ 'Descrição': 'SALDO', 'Valor': arredondar(totais.saldo) } as any);
+        dados.push({ 'Descrição': 'TOTAL RECEITAS', 'Valor': 'R$ ' + Number(totais.receita).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) } as any);
+        dados.push({ 'Descrição': 'TOTAL DESPESAS', 'Valor': 'R$ ' + Number(totais.gasto).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) } as any);
+        dados.push({ 'Descrição': 'SALDO', 'Valor': 'R$ ' + Number(totais.saldo).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) } as any);
       }
 
       const ws = XLSX.utils.json_to_sheet(dados);
@@ -281,10 +281,11 @@ export default function RelatoriosScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como usar os relatórios"
         tips={[
-          'Use as setas ‹ › para navegar entre os meses.',
-          'O resumo mostra total de receitas, despesas e saldo do mês.',
-          'O gráfico de barras exibe os gastos por categoria.',
-          'Toque em "Exportar Excel" para salvar e compartilhar o relatório em XLSX.',
+          { titulo: 'Navegação', texto: 'Use as setas ‹ › para navegar entre os meses.' },
+          { titulo: 'Resumo', texto: 'Mostra total de receitas, despesas e saldo do período selecionado.' },
+          { titulo: 'Gráfico', texto: 'O gráfico de barras exibe os gastos por categoria.' },
+          { titulo: 'Comparativo', texto: 'A tabela compara os gastos do mês atual com o mês anterior — verde significa que gastou menos, vermelho que gastou mais.' },
+          { titulo: 'Exportar Excel', texto: 'Toque em "Mês atual" para exportar o mês. Toque em "Trimestre" para os últimos 3 meses. Toque em "Ano 2026" para o ano completo.' },
         ]}
       />
     </View>

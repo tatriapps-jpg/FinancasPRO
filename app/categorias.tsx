@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import HelpModal, { helpBtnStyle, helpTxtStyle } from './HelpModal';
 import { Colors, useTheme } from './theme';
 
 export const CATS_DESP_KEY = '@financaspro:categorias_despesa';
@@ -51,6 +52,7 @@ export default function CategoriasScreen() {
 
   const [aba, setAba] = useState<'despesa' | 'receita'>('despesa');
   const [categorias, setCategorias] = useState<string[]>([]);
+  const [helpVisible, setHelpVisible] = useState(false);
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   const [nomeInput, setNomeInput] = useState('');
@@ -103,7 +105,9 @@ export default function CategoriasScreen() {
           <Text style={styles.backTxt}>Voltar</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Categorias</Text>
-        <View style={{ width: 60 }} />
+        <TouchableOpacity onPress={() => setHelpVisible(true)} style={helpBtnStyle}>
+          <Text style={helpTxtStyle}>?</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.tabs}>
@@ -155,6 +159,19 @@ export default function CategoriasScreen() {
           </View>
         </View>
       </Modal>
+      <HelpModal
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title="Categorias"
+        tips={[
+          { titulo: 'Para que servem', texto: 'As categorias ajudam a entender onde seu dinheiro está sendo gasto.' },
+          { titulo: 'Categorias padrão', texto: 'São sugestões — exclua as que não usa e crie as que precisar.' },
+          { titulo: 'Renomear', texto: 'Toque no lápis para renomear uma categoria existente.' },
+          { titulo: 'Excluir', texto: 'Toque na lixeira para excluir. Categorias em uso não podem ser excluídas.' },
+          { titulo: 'Nova categoria', texto: 'Use o botão + para criar uma nova categoria personalizada.' },
+          { titulo: 'Dica', texto: 'Organize bem suas categorias — elas aparecem nos relatórios e no orçamento.' },
+        ]}
+      />
     </View>
   );
 }

@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { initConnection, endConnection } from 'react-native-iap';
-import { initDB, garantirContaEspecie } from './database';
+import { initDB, garantirContaEspecie, initTransferencias } from './database';
 import { configurarNotificacoes } from './notificacoes';
 import { ThemeProvider, useTheme } from './theme';
 
@@ -52,6 +52,7 @@ function RootContent() {
     setDesbloqueado(status === 'true');
     setTemPin(!!pin);
     await garantirContaEspecie();
+    initTransferencias();
     setPronto(true);
     configurarNotificacoes().catch(() => {});
   }
@@ -84,6 +85,7 @@ function RootContent() {
         <Stack.Screen name="voz" options={{ headerShown: false }} />
         <Stack.Screen name="paywall" options={{ headerShown: false }} />
         <Stack.Screen name="politica" options={{ headerShown: false }} />
+        <Stack.Screen name="transferencias" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
     </PremiumContext.Provider>
