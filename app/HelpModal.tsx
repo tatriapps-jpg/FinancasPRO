@@ -47,7 +47,7 @@ const s = StyleSheet.create({
   overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
   box:       { borderRadius: 20, padding: 24, borderWidth: 1, maxHeight: '82%', flexShrink: 1 },
   title:     { fontSize: 17, fontWeight: '700', marginBottom: 16 },
-  scroll:    { flex: 1 },
+  scroll:    { flexGrow: 1, flexShrink: 1 },
   row:       { flexDirection: 'row', marginBottom: 12, alignItems: 'flex-start' },
   bullet:    { fontSize: 16, color: '#5294ff', marginRight: 10, lineHeight: 22 },
   tipTitulo: { fontSize: 13, fontWeight: '700', marginBottom: 2 },

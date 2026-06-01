@@ -1034,15 +1034,15 @@ export default function VozScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como usar o lançamento por voz"
         tips={[
-          'Diga "despesa" ou "receita" para escolher o tipo.',
-          'Para Pix, diga "é Pix" — funciona melhor do que só "Pix".',
-          'Fale o valor por extenso: "dez mil reais", "cinquenta e cinco reais".',
-          'Na etapa de categoria, diga o nome da categoria ou "automático" para detectar pela descrição.',
-          'Diga "não" ou "pular" na observação para avançar direto.',
-          'Use 🔊 Guiado para perguntas detalhadas ou ⚡ Rápido para perguntas curtas.',
-          'Toque em "◀ Voltar" para refazer a etapa anterior sem recomeçar tudo.',
-          'Se ouvir "Não entendi, repita", tente falar mais devagar ou use palavras diferentes — cada dispositivo reconhece voz de forma distinta.',
-          'Para centavos, diga "cinquenta reais e trinta centavos". Evite dizer "152 com 30" pois pode ser interpretado incorretamente.',
+          { titulo: 'Tipo', texto: 'Diga "despesa" ou "receita" para escolher o tipo.' },
+          { titulo: 'Pix', texto: 'Para Pix, diga "é Pix" — funciona melhor do que só "Pix".' },
+          { titulo: 'Valor', texto: 'Fale o valor por extenso: "dez mil reais", "cinquenta e cinco reais".' },
+          { titulo: 'Categoria', texto: 'Diga o nome da categoria ou "automático" para detectar pela descrição.' },
+          { titulo: 'Observação', texto: 'Diga "não" ou "pular" na observação para avançar direto.' },
+          { titulo: 'Modo Guiado / Rápido', texto: 'Use 🔊 Guiado para perguntas detalhadas ou ⚡ Rápido para perguntas curtas.' },
+          { titulo: 'Voltar etapa', texto: 'Toque em "◀ Voltar" para refazer a etapa anterior sem recomeçar tudo.' },
+          { titulo: 'Não entendi', texto: 'Se ouvir "Não entendi, repita", tente falar mais devagar ou use palavras diferentes — cada dispositivo reconhece voz de forma distinta.' },
+          { titulo: 'Centavos', texto: 'Para centavos, diga "cinquenta reais e trinta centavos". Evite dizer "152 com 30" pois pode ser interpretado incorretamente.' },
         ]}
       />
     </View>
