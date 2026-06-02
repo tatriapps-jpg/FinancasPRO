@@ -917,6 +917,9 @@ export default function VozScreen() {
             {lancamento.cartaoNome && (etapa === 'parcelas' || etapa === 'obs') && (
               <Text style={s.coletado}>Cartão: <Text style={s.coletadoVal}>{lancamento.cartaoNome}</Text></Text>
             )}
+            {lancamento.cartaoNome && (etapa === 'parcelas' || etapa === 'obs') && (
+              <Text style={s.coletado}>Parcelas: <Text style={s.coletadoVal}>{lancamento.parcelas}x</Text></Text>
+            )}
             {lancamento.contaNome && etapa === 'obs' && (
               <Text style={s.coletado}>Conta: <Text style={s.coletadoVal}>{lancamento.contaNome}</Text></Text>
             )}
@@ -1037,11 +1040,12 @@ export default function VozScreen() {
           { titulo: 'Tipo', texto: 'Diga "despesa" ou "receita" para escolher o tipo.' },
           { titulo: 'Pix', texto: 'Para Pix, diga "é Pix" — funciona melhor do que só "Pix".' },
           { titulo: 'Valor', texto: 'Fale o valor por extenso: "dez mil reais", "cinquenta e cinco reais".' },
-          { titulo: 'Categoria', texto: 'Diga o nome da categoria ou "automático" para detectar pela descrição.' },
+          { titulo: 'Categoria', texto: 'Diga o nome da categoria ou "pular" para classificar depois.' },
           { titulo: 'Observação', texto: 'Diga "não" ou "pular" na observação para avançar direto.' },
           { titulo: 'Modo Guiado / Rápido', texto: 'Use 🔊 Guiado para perguntas detalhadas ou ⚡ Rápido para perguntas curtas.' },
           { titulo: 'Voltar etapa', texto: 'Toque em "◀ Voltar" para refazer a etapa anterior sem recomeçar tudo.' },
-          { titulo: 'Não entendi', texto: 'Se ouvir "Não entendi, repita", tente falar mais devagar ou use palavras diferentes — cada dispositivo reconhece voz de forma distinta.' },
+
+          { titulo: 'Não entendi', texto: 'Se ouvir "Não entendi, repita", fale mais devagar e com clareza, ou toque em ◀ Voltar para refazer a etapa.' },
           { titulo: 'Centavos', texto: 'Para centavos, diga "cinquenta reais e trinta centavos". Evite dizer "152 com 30" pois pode ser interpretado incorretamente.' },
         ]}
       />
