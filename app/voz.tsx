@@ -375,6 +375,8 @@ export default function VozScreen() {
   const categoriasDispRef = useRef<string[]>([]);
   const categoriasRecRef  = useRef<string[]>([]);
   const vozVelocidadeRef = useRef(1.3);
+  const vozPedirCategoriaRef = useRef(true);
+  const vozPedirObservacaoRef = useRef(true);
   const gravacaoAtiva = useRef(false);
   const historicoEtapas = useRef<Etapa[]>([]);
 
@@ -397,6 +399,8 @@ export default function VozScreen() {
     carregarCategorias('despesa').then(setCategoriasDisp);
     carregarCategorias('receita').then(setCategoriasRec);
     carregarConfigTutorial();
+    AsyncStorage.getItem('@faladinheiro:vozPedirCategoria').then(v => { if (v !== null) vozPedirCategoriaRef.current = v === 'true'; });
+    AsyncStorage.getItem('@faladinheiro:vozPedirObservacao').then(v => { if (v !== null) vozPedirObservacaoRef.current = v === 'true'; });
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
       Speech.stop();
@@ -558,8 +562,7 @@ export default function VozScreen() {
     lancamentoRef.current = novoLanc;
     setTranscricao(''); textoFinal.current = ''; jaProcessou.current = false;
     if (novaEtapa === 'confirmacao') {
-      setEtapa('confirmacao');
-      etapaRef.current = 'confirmacao';
+      salvarDireto();
       return;
     }
     setEtapa(novaEtapa);
@@ -598,10 +601,12 @@ export default function VozScreen() {
         if (l.tipo === 'receita') {
           // Receita: após valor → forma de pagamento (Pix/Depósito/Transferência/Dinheiro)
           if (l.categoria) avancarEtapa('formaPag', { valor });
+          else if (!vozPedirCategoriaRef.current) avancarEtapa('formaPag', { valor, categoria: detectarCategoria(l.descricao) || '' });
           else avancarEtapa('categoria', { valor });
         } else {
           // Despesa: fluxo normal
           if (l.categoria) avancarEtapa('formaPag', { valor });
+          else if (!vozPedirCategoriaRef.current) avancarEtapa('formaPag', { valor, categoria: detectarCategoria(l.descricao) || '' });
           else avancarEtapa('categoria', { valor });
         }
         break;
@@ -647,7 +652,7 @@ export default function VozScreen() {
           if (contasRef.current.length > 0) {
             avancarEtapa('contaReceita', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1' });
           } else {
-            avancarEtapa('obs', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1', contaId: '', contaNome: '' });
+            avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1', contaId: '', contaNome: '' });
           }
           return;
         }
@@ -658,14 +663,14 @@ export default function VozScreen() {
 
         if (formaPag === 'Credito') {
           if (cartoesRef.current.length > 0) avancarEtapa('cartao', { formaPag });
-          else avancarEtapa('obs', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1' });
+          else avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1' });
           return;
         }
         if ((formaPag === 'Debito' || formaPag === 'Pix' || formaPag === 'Transferência') && contasRef.current.length > 0) {
           avancarEtapa('conta', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1' });
           return;
         }
-        avancarEtapa('obs', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1', contaId: '', contaNome: '' });
+        avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1', contaId: '', contaNome: '' });
         break;
       }
 
@@ -693,14 +698,14 @@ export default function VozScreen() {
         const parcelas = (textoLimpo.length < 4 && /^\d+$/.test(textoLimpo))
           ? textoLimpo
           : interpretarParcelas(t);
-        avancarEtapa('obs', { parcelas });
+        avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { parcelas });
         break;
       }
 
       case 'conta': {
         // Conta para débito em despesas
         if (PALAVRAS_NEGACAO.some(p => t.includes(normalizar(p)))) {
-          avancarEtapa('obs', { contaId: '', contaNome: '' });
+          avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { contaId: '', contaNome: '' });
           return;
         }
         const conta = contasRef.current.find(c =>
@@ -709,9 +714,9 @@ export default function VozScreen() {
           normalizar(c.nome).split(' ').every(p => t.includes(p))
         ) || null;
         if (conta) {
-          avancarEtapa('obs', { contaId: conta.id, contaNome: conta.nome });
+          avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { contaId: conta.id, contaNome: conta.nome });
         } else if (contasRef.current.length === 1) {
-          avancarEtapa('obs', { contaId: contasRef.current[0].id, contaNome: contasRef.current[0].nome });
+          avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { contaId: contasRef.current[0].id, contaNome: contasRef.current[0].nome });
         } else {
           falar('Não identifiquei. Tente novamente ou diga não.');
         }
@@ -721,7 +726,7 @@ export default function VozScreen() {
       case 'contaReceita': {
         // Conta onde a receita foi recebida
         if (PALAVRAS_NEGACAO.some(p => t.includes(normalizar(p)))) {
-          avancarEtapa('obs', { contaId: '', contaNome: '' });
+          avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { contaId: '', contaNome: '' });
           return;
         }
         const contaRec = contasRef.current.find(c => {
@@ -734,9 +739,9 @@ export default function VozScreen() {
             nomeNorm.includes(tSemEspaco);
         }) || null;
         if (contaRec) {
-          avancarEtapa('obs', { contaId: contaRec.id, contaNome: contaRec.nome });
+          avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { contaId: contaRec.id, contaNome: contaRec.nome });
         } else if (contasRef.current.length === 1) {
-          avancarEtapa('obs', { contaId: contasRef.current[0].id, contaNome: contasRef.current[0].nome });
+          avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { contaId: contasRef.current[0].id, contaNome: contasRef.current[0].nome });
         } else {
           falar('Não identifiquei. Tente novamente ou diga não.');
         }
@@ -750,6 +755,12 @@ export default function VozScreen() {
         lancamentoRef.current = { ...lancamentoRef.current, obs };
         setLancamento(lancamentoRef.current);
         setTranscricao(''); textoFinal.current = ''; jaProcessou.current = false;
+        if (!vozPedirObservacaoRef.current) {
+          lancamentoRef.current = { ...lancamentoRef.current, obs: '' };
+          setLancamento(lancamentoRef.current);
+          salvarDireto();
+          return;
+        }
         salvarDireto();
         break;
       }
@@ -917,7 +928,7 @@ export default function VozScreen() {
             {lancamento.cartaoNome && (etapa === 'parcelas' || etapa === 'obs') && (
               <Text style={s.coletado}>Cartão: <Text style={s.coletadoVal}>{lancamento.cartaoNome}</Text></Text>
             )}
-            {lancamento.cartaoNome && (etapa === 'parcelas' || etapa === 'obs') && (
+            {lancamento.cartaoNome && etapa === 'obs' && (
               <Text style={s.coletado}>Parcelas: <Text style={s.coletadoVal}>{lancamento.parcelas}x</Text></Text>
             )}
             {lancamento.contaNome && etapa === 'obs' && (
@@ -1040,13 +1051,10 @@ export default function VozScreen() {
           { titulo: 'Tipo', texto: 'Diga "despesa" ou "receita" para escolher o tipo.' },
           { titulo: 'Pix', texto: 'Para Pix, diga "é Pix" — funciona melhor do que só "Pix".' },
           { titulo: 'Valor', texto: 'Fale o valor por extenso: "dez mil reais", "cinquenta e cinco reais".' },
-          { titulo: 'Categoria', texto: 'Diga o nome da categoria ou "pular" para classificar depois.' },
-          { titulo: 'Observação', texto: 'Diga "não" ou "pular" na observação para avançar direto.' },
           { titulo: 'Modo Guiado / Rápido', texto: 'Use 🔊 Guiado para perguntas detalhadas ou ⚡ Rápido para perguntas curtas.' },
           { titulo: 'Voltar etapa', texto: 'Toque em "◀ Voltar" para refazer a etapa anterior sem recomeçar tudo.' },
-
           { titulo: 'Não entendi', texto: 'Se ouvir "Não entendi, repita", fale mais devagar e com clareza, ou toque em ◀ Voltar para refazer a etapa.' },
-          { titulo: 'Centavos', texto: 'Para centavos, diga "cinquenta reais e trinta centavos". Evite dizer "152 com 30" pois pode ser interpretado incorretamente.' },
+          { titulo: 'Categoria e Observação', texto: 'Nas Configurações você pode desativar a pergunta de categoria e observação para agilizar o lançamento.' },
         ]}
       />
     </View>

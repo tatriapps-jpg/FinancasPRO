@@ -26,6 +26,8 @@ export default function ConfiguracoesScreen() {
   const [vozVelocidade, setVozVelocidade] = useState(1.3);
   const [nomeUsuario, setNomeUsuario] = useState('');
   const [nomeInput, setNomeInput] = useState('');
+  const [vozPedirCategoria, setVozPedirCategoria] = useState(true);
+  const [vozPedirObservacao, setVozPedirObservacao] = useState(true);
 
   useEffect(() => {
     AsyncStorage.getItem('@financaspro:vozVelocidade').then(v => {
@@ -34,6 +36,8 @@ export default function ConfiguracoesScreen() {
     AsyncStorage.getItem('@financaspro:nomeUsuario').then(v => {
       if (v) setNomeUsuario(v);
     });
+    AsyncStorage.getItem('@faladinheiro:vozPedirCategoria').then(v => { if (v !== null) setVozPedirCategoria(v === 'true'); });
+    AsyncStorage.getItem('@faladinheiro:vozPedirObservacao').then(v => { if (v !== null) setVozPedirObservacao(v === 'true'); });
   }, []);
 
   async function salvarNome() {
@@ -46,6 +50,16 @@ export default function ConfiguracoesScreen() {
   async function salvarVozVelocidade(v: number) {
     setVozVelocidade(v);
     await AsyncStorage.setItem('@financaspro:vozVelocidade', String(v));
+  }
+
+  async function toggleVozCategoria(v: boolean) {
+    setVozPedirCategoria(v);
+    await AsyncStorage.setItem('@faladinheiro:vozPedirCategoria', String(v));
+  }
+
+  async function toggleVozObservacao(v: boolean) {
+    setVozPedirObservacao(v);
+    await AsyncStorage.setItem('@faladinheiro:vozPedirObservacao', String(v));
   }
 
   async function resetPin() {
@@ -223,6 +237,27 @@ export default function ConfiguracoesScreen() {
               <Text style={[styles.vozBtnTxt, vozVelocidade === v && styles.vozBtnTxtOn]}>{label}</Text>
             </TouchableOpacity>
           ))}
+        </View>
+      </View>
+
+      <Text style={styles.sectionTitle}>LANÇAMENTO POR VOZ</Text>
+      <View style={styles.group}>
+        <View style={styles.row}>
+          <Text style={styles.rowIco}>📂</Text>
+          <View style={styles.rowInfo}>
+            <Text style={styles.rowTitle}>Pedir categoria</Text>
+            <Text style={styles.rowSub}>Perguntar categoria durante o lançamento por voz</Text>
+          </View>
+          <Switch value={vozPedirCategoria} onValueChange={toggleVozCategoria} trackColor={{ false: '#d1d5db', true: 'rgba(82,148,255,0.4)' }} thumbColor={vozPedirCategoria ? '#5294ff' : '#f4f4f4'} />
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.row}>
+          <Text style={styles.rowIco}>📝</Text>
+          <View style={styles.rowInfo}>
+            <Text style={styles.rowTitle}>Pedir observação</Text>
+            <Text style={styles.rowSub}>Perguntar observação durante o lançamento por voz</Text>
+          </View>
+          <Switch value={vozPedirObservacao} onValueChange={toggleVozObservacao} trackColor={{ false: '#d1d5db', true: 'rgba(82,148,255,0.4)' }} thumbColor={vozPedirObservacao ? '#5294ff' : '#f4f4f4'} />
         </View>
       </View>
 
@@ -506,12 +541,12 @@ export default function ConfiguracoesScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como usar as Configurações"
         tips={[
-          { titulo: 'Aparência', texto: 'Alterne entre tema claro e escuro. Ajuste a velocidade da voz (Lenta, Normal ou Rápido) para o lançamento por voz.' },
-          { titulo: 'Conta e Segurança', texto: 'Defina seu nome, altere o PIN ou bloqueie o app imediatamente.' },
+          { titulo: 'Aparência', texto: 'Alterne entre tema claro e escuro. Ajuste a velocidade da voz (Lenta, Normal ou Rápida) para o lançamento por voz.' },
+          { titulo: 'Lançamento por voz', texto: 'Ative ou desative a pergunta de categoria e observação durante o lançamento por voz. Quando desativado, o app pula a etapa automaticamente.' },
+          { titulo: 'Conta e Segurança', texto: 'Altere o PIN ou bloqueie o app imediatamente.' },
           { titulo: 'Cartões e Contas', texto: 'Cadastre cartões de crédito, contas bancárias e registre transferências entre contas.' },
           { titulo: 'Categorias', texto: 'Crie, edite ou exclua categorias personalizadas de despesa e receita.' },
           { titulo: 'Dados', texto: 'Faça backup de todos os dados em JSON, restaure um backup anterior ou apague todos os lançamentos.' },
-          { titulo: 'Resetar Orçamento', texto: 'Remove o limite mensal definido — o card de orçamento voltará a exibir "Não definido".' },
           { titulo: 'Resetar Aplicativo', texto: 'Apaga todos os dados e volta o app ao estado inicial — use com cautela.' },
           { titulo: 'Sobre', texto: 'Acesse a ajuda rápida, envie feedback por e-mail ou leia a política de privacidade.' },
         ]}
@@ -534,8 +569,9 @@ export default function ConfiguracoesScreen() {
                 </View>
               ))}
             </ScrollView>
-            <TouchableOpacity style={styles.btnAjudaVoltar} onPress={() => setModalAjuda(false)}>
+            <TouchableOpacity style={[styles.btnAjudaVoltar, { backgroundColor: colors.input, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }]} onPress={() => setModalAjuda(false)}>
               <Text style={styles.btnAjudaVoltarTxt}>←</Text>
+              <Text style={{ fontSize: 15, color: '#5294ff', fontWeight: '600' }}>Fechar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -578,7 +614,7 @@ function makeStyles(c: Colors) {
     vozBtnOn: { backgroundColor:'rgba(82,148,255,0.15)', borderColor:'#5294ff' },
     vozBtnTxt: { fontSize:12, color:c.textSec, fontWeight:'600' },
     vozBtnTxtOn: { color:'#5294ff' },
-    ajudaRow: { flexDirection:'row', paddingVertical:12, borderBottomWidth:1, borderBottomColor:c.borderLight },
+    ajudaRow: { flexDirection:'row', paddingVertical:8, borderBottomWidth:1, borderBottomColor:c.borderLight },
     ajudaIco: { fontSize:24, marginRight:14, width:32 },
     ajudaInfo: { flex:1 },
     ajudaTitulo: { fontSize:13, fontWeight:'700', color:c.text, marginBottom:3 },

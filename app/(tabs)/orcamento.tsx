@@ -253,26 +253,6 @@ export default function OrcamentoScreen() {
               <Text style={s.barSub}>{diasRestantes} dias restantes em {MESES[mesAtual - 1]}</Text>
             </View>
 
-            {/* Projeção */}
-            <View style={[s.projCard, projecaoPerigo && s.projCardPerigo]}>
-              <Text style={s.projTitle}>📊 Projeção do mês</Text>
-              <View style={s.projRow}>
-                <Text style={s.projLbl}>Média diária</Text>
-                <Text style={s.projVal}>{fmt(mediaDiaria)}/dia</Text>
-              </View>
-              <View style={s.projRow}>
-                <Text style={s.projLbl}>Projeção até {diasNoMes}/{mesAtual.toString().padStart(2, '0')}</Text>
-                <Text style={[s.projVal, { color: projecaoPerigo ? '#f25555' : '#25d07e' }]}>
-                  {fmt(projecao)}
-                </Text>
-              </View>
-              {projecaoPerigo && (
-                <Text style={s.projAlerta}>
-                  ⚠️ No ritmo atual você ultrapassará o orçamento em {fmt(projecao - orcamento)}.
-                </Text>
-              )}
-            </View>
-
             {/* Alertas */}
             {pct >= 90 && (
               <View style={s.alertDanger}>
@@ -324,7 +304,6 @@ export default function OrcamentoScreen() {
           { titulo: 'Desativar', texto: 'Digite 0 para desativar o orçamento.' },
           { titulo: 'Barra de progresso', texto: 'Verde: menos de 70%. Amarelo: 70–90%. Vermelho: acima de 90%.' },
           { titulo: 'Gráfico de rosca', texto: 'Mostra os gastos divididos por categoria.' },
-          { titulo: 'Projeção do mês', texto: 'Estima quanto você vai gastar até o fim do mês com base na média diária atual.' },
           { titulo: 'Renovação automática', texto: 'O orçamento é mensal e se renova automaticamente todo mês.' },
           { titulo: 'Notificações', texto: 'Você receberá uma notificação ao atingir 80% e 100% do limite.' },
         ]}

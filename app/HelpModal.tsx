@@ -16,7 +16,7 @@ export default function HelpModal({ visible, onClose, title, tips }: Props) {
       <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity style={[s.box, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={1} onPress={() => {}}>
           <Text style={[s.title, { color: colors.text }]}>{title}</Text>
-          <ScrollView showsVerticalScrollIndicator={false} style={s.scroll}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4 }}>
             {tips.map((tip, i) => (
               <View key={i} style={s.row}>
                 <Text style={s.bullet}>•</Text>
@@ -45,12 +45,11 @@ export const helpTxtStyle = { fontSize: 15, fontWeight: '700' as const, color: '
 
 const s = StyleSheet.create({
   overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
-  box:       { borderRadius: 20, padding: 24, borderWidth: 1, maxHeight: '82%', flexShrink: 1 },
+  box:       { borderRadius: 20, padding: 24, borderWidth: 1, maxHeight: '92%', flexShrink: 1 },
   title:     { fontSize: 17, fontWeight: '700', marginBottom: 16 },
-  scroll:    { flexGrow: 1, flexShrink: 1 },
-  row:       { flexDirection: 'row', marginBottom: 12, alignItems: 'flex-start' },
+  row:       { flexDirection: 'row', marginBottom: 8, alignItems: 'flex-start' },
   bullet:    { fontSize: 16, color: '#5294ff', marginRight: 10, lineHeight: 22 },
   tipTitulo: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
   tip:       { fontSize: 13, lineHeight: 20 },
-  entendiBt: { marginTop: 20, backgroundColor: '#5294ff', borderRadius: 12, padding: 14, alignItems: 'center' },
+  entendiBt: { marginTop: 16, backgroundColor: '#5294ff', borderRadius: 12, padding: 14, alignItems: 'center' },
 });
