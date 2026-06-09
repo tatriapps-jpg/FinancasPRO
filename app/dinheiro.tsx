@@ -90,22 +90,20 @@ export default function DinheiroScreen() {
         Alert.alert('Sem movimentações', 'Nenhum lançamento em dinheiro encontrado.');
         return;
       }
-      const linhaInicial = {
-        'Data': '',
-        'Descrição': 'Saldo inicial',
-        'Categoria': '',
-        'Tipo': '',
-        'Valor': 'R$ ' + Number(saldo).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        'Status': '',
-      };
+      const totalEntradasEsp = movimentacoes.filter((l: any) => l.tipo === 'receita').reduce((s: number, l: any) => s + (l.valor || 0), 0);
+      const totalSaidasEsp = movimentacoes.filter((l: any) => l.tipo === 'despesa').reduce((s: number, l: any) => s + (l.valor || 0), 0);
+      const saldoInicialEsp = Math.round((saldo - totalEntradasEsp + totalSaidasEsp) * 100) / 100;
+      const fmtVal = (v: number) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const linhaInicial = { 'Data': '', 'Descrição': 'Saldo inicial', 'Categoria': '', 'Tipo': '', 'Valor': fmtVal(saldoInicialEsp), 'Status': '' };
+      const linhaFinal = { 'Data': '', 'Descrição': 'Saldo final', 'Categoria': '', 'Tipo': '', 'Valor': fmtVal(saldo), 'Status': '' };
       const dados = [linhaInicial, ...movimentacoes.map((l: any) => ({
         'Data': l.data || '',
         'Descrição': l.descricao || '',
         'Categoria': l.categoria || '',
         'Tipo': l.tipo === 'despesa' ? 'Saída' : 'Entrada',
-        'Valor': 'R$ ' + Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        'Valor': fmtVal(l.valor || 0),
         'Status': l.status || '',
-      }))];
+      })), linhaFinal];
       const ws = XLSX.utils.json_to_sheet(dados);
       ws['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 12 }];
       const wb = XLSX.utils.book_new();

@@ -54,6 +54,12 @@ export async function creditarConta(contaId: string, valor: number): Promise<voi
 
 export async function buscarContas(): Promise<Conta[]> {
   const saved = await AsyncStorage.getItem(CONTAS_KEY);
+  if (!saved) return [];
+  return JSON.parse(saved).filter((c: Conta) => c.id !== 'especie_fixa');
+}
+
+export async function buscarTodasContas(): Promise<Conta[]> {
+  const saved = await AsyncStorage.getItem(CONTAS_KEY);
   return saved ? JSON.parse(saved) : [];
 }
 
@@ -178,6 +184,12 @@ export default function ContasScreen() {
       }
 
       const arredondar = (v: number) => Math.round(v * 100) / 100;
+      const totalEntradas = lancamentos.filter((l: any) => l.tipo === 'receita').reduce((s: number, l: any) => s + (l.valor || 0), 0);
+      const totalSaidas = lancamentos.filter((l: any) => l.tipo === 'despesa').reduce((s: number, l: any) => s + (l.valor || 0), 0);
+      const totalTransfEntradas = transferencias.filter((t: any) => t.contaDestinoId === conta.id).reduce((s: number, t: any) => s + (t.valor || 0), 0);
+      const totalTransfSaidas = transferencias.filter((t: any) => t.contaOrigemId === conta.id).reduce((s: number, t: any) => s + (t.valor || 0), 0);
+      const saldoAtual = parseFloat(conta.saldo) || 0;
+      const saldoInicial = arredondar(saldoAtual - totalEntradas - totalTransfEntradas + totalSaidas + totalTransfSaidas);
       const linhasLanc = lancamentos.map((l: any) => ({
         _ts: toDate(l.data),
         'Data': l.data || '',
@@ -198,16 +210,10 @@ export default function ContasScreen() {
           : (isEspecie ? 'Saque de Espécie' : 'Transferência de ' + nomeOrigem);
         return { _ts: toDate(t.data), 'Data': t.data || '', 'Descrição': desc, 'Categoria': 'Transferência', 'Forma Pag.': '—', 'Valor': 'R$ ' + Number(t.valor||0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 'Tipo': ehSaida ? 'Saída' : 'Entrada', 'Status': 'concluído' };
       });
-      const linhaInicial = {
-        'Data': '',
-        'Descrição': 'Saldo inicial',
-        'Categoria': '',
-        'Forma Pag.': '',
-        'Valor': 'R$ ' + Number(conta?.saldo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        'Tipo': '',
-        'Status': '',
-      };
-      const dados = [linhaInicial, ...[...linhasLanc, ...linhasTransf].sort((a,b) => a._ts - b._ts).map(({ _ts, ...rest }) => rest)];
+      const fmtVal = (v: number) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const linhaInicial = { 'Data': '', 'Descrição': 'Saldo inicial', 'Categoria': '', 'Forma Pag.': '', 'Valor': fmtVal(saldoInicial), 'Tipo': '', 'Status': '' };
+      const linhaFinal = { 'Data': '', 'Descrição': 'Saldo final', 'Categoria': '', 'Forma Pag.': '', 'Valor': fmtVal(saldoAtual), 'Tipo': '', 'Status': '' };
+      const dados = [linhaInicial, ...[...linhasLanc, ...linhasTransf].sort((a,b) => a._ts - b._ts).map(({ _ts, ...rest }) => rest), linhaFinal];
 
       const ws = XLSX.utils.json_to_sheet(dados);
       ws['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }];

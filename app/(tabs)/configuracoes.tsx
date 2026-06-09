@@ -181,7 +181,7 @@ export default function ConfiguracoesScreen() {
   };
 
   const ajudaItens = [
-    { ico: '←', titulo: 'Voltar às telas', desc: 'Use a seta azul no canto superior esquerdo para voltar à tela anterior sem perder o que foi digitado.' },
+    { ico: '←', titulo: 'Voltar às telas', desc: 'Use o botão Voltar no canto superior esquerdo para retornar à tela anterior.' },
     { ico: '📋', titulo: 'Lançamentos', desc: 'Toque em + para adicionar. Toque para editar, pressione e segure para excluir.' },
     { ico: '💳', titulo: 'Parcelamento', desc: 'Selecione Crédito, escolha o cartão e as parcelas. O app calcula os vencimentos automaticamente.' },
     { ico: '📊', titulo: 'Orçamento', desc: 'Define o limite mensal de gastos. Só despesas são descontadas — receitas não interferem.' },
@@ -544,7 +544,7 @@ export default function ConfiguracoesScreen() {
           { titulo: 'Aparência', texto: 'Alterne entre tema claro e escuro. Ajuste a velocidade da voz (Lenta, Normal ou Rápida) para o lançamento por voz.' },
           { titulo: 'Lançamento por voz', texto: 'Ative ou desative a pergunta de categoria e observação durante o lançamento por voz. Quando desativado, o app pula a etapa automaticamente.' },
           { titulo: 'Conta e Segurança', texto: 'Altere o PIN ou bloqueie o app imediatamente.' },
-          { titulo: 'Cartões e Contas', texto: 'Cadastre cartões de crédito, contas bancárias e registre transferências entre contas.' },
+          { titulo: 'Cartões e Contas', texto: 'Cadastre cartões de crédito, contas bancárias, controle o Dinheiro em Espécie e registre transferências entre contas.' },
           { titulo: 'Categorias', texto: 'Crie, edite ou exclua categorias personalizadas de despesa e receita.' },
           { titulo: 'Dados', texto: 'Faça backup de todos os dados em JSON, restaure um backup anterior ou apague todos os lançamentos.' },
           { titulo: 'Resetar Aplicativo', texto: 'Apaga todos os dados e volta o app ao estado inicial — use com cautela.' },

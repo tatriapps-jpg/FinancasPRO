@@ -328,7 +328,7 @@ export default function LancamentosScreen() {
                   <Text style={styles.txName}>{t.descricao}</Text>
                   <View style={styles.txMeta}>
                     <Text style={styles.txTagAtrasado}>⚠️ Atrasado</Text>
-                    <Text style={styles.txSub}>{[t.categoria, vinculoLabel(t)].filter(Boolean).join(' · ')}</Text>
+                    <Text style={styles.txSub} numberOfLines={1} ellipsizeMode="tail">{[t.categoria, vinculoLabel(t)].filter(Boolean).join(' · ')}</Text>
                   </View>
                 </View>
                 <View style={styles.txRight}>
@@ -445,7 +445,7 @@ export default function LancamentosScreen() {
           { titulo: 'Busca', texto: 'Use o campo de busca para encontrar por descrição ou categoria.' },
           { titulo: 'Ver todos os meses', texto: 'O botão "Todos" exibe lançamentos de todos os meses. Toque nele para ativar ou desativar. Quando ativo, as setas de mês ficam desabilitadas.' },
           { titulo: 'Lançamento por voz', texto: 'Toque no microfone 🎤 para registrar um lançamento por voz.' },
-          { titulo: 'Novo lançamento', texto: 'Use o botão + no canto inferior direito para abrir o formulário de novo lançamento.' },
+          { titulo: 'Lançamento digitado', texto: 'Use o botão + para adicionar.' },
         ]}
       />
     </View>

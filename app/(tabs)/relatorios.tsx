@@ -116,10 +116,13 @@ export default function RelatoriosScreen() {
       });
 
       if (comTotais) {
+        const totalRec = lancamentos.filter(l => l.tipo === 'receita').reduce((s, l) => s + (l.valor || 0), 0);
+        const totalDesp = lancamentos.filter(l => l.tipo === 'despesa').reduce((s, l) => s + (l.valor || 0), 0);
+        const fmtT = (v: number) => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         dados.push({} as any);
-        dados.push({ 'Descrição': 'TOTAL RECEITAS', 'Valor': 'R$ ' + Number(totais.receita).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) } as any);
-        dados.push({ 'Descrição': 'TOTAL DESPESAS', 'Valor': 'R$ ' + Number(totais.gasto).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) } as any);
-        dados.push({ 'Descrição': 'SALDO', 'Valor': 'R$ ' + Number(totais.saldo).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) } as any);
+        dados.push({ 'Descrição': 'TOTAL RECEITAS', 'Valor': fmtT(totalRec) } as any);
+        dados.push({ 'Descrição': 'TOTAL DESPESAS', 'Valor': fmtT(totalDesp) } as any);
+        dados.push({ 'Descrição': 'SALDO', 'Valor': fmtT(totalRec - totalDesp) } as any);
       }
 
       const ws = XLSX.utils.json_to_sheet(dados);
@@ -216,7 +219,7 @@ export default function RelatoriosScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.btnExportTri, exportando && { opacity: 0.6 }]}
-          onPress={() => gerarExcel(getLancamentosTrimestreAtual(), `FalaDinheiro_Trimestre_${mes}_${ano}.xlsx`, 'Trimestre', false, true)}
+          onPress={() => gerarExcel(getLancamentosTrimestreAtual(), `FalaDinheiro_Trimestre_${mes}_${ano}.xlsx`, 'Trimestre', true, true)}
           disabled={exportando}
         >
           <Text style={styles.btnExportIco}>📆</Text>
@@ -224,7 +227,7 @@ export default function RelatoriosScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.btnExportAlt, exportando && { opacity: 0.6 }]}
-          onPress={() => gerarExcel(getLancamentosAnoAtual(), `FalaDinheiro_Ano_${ano}.xlsx`, `Ano ${ano}`, false, true)}
+          onPress={() => gerarExcel(getLancamentosAnoAtual(), `FalaDinheiro_Ano_${ano}.xlsx`, `Ano ${ano}`, true, true)}
           disabled={exportando}
         >
           <Text style={styles.btnExportIco}>📋</Text>

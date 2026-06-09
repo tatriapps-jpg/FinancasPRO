@@ -158,10 +158,6 @@ export default function OrcamentoScreen() {
   const disponivel = orcamento - totais.totalGasto;
   const pct = orcamento > 0 ? Math.min(100, (totais.totalGasto / orcamento) * 100) : 0;
   const barCor = pct < 70 ? '#25d07e' : pct < 90 ? '#f7b731' : '#f25555';
-  const mediaDiaria = diasPassados > 0 ? totais.totalGasto / diasPassados : 0;
-  const projecao = mediaDiaria * diasNoMes;
-  const projecaoPerigo = projecao > orcamento;
-
   return (
     <View style={s.container}>
       <View style={s.header}>

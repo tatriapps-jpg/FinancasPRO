@@ -3,7 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { buscarCartoes, buscarLancamentos, buscarLancamentosPorMes, buscarTotaisMes, buscarTotalUsadoCartao } from '../database';
-import { buscarContas } from '../contas';
+import { buscarContas, buscarTodasContas } from '../contas';
 import HelpModal, { helpBtnStyle, helpTxtStyle } from '../HelpModal';
 import { Colors, useTheme } from '../theme';
 
@@ -55,7 +55,7 @@ export default function HomeScreen() {
     const t = buscarTotaisMes(mesAtual, anoAtual);
     setTotais(t);
 
-    const contas = await buscarContas();
+    const contas = await buscarTodasContas();
     const totalBancos = contas.filter((c: any) => c.id !== 'especie_fixa').reduce((s: number, c: any) => s + (parseFloat(c.saldo) || 0), 0);
     const especie = contas.find((c: any) => c.id === 'especie_fixa');
     setSaldoBancos(totalBancos);

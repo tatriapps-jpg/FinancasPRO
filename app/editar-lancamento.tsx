@@ -72,7 +72,7 @@ function Dropdown({
               renderItem={({ item }) => (
                 <TouchableOpacity style={[dd.item, value === item && dd.itemOn]}
                   onPress={() => { onSelect(item); setAberto(false); setBusca(''); }}>
-                  <Text style={[dd.itemTxt, value === item && dd.itemTxtOn]}>
+                  <Text style={[dd.itemTxt, value === item && dd.itemTxtOn]} numberOfLines={1} ellipsizeMode="tail">
                     {renderItem ? renderItem(item) : item}
                   </Text>
                   {value === item && <Text style={dd.check}>✓</Text>}

@@ -11,8 +11,6 @@ import { agendarNotificacoesVencimento, verificarAlertaOrcamento, resetarLembret
 import HelpModal, { helpBtnStyle, helpTxtStyle } from './HelpModal';
 import { Colors, useTheme } from './theme';
 
-const VOZ_TUTORIAL_KEY = '@financaspro:vozTutorial';
-const VOZ_TUTORIAL_LIMITE = 3;
 const DESBLOQUEADO_KEY = '@faladinheiro:desbloqueado';
 const LIMITE_GRATIS = 150;
 
@@ -24,20 +22,6 @@ type Lancamento = {
   descricao: string; valor: string; categoria: string;
   formaPag: string; cartaoId: string; cartaoNome: string;
   parcelas: string; contaId: string; contaNome: string; obs: string;
-};
-
-const PERGUNTAS_COMPLETAS: Record<Etapa, string> = {
-  tipo: 'Este lançamento é uma despesa ou uma receita?',
-  descricao: '',
-  valor: 'Qual é o valor?',
-  categoria: 'Qual é a categoria? Por exemplo: Supermercado, Saúde, Transporte. Ou diga automático.',
-  formaPag: 'Qual a forma de pagamento? Crédito, Débito, Pix, Dinheiro ou Boleto.',
-  cartao: 'Qual cartão deseja usar?',
-  parcelas: 'Quantas parcelas? Diga o número. Um para pagamento único.',
-  conta: 'De qual conta será debitado?',
-  contaReceita: 'Em qual conta foi recebido?',
-  obs: 'Alguma observação? Diga o que quiser ou diga não.',
-  confirmacao: '',
 };
 
 const PERGUNTAS_CURTAS: Record<Etapa, string> = {
@@ -55,42 +39,40 @@ const PERGUNTAS_CURTAS: Record<Etapa, string> = {
 };
 
 const MAP_CATEGORIA: Record<string, string> = {
-  mercado: 'Supermercado', supermercado: 'Supermercado', padaria: 'Supermercado',
-  restaurante: 'Supermercado', lanche: 'Supermercado', comida: 'Supermercado',
-  ifood: 'Supermercado', delivery: 'Supermercado', alimentacao: 'Supermercado',
-  alimentação: 'Supermercado',
-  gasolina: 'Combustível', combustivel: 'Combustível', combustível: 'Combustível',
-  posto: 'Combustível', etanol: 'Combustível', diesel: 'Combustível',
+  mercado: 'Mercado', supermercado: 'Mercado', armazem: 'Mercado', armazém: 'Mercado',
+  mercadinho: 'Mercado', hipermercado: 'Mercado',
+  restaurante: 'Alimentação', lanche: 'Alimentação', comida: 'Alimentação',
+  ifood: 'Alimentação', delivery: 'Alimentação', alimentacao: 'Alimentação',
+  alimentação: 'Alimentação', padaria: 'Alimentação', cafe: 'Alimentação',
+  café: 'Alimentação', pizzaria: 'Alimentação', hamburger: 'Alimentação',
   uber: 'Transporte', onibus: 'Transporte', ônibus: 'Transporte',
   metro: 'Transporte', metrô: 'Transporte', taxi: 'Transporte', táxi: 'Transporte',
   estacionamento: 'Transporte', pedagio: 'Transporte', pedágio: 'Transporte',
-  farmacia: 'Farmácia', farmácia: 'Farmácia', medico: 'Saúde', médico: 'Saúde',
-  consulta: 'Saúde', remedio: 'Saúde', remédio: 'Saúde', hospital: 'Saúde',
-  netflix: 'Assinaturas Digitais', spotify: 'Assinaturas Digitais', assinatura: 'Assinaturas Digitais',
-  cinema: 'Lazer e Entretenimento', show: 'Lazer e Entretenimento',
-  viagem: 'Viagens', passagem: 'Viagens', hotel: 'Viagens',
-  luz: 'Energia', energia: 'Energia',
-  agua: 'Moradia', água: 'Moradia', aluguel: 'Moradia',
-  internet: 'Internet', condominio: 'Moradia', condomínio: 'Moradia',
-  vendas: 'Vendas', venda: 'Vendas',
-  salario: 'Salário', salário: 'Salário', freelance: 'Freelance',
-  oficina: 'Manutenção', mecanico: 'Manutenção', mecânico: 'Manutenção',
-  reparo: 'Manutenção', encanador: 'Manutenção', eletricista: 'Manutenção',
-  manutencao: 'Manutenção', manutenção: 'Manutenção',
+  gasolina: 'Transporte', combustivel: 'Transporte', combustível: 'Transporte',
+  posto: 'Transporte', etanol: 'Transporte', diesel: 'Transporte',
+  farmacia: 'Saúde', farmácia: 'Saúde', drogaria: 'Saúde', drogarias: 'Saúde',
+  medico: 'Saúde', médico: 'Saúde', consulta: 'Saúde', remedio: 'Saúde',
+  remédio: 'Saúde', hospital: 'Saúde', clinica: 'Saúde', clínica: 'Saúde',
+  netflix: 'Lazer', spotify: 'Lazer', cinema: 'Lazer', show: 'Lazer',
+  viagem: 'Lazer', passagem: 'Lazer', hotel: 'Lazer', lazer: 'Lazer', assinatura: 'Lazer',
+  luz: 'Moradia', energia: 'Moradia', agua: 'Moradia', água: 'Moradia',
+  aluguel: 'Moradia', internet: 'Moradia', condominio: 'Moradia',
+  condomínio: 'Moradia', moradia: 'Moradia',
   escola: 'Educação', faculdade: 'Educação', curso: 'Educação',
   educacao: 'Educação', educação: 'Educação',
-  juros: 'Custos Financeiros', multa: 'Custos Financeiros',
+  oficina: 'Serviços', mecanico: 'Serviços', mecânico: 'Serviços',
+  reparo: 'Serviços', encanador: 'Serviços', eletricista: 'Serviços',
+  manutencao: 'Serviços', manutenção: 'Serviços', advogado: 'Serviços',
+  contador: 'Serviços', servico: 'Serviços', serviço: 'Serviços',
   roupa: 'Vestuário', calcado: 'Vestuário', calçado: 'Vestuário',
   vestuario: 'Vestuário', vestuário: 'Vestuário',
-  eletronico: 'Eletrônicos', eletrônico: 'Eletrônicos', celular: 'Eletrônicos',
-  computador: 'Eletrônicos', notebook: 'Eletrônicos',
+  juros: 'Finanças', multa: 'Finanças', imposto: 'Finanças',
+  ir: 'Finanças', iptu: 'Finanças', ipva: 'Finanças',
+  tributo: 'Finanças', darf: 'Finanças', taxa: 'Finanças',
+  emprestimo: 'Finanças', empréstimo: 'Finanças', financiamento: 'Finanças',
   investimento: 'Investimentos', poupanca: 'Investimentos', poupança: 'Investimentos',
-  emprestimo: 'Empréstimos', empréstimo: 'Empréstimos', financiamento: 'Empréstimos',
-  imposto: 'Impostos', ir: 'Impostos', iptu: 'Impostos', ipva: 'Impostos',
-  tributo: 'Impostos', darf: 'Impostos', taxa: 'Impostos',
-  doacao: 'Doações', doação: 'Doações',
-  esporte: 'Esportes', academia: 'Esportes', ginastica: 'Esportes',
-  advogado: 'Serviços Profissionais', contador: 'Serviços Profissionais',
+  vendas: 'Vendas', venda: 'Vendas',
+  salario: 'Salário', salário: 'Salário', freelance: 'Freelance',
 };
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -353,8 +335,6 @@ export default function VozScreen() {
   const [categoriasDisp, setCategoriasDisp] = useState<string[]>([]);
   const [categoriasRec, setCategoriasRec] = useState<string[]>([]);
   const [falando, setFalando] = useState(false);
-  const [usarTutorial, setUsarTutorial] = useState(true);
-  const [usosTutorial, setUsosTutorial] = useState(0);
   const [dicasExpandidas, setDicasExpandidas] = useState(false);
 
   const jaProcessou = useRef(false);
@@ -368,7 +348,6 @@ export default function VozScreen() {
   const textoFinal = useRef('');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lancamentoRef = useRef(lancamento);
-  const usarTutorialRef = useRef(true);
   const etapaRef = useRef<Etapa>('tipo');
   const cartoesRef = useRef<Cartao[]>([]);
   const contasRef = useRef<Conta[]>([]);
@@ -381,7 +360,6 @@ export default function VozScreen() {
   const historicoEtapas = useRef<Etapa[]>([]);
 
   useEffect(() => { lancamentoRef.current = lancamento; }, [lancamento]);
-  useEffect(() => { usarTutorialRef.current = usarTutorial; }, [usarTutorial]);
   useEffect(() => { etapaRef.current = etapa; }, [etapa]);
   useEffect(() => { cartoesRef.current = cartoes; }, [cartoes]);
   useEffect(() => { contasRef.current = contas; }, [contas]);
@@ -398,7 +376,7 @@ export default function VozScreen() {
     buscarContas().then(cs2 => { setContas(cs2); contasRef.current = cs2; });
     carregarCategorias('despesa').then(setCategoriasDisp);
     carregarCategorias('receita').then(setCategoriasRec);
-    carregarConfigTutorial();
+    setTimeout(() => falar(getPergunta('tipo')), 200);
     AsyncStorage.getItem('@faladinheiro:vozPedirCategoria').then(v => { if (v !== null) vozPedirCategoriaRef.current = v === 'true'; });
     AsyncStorage.getItem('@faladinheiro:vozPedirObservacao').then(v => { if (v !== null) vozPedirObservacaoRef.current = v === 'true'; });
     return () => {
@@ -407,71 +385,14 @@ export default function VozScreen() {
     };
   }, []);
 
-  async function carregarConfigTutorial() {
-    const saved = await AsyncStorage.getItem(VOZ_TUTORIAL_KEY);
-    const usos = saved ? parseInt(saved) : 0;
-    setUsosTutorial(usos);
-    const tutorial = usos < VOZ_TUTORIAL_LIMITE;
-    setUsarTutorial(tutorial);
-    usarTutorialRef.current = tutorial;
-    await AsyncStorage.setItem(VOZ_TUTORIAL_KEY, String(usos + 1));
-    setTimeout(() => falar(tutorial ? PERGUNTAS_COMPLETAS['tipo'] : PERGUNTAS_CURTAS['tipo']), 200);
-  }
-
-  async function toggleTutorial() {
-    const novoValor = !usarTutorial;
-    setUsarTutorial(novoValor);
-    usarTutorialRef.current = novoValor;
-    if (novoValor) {
-      await AsyncStorage.setItem(VOZ_TUTORIAL_KEY, '0');
-      setUsosTutorial(0);
-    } else {
-      await AsyncStorage.setItem(VOZ_TUTORIAL_KEY, String(VOZ_TUTORIAL_LIMITE));
-      setUsosTutorial(VOZ_TUTORIAL_LIMITE);
-    }
-  }
-
-  function getPerguntaDescricao(tipo: 'despesa' | 'receita'): string {
-    if (!usarTutorialRef.current) return 'Descrição?';
-    if (tipo === 'receita') return 'Qual é a descrição? De onde ou de quem você recebeu?';
-    return 'Qual é a descrição?';
-  }
-
-  function getPerguntaContaReceita(): string {
-    if (contasRef.current.length === 0) return '';
-    const nomes = contasRef.current.map(c => c.nome).join(', ');
-    return usarTutorialRef.current
-      ? `Em qual conta foi recebido? Você tem: ${nomes}.`
-      : `Conta recebedora? ${nomes}.`;
-  }
-
   function getPergunta(e: Etapa): string {
-    if (e === 'descricao') return getPerguntaDescricao(lancamentoRef.current.tipo);
-    if (e === 'contaReceita') return getPerguntaContaReceita();
-    if (e === 'formaPag' && lancamentoRef.current.tipo === 'receita') {
-      return usarTutorialRef.current
-        ? 'Qual a forma de recebimento? Pix, Depósito, Transferência ou Dinheiro.'
-        : 'Forma de recebimento?';
-    }
-    if (e === 'conta') {
-      const nomes = contasRef.current.map(c => c.nome).join(', ');
-      return usarTutorialRef.current
-        ? `De qual conta será debitado? Você tem: ${nomes}.`
-        : `Qual conta? ${nomes}.`;
-    }
-    if (e === 'cartao') {
-      const nomes = cartoesRef.current.map(c => c.apelido).join(', ');
-      return usarTutorialRef.current
-        ? `Qual cartão? Você tem: ${nomes}.`
-        : `Qual cartão? ${nomes}.`;
-    }
-    if (e === 'categoria') {
-      if (!usarTutorialRef.current) return 'Categoria?';
-      return lancamentoRef.current.tipo === 'receita'
-        ? 'Qual é a categoria? Por exemplo: Salário, Freelance, Aluguel Recebido. Ou diga automático.'
-        : 'Qual é a categoria? Por exemplo: Supermercado, Saúde, Transporte. Ou diga automático.';
-    }
-    return usarTutorialRef.current ? PERGUNTAS_COMPLETAS[e] : PERGUNTAS_CURTAS[e];
+    if (e === 'descricao') return lancamentoRef.current.tipo === 'receita' ? 'De onde ou de quem recebeu?' : 'Descrição?';
+    if (e === 'contaReceita') { const nomes = contasRef.current.map(c => c.nome).join(', '); return `Conta recebedora? ${nomes}.`; }
+    if (e === 'formaPag' && lancamentoRef.current.tipo === 'receita') return 'Forma de recebimento?';
+    if (e === 'conta') { const nomes = contasRef.current.map(c => c.nome).join(', '); return `Qual conta? ${nomes}.`; }
+    if (e === 'cartao') { const nomes = cartoesRef.current.map(c => c.apelido).join(', '); return `Qual cartão? ${nomes}.`; }
+    if (e === 'categoria') return lancamentoRef.current.tipo === 'receita' ? 'Categoria?' : 'Categoria?';
+    return PERGUNTAS_CURTAS[e];
   }
 
   function falar(texto: string) {
@@ -600,13 +521,13 @@ export default function VozScreen() {
 
         if (l.tipo === 'receita') {
           // Receita: após valor → forma de pagamento (Pix/Depósito/Transferência/Dinheiro)
-          if (l.categoria) avancarEtapa('formaPag', { valor });
-          else if (!vozPedirCategoriaRef.current) avancarEtapa('formaPag', { valor, categoria: detectarCategoria(l.descricao) || '' });
+          if (!vozPedirCategoriaRef.current) avancarEtapa('formaPag', { valor, categoria: detectarCategoria(l.descricao) || l.categoria || '' });
+          else if (l.categoria) avancarEtapa('formaPag', { valor });
           else avancarEtapa('categoria', { valor });
         } else {
           // Despesa: fluxo normal
-          if (l.categoria) avancarEtapa('formaPag', { valor });
-          else if (!vozPedirCategoriaRef.current) avancarEtapa('formaPag', { valor, categoria: detectarCategoria(l.descricao) || '' });
+          if (!vozPedirCategoriaRef.current) avancarEtapa('formaPag', { valor, categoria: detectarCategoria(l.descricao) || l.categoria || '' });
+          else if (l.categoria) avancarEtapa('formaPag', { valor });
           else avancarEtapa('categoria', { valor });
         }
         break;
@@ -755,12 +676,6 @@ export default function VozScreen() {
         lancamentoRef.current = { ...lancamentoRef.current, obs };
         setLancamento(lancamentoRef.current);
         setTranscricao(''); textoFinal.current = ''; jaProcessou.current = false;
-        if (!vozPedirObservacaoRef.current) {
-          lancamentoRef.current = { ...lancamentoRef.current, obs: '' };
-          setLancamento(lancamentoRef.current);
-          salvarDireto();
-          return;
-        }
         salvarDireto();
         break;
       }
@@ -871,10 +786,6 @@ export default function VozScreen() {
         </TouchableOpacity>
         <Text style={s.headerTitle}>Lançamento por Voz</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <TouchableOpacity onPress={toggleTutorial} style={s.tutorialBtn}>
-            <Text style={s.tutorialBtnTxt}>{usarTutorial ? '🔊' : '⚡'}</Text>
-            <Text style={s.tutorialBtnLbl}>{usarTutorial ? 'Guiado' : 'Rápido'}</Text>
-          </TouchableOpacity>
           <TouchableOpacity onPress={() => setHelpVisible(true)} style={helpBtnStyle}>
             <Text style={helpTxtStyle}>?</Text>
           </TouchableOpacity>
@@ -888,7 +799,6 @@ export default function VozScreen() {
           <View style={s.progressCard}>
             <View style={s.progressTop}>
               <Text style={s.progressLbl}>{ETAPA_LABEL[etapa]}</Text>
-              <Text style={s.modoTxt}>{usarTutorial ? '🔊 Guiado' : '⚡ Rápido'}</Text>
             </View>
             <View style={s.progressBar}>
               {ETAPAS_LISTA.map((e, i) => (
@@ -899,9 +809,7 @@ export default function VozScreen() {
                 ]} />
               ))}
             </View>
-            {usosTutorial < VOZ_TUTORIAL_LIMITE && usarTutorial && (
-              <Text style={s.tutorialContador}>Modo guiado ativo por mais {VOZ_TUTORIAL_LIMITE - usosTutorial} uso(s)</Text>
-            )}
+
           </View>
         )}
 
@@ -1051,7 +959,6 @@ export default function VozScreen() {
           { titulo: 'Tipo', texto: 'Diga "despesa" ou "receita" para escolher o tipo.' },
           { titulo: 'Pix', texto: 'Para Pix, diga "é Pix" — funciona melhor do que só "Pix".' },
           { titulo: 'Valor', texto: 'Fale o valor por extenso: "dez mil reais", "cinquenta e cinco reais".' },
-          { titulo: 'Modo Guiado / Rápido', texto: 'Use 🔊 Guiado para perguntas detalhadas ou ⚡ Rápido para perguntas curtas.' },
           { titulo: 'Voltar etapa', texto: 'Toque em "◀ Voltar" para refazer a etapa anterior sem recomeçar tudo.' },
           { titulo: 'Não entendi', texto: 'Se ouvir "Não entendi, repita", fale mais devagar e com clareza, ou toque em ◀ Voltar para refazer a etapa.' },
           { titulo: 'Categoria e Observação', texto: 'Nas Configurações você pode desativar a pergunta de categoria e observação para agilizar o lançamento.' },
