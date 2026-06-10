@@ -13,6 +13,8 @@ import { Colors, useTheme } from './theme';
 
 const DESBLOQUEADO_KEY = '@faladinheiro:desbloqueado';
 const LIMITE_GRATIS = 150;
+const PRIMEIRO_LANCAMENTO_KEY = '@faladinheiro:primeiroLancamento';
+const LIMITE_DIAS = 30;
 
 type Cartao = { id: string; apelido: string; bandeira: string; ultimos4: string; fechamento: string; vencimento: string; limite: string; };
 type Conta = { id: string; nome: string; banco: string; tipo: string; saldo: string; };
@@ -273,7 +275,7 @@ function interpretarFormaPagReceita(texto: string): string {
   if (t.includes('deposito') || t.includes('depositar') || t.includes('depósito')) return 'Depósito';
   if (t.includes('transferencia') || t.includes('transferência') || t.includes('ted') || t.includes('doc')) return 'Transferência';
   if (t.includes('dinheiro') || t.includes('especie') || t.includes('cash')) return 'Dinheiro';
-  if (t.includes('credito') || t.includes('cartao')) return 'Crédito';
+  if (t.includes('credito') || t.includes('cartao')) return 'Credito';
   return '';
 }
 
@@ -508,7 +510,7 @@ export default function VozScreen() {
       }
 
       case 'descricao': {
-        if (!t) { falar('Não entendi, repita. ' + getPerguntaDescricao(l.tipo)); return; }
+        if (!t) { falar('Não entendi, repita. ' + getPergunta('descricao')); return; }
         const descricao = capitalizarPalavras(texto);
         const catAuto = detectarCategoria(texto);
         avancarEtapa('valor', { descricao, categoria: catAuto });
@@ -683,14 +685,24 @@ export default function VozScreen() {
   }
 
   async function salvarDireto() {
-    const desbloqueado = await AsyncStorage.getItem(DESBLOQUEADO_KEY);
+    const [desbloqueado, primLancStr] = await Promise.all([
+      AsyncStorage.getItem(DESBLOQUEADO_KEY),
+      AsyncStorage.getItem(PRIMEIRO_LANCAMENTO_KEY),
+    ]);
     if (desbloqueado !== 'true') {
       const total = buscarLancamentos().length;
-      if (total >= LIMITE_GRATIS) {
-        Alert.alert('Limite atingido', `Você atingiu o limite de ${LIMITE_GRATIS} lançamentos gratuitos. Acesse a tela de Lançamentos para desbloquear.`);
+      const primTs = primLancStr ? parseInt(primLancStr, 10) : null;
+      const diasDecorridos = primTs ? Math.floor((Date.now() - primTs) / 86400000) : 0;
+      if (total >= LIMITE_GRATIS || diasDecorridos >= LIMITE_DIAS) {
+        const motivo = diasDecorridos >= LIMITE_DIAS
+          ? `Seu período gratuito de ${LIMITE_DIAS} dias encerrou.`
+          : `Você já registrou ${LIMITE_GRATIS} lançamentos no plano gratuito.`;
+        Alert.alert('🔒 Limite atingido', `${motivo} Desbloqueie o Premium para continuar sem limites.`);
         return;
       }
     }
+    const primExistente = await AsyncStorage.getItem(PRIMEIRO_LANCAMENTO_KEY);
+    if (!primExistente) await AsyncStorage.setItem(PRIMEIRO_LANCAMENTO_KEY, String(Date.now()));
 
     const l = lancamentoRef.current;
     const valorNum = parseFloat(l.valor.replace(',', '.'));

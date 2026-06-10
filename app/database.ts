@@ -60,31 +60,6 @@ export function initDB() {
 }
 
 function migrarCategorias() {
-  try {
-    const correcoes = [
-      ['Alimentacao', 'Supermercado'],
-      ['Alimentação', 'Supermercado'],
-      ['Mercado', 'Supermercado'],
-      ['Lazer', 'Lazer e Entretenimento'],
-      ['Entretenimento', 'Lazer e Entretenimento'],
-      ['Combustivel', 'Combustível'],
-      ['Educacao', 'Educação'],
-      ['Farmacia', 'Farmácia'],
-      ['Manutencao', 'Manutenção'],
-      ['Reformas', 'Manutenção'],
-      ['Saude', 'Saúde'],
-      ['Vestuario', 'Vestuário'],
-      ['Salario', 'Salário'],
-      ['Pro-labore', 'Pró-labore'],
-    ];
-
-    for (const [de, para] of correcoes) {
-      db.runSync(
-        `UPDATE lancamentos SET categoria = ? WHERE categoria = ? COLLATE NOCASE`,
-        [para, de]
-      );
-    }
-  } catch (e) {}
 }
 
 function migrarStatusParcelado() {
@@ -148,7 +123,7 @@ export function inserirLancamentosParcelados(dados: {
   status: string;
   obs: string;
   tipo: string;
-}) {
+}): string {
   const grupoId = gerarId();
   const n = dados.totalParcelas;
   // Arredondamento preciso: parcelas 2+ recebem floor, a 1ª recebe o ajuste da diferença
@@ -170,6 +145,7 @@ export function inserirLancamentosParcelados(dados: {
        dados.dataCompra, dataVenc, 'parcelado', dados.obs, grupoId]
     );
   }
+  return grupoId;
 }
 
 function calcularVencimento(dataCompra: Date, indiceParcela: number, diaFechamento: number, diaVencimento: number): string {
@@ -192,9 +168,9 @@ export function buscarLancamentosPorMes(mes: number, ano: number): any[] {
   const padded = String(mes).padStart(2, '0');
   return db.getAllSync(
     `SELECT * FROM lancamentos
-     WHERE dataVencimento LIKE ? OR data LIKE ?
+     WHERE (CASE WHEN dataVencimento IS NOT NULL AND dataVencimento != '' THEN dataVencimento ELSE data END) LIKE ?
      ORDER BY createdAt DESC`,
-    [`%/${padded}/${ano}`, `%/${padded}/${ano}`]
+    [`%/${padded}/${ano}`]
   );
 }
 
@@ -385,9 +361,18 @@ export function restaurarLancamentos(lancamentos: any[]) {
   db.runSync('DELETE FROM lancamentos');
   for (const l of lancamentos) {
     db.runSync(
-      `INSERT OR REPLACE INTO lancamentos (id, tipo, descricao, valor, categoria, formaPag, cartaoId, parcelas, parcelaAtual, totalParcelas, data, dataVencimento, dataPagamento, status, obs, grupoId, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [l.id, l.tipo, l.descricao, l.valor, l.categoria, l.formaPag, l.cartaoId, l.parcelas, l.parcelaAtual, l.totalParcelas, l.data, l.dataVencimento, l.dataPagamento || '', l.status, l.obs, l.grupoId, l.createdAt]
+      `INSERT OR REPLACE INTO lancamentos (id, tipo, descricao, valor, categoria, formaPag, cartaoId, contaId, parcelas, parcelaAtual, totalParcelas, data, dataVencimento, dataPagamento, status, obs, grupoId, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [l.id, l.tipo, l.descricao, l.valor, l.categoria, l.formaPag, l.cartaoId, l.contaId || '', l.parcelas, l.parcelaAtual, l.totalParcelas, l.data, l.dataVencimento, l.dataPagamento || '', l.status, l.obs, l.grupoId, l.createdAt]
+    );
+  }
+}
+
+export function marcarParcelasPagas(grupoId: string, pagas: { parcelaAtual: number; dataPagamento: string }[]) {
+  for (const p of pagas) {
+    db.runSync(
+      `UPDATE lancamentos SET status = 'pago', dataPagamento = ? WHERE grupoId = ? AND parcelaAtual = ?`,
+      [p.dataPagamento, grupoId, p.parcelaAtual]
     );
   }
 }

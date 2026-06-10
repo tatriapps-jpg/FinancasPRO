@@ -253,7 +253,8 @@ export default function NovoLancamentoScreen() {
       const diaVenc = parseInt(cartaoSel.vencimento) || 20;
       let mesBase = dataCompra.getMonth();
       let anoBase = dataCompra.getFullYear();
-      if (dataCompra.getDate() > diaFech) mesBase += 1;
+      if (dataCompra.getDate() >= diaFech) mesBase += 1;
+      if (diaVenc < diaFech) mesBase += 1;
       mesBase += i;
       while (mesBase > 11) { mesBase -= 12; anoBase += 1; }
       datas.push(`${String(diaVenc).padStart(2,'0')}/${String(mesBase+1).padStart(2,'0')}/${anoBase}`);
@@ -300,6 +301,12 @@ export default function NovoLancamentoScreen() {
 
     const valorNum = parseFloat(valor.replace(',','.'));
     if (isNaN(valorNum) || valorNum <= 0) { Alert.alert('Atenção', 'Digite um valor válido.'); return; }
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(data)) { Alert.alert('Atenção', 'Digite uma data válida no formato DD/MM/AAAA.'); return; }
+    const [dData, mData, aData] = data.split('/').map(Number);
+    const dataObj = new Date(aData, mData - 1, dData);
+    if (dataObj.getFullYear() !== aData || dataObj.getMonth() !== mData - 1 || dataObj.getDate() !== dData) {
+      Alert.alert('Atenção', 'Digite uma data válida no formato DD/MM/AAAA.'); return;
+    }
 
     // Registra data do primeiro lançamento (para o limite de 30 dias)
     const primExistente = await AsyncStorage.getItem(PRIMEIRO_LANCAMENTO_KEY);
