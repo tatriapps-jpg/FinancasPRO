@@ -627,12 +627,12 @@ export default function NovoLancamentoScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como fazer um lançamento"
         tips={[
-          'Escolha o tipo (Despesa ou Receita) nas abas no topo.',
-          'Preencha a descrição, valor e selecione a categoria.',
-          'Para despesa no Crédito, escolha o cartão e o número de parcelas.',
-          'Para Débito ou Pix, selecione a conta que será debitada.',
-          'Data de vencimento é opcional — útil para contas futuras.',
-          'Toque em 🎤 para usar o lançamento por voz.',
+          { titulo: 'Tipo', texto: 'Escolha Despesa ou Receita nas abas no topo da tela.' },
+          { titulo: 'Descrição e valor', texto: 'Preencha a descrição, o valor e selecione a categoria.' },
+          { titulo: 'Crédito', texto: 'Para pagamento no Crédito, escolha o cartão e o número de parcelas.' },
+          { titulo: 'Débito ou Pix', texto: 'Para Débito ou Pix, selecione a conta que será debitada.' },
+          { titulo: 'Data', texto: 'A data de vencimento é opcional — útil para contas futuras.' },
+          { titulo: 'Lançamento por voz', texto: 'Toque em 🎤 para registrar o lançamento por voz.' },
         ]}
       />
     </View>
