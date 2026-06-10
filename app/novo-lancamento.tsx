@@ -16,7 +16,7 @@ const LIMITE_GRATIS          = 150;
 const LIMITE_DIAS            = 30;
 
 const FORMAS_PAG = ['Pix','Crédito','Débito','Dinheiro','Boleto','Transferência','Depósito','Outro'];
-const FORMAS_PAG_RECEITA = ['Pix','Transferência','Depósito','Dinheiro','Crédito'];
+const FORMAS_PAG_RECEITA = ['Pix','Transferência','Depósito','Dinheiro'];
 const PARCELAS_OPTS = ['1','2','3','4','5','6','7','8','9','10','11','12','15','18','24'];
 const PARCELAS_BOLETO_OPTS = ['1','2','3','4','5','6','7','8','9','10','11','12'];
 

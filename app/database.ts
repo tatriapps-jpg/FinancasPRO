@@ -281,6 +281,15 @@ export function buscarTotalUsadoCartao(cartaoId: string, mes: number, ano: numbe
   return total;
 }
 
+export function buscarTotalCompradoMes(mes: number, ano: number): number {
+  const padded = String(mes).padStart(2, '0');
+  const itens = db.getAllSync(
+    `SELECT valor FROM lancamentos WHERE data LIKE ? AND tipo = 'despesa'`,
+    [`%/${padded}/${ano}`]
+  ) as any[];
+  return itens.reduce((s: number, l: any) => s + l.valor, 0);
+}
+
 export function buscarLancamentosEmAtraso(): any[] {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);

@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { buscarCartoes, buscarLancamentos, buscarLancamentosPorMes, buscarTotaisMes, buscarTotalUsadoCartao } from '../database';
+import { buscarCartoes, buscarLancamentos, buscarLancamentosPorMes, buscarTotaisMes, buscarTotalCompradoMes, buscarTotalUsadoCartao } from '../database';
 import { buscarContas, buscarTodasContas } from '../contas';
 import HelpModal, { helpBtnStyle, helpTxtStyle } from '../HelpModal';
 import { Colors, useTheme } from '../theme';
@@ -37,6 +37,7 @@ export default function HomeScreen() {
   const [saldoBancos, setSaldoBancos] = useState(0);
   const [saldoEspecie, setSaldoEspecie] = useState(0);
   const [creditoDisponivel, setCreditoDisponivel] = useState(0);
+  const [compradoMes, setCompradoMes] = useState(0);
 
   useFocusEffect(useCallback(() => { carregarDados(); }, []));
 
@@ -54,6 +55,7 @@ export default function HomeScreen() {
 
     const t = buscarTotaisMes(mesAtual, anoAtual);
     setTotais(t);
+    setCompradoMes(buscarTotalCompradoMes(mesAtual, anoAtual));
 
     const contas = await buscarTodasContas();
     const totalBancos = contas.filter((c: any) => c.id !== 'especie_fixa').reduce((s: number, c: any) => s + (parseFloat(c.saldo) || 0), 0);
@@ -257,7 +259,8 @@ export default function HomeScreen() {
         <View style={[styles.card, styles.cardRed]}>
           <Text style={styles.cardLabel}>DESPESAS</Text>
           <Text style={[styles.cardValue, {color:'#f25555'}]}>{fmt(totais.totalGasto)}</Text>
-          <Text style={styles.cardChange}>{diasRestantes} dias restantes</Text>
+          <Text style={styles.cardChange}>a pagar no mês</Text>
+          <Text style={styles.cardOrcInfo}>Comprado: {fmt(compradoMes)}</Text>
         </View>
         <View style={[styles.card, styles.cardBlue]}>
           <Text style={styles.cardLabel}>SALDO REAL</Text>

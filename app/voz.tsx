@@ -275,7 +275,6 @@ function interpretarFormaPagReceita(texto: string): string {
   if (t.includes('deposito') || t.includes('depositar') || t.includes('depósito')) return 'Depósito';
   if (t.includes('transferencia') || t.includes('transferência') || t.includes('ted') || t.includes('doc')) return 'Transferência';
   if (t.includes('dinheiro') || t.includes('especie') || t.includes('cash')) return 'Dinheiro';
-  if (t.includes('credito') || t.includes('cartao')) return 'Credito';
   return '';
 }
 
@@ -746,8 +745,11 @@ export default function VozScreen() {
     await agendarNotificacoesVencimento();
     verificarAlertaOrcamento().catch(() => {});
     resetarLembreteMotivacional().catch(() => {});
-    Speech.speak('Salvo!', { language: 'pt-BR', rate: vozVelocidadeRef.current });
-    router.replace('/(tabs)/lancamentos');
+    Speech.speak('Salvo!', {
+      language: 'pt-BR', rate: vozVelocidadeRef.current,
+      onDone: () => router.replace('/(tabs)/lancamentos'),
+      onError: () => router.replace('/(tabs)/lancamentos'),
+    });
   }
 
   function reiniciar() {
