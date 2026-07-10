@@ -571,7 +571,9 @@ export default function VozScreen() {
           if (!formaPag) { falar('Não entendi, repita. Forma de recebimento? Pix, Depósito, Transferência ou Dinheiro.'); return; }
 
           // Após forma de pagamento na receita → pergunta conta onde foi recebido
-          if (contasRef.current.length > 0) {
+          if (formaPag === 'Dinheiro') {
+            avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1', contaId: '', contaNome: '' });
+          } else if (contasRef.current.length > 0) {
             avancarEtapa('contaReceita', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1' });
           } else {
             avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1', contaId: '', contaNome: '' });
