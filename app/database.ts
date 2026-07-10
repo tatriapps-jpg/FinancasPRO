@@ -140,7 +140,7 @@ export function inserirLancamentosParcelados(dados: {
     db.runSync(
       `INSERT INTO lancamentos (id, tipo, descricao, valor, categoria, formaPag, cartaoId, contaId, parcelas, parcelaAtual, totalParcelas, data, dataVencimento, status, obs, grupoId)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, dados.tipo, `${dados.descricao} (${i+1}/${n})`, valor,
+      [id, dados.tipo, n > 1 ? `${dados.descricao} (${i+1}/${n})` : dados.descricao, valor,
        dados.categoria, dados.formaPag, dados.cartaoId, dados.contaId || '', n, i + 1, n,
        dados.dataCompra, dataVenc, 'parcelado', dados.obs, grupoId]
     );
