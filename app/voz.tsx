@@ -730,7 +730,7 @@ export default function VozScreen() {
         cartaoId: l.cartaoId, contaId: l.contaId || '',
         parcelas: totalParcelas,
         parcelaAtual: 1, totalParcelas, data: hoje(), dataVencimento: hoje(),
-        status: l.formaPag === 'Credito' ? 'pendente' : 'pago',
+        status: (l.formaPag === 'Credito' || l.formaPag === 'Boleto') ? 'pendente' : 'pago',
         obs: l.obs, grupoId: '',
       });
     }
