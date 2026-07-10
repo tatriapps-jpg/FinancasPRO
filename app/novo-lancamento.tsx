@@ -270,7 +270,9 @@ export default function NovoLancamentoScreen() {
     ]);
 
     if (statusDesbloqueado !== 'true') {
-      const total = buscarLancamentos().length;
+      const todosLanc = buscarLancamentos();
+      const gruposUnicos = new Set(todosLanc.filter((l: any) => l.grupoId).map((l: any) => l.grupoId));
+      const total = todosLanc.filter((l: any) => !l.grupoId).length + gruposUnicos.size;
       const primTs = primLancStr ? parseInt(primLancStr, 10) : null;
       const diasDecorridos = primTs ? Math.floor((Date.now() - primTs) / 86400000) : 0;
 
