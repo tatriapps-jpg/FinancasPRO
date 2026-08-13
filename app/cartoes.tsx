@@ -537,14 +537,14 @@ export default function CartoesScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como cadastrar cartões"
         tips={[
-          { titulo: 'Adicionar cartão', texto: 'Toque em + para adicionar um novo cartão.' },
-          { titulo: 'Cadastro', texto: 'Preencha apelido, bandeira, últimos 4 dígitos, dia de fechamento e dia de vencimento.' },
-          { titulo: 'Limite', texto: 'O limite é opcional — serve para controle de gastos e alerta de uso.' },
-          { titulo: 'Pagar Fatura', texto: 'Toque em "Pagar Fatura" para ver o total do mês e quitar os lançamentos do cartão.' },
-          { titulo: 'Baixa automática', texto: '"Pagar fatura" marca todas as parcelas do mês como pagas.' },
-          { titulo: 'Parcelamento', texto: 'Ao lançar uma despesa no Crédito, o app pede o cartão e o número de parcelas.' },
-          { titulo: 'Extrato Excel', texto: 'Use o botão Extrato para exportar o histórico do cartão em Excel.' },
-          { titulo: 'Excluir', texto: 'Toque na lixeira para excluir um cartão.' },
+          { emoji: '➕', titulo: 'Adicionar cartão', texto: 'Toque em + para adicionar um novo cartão.' },
+          { emoji: '📝', titulo: 'Cadastro', texto: 'Preencha apelido, bandeira, últimos 4 dígitos, dia de fechamento e dia de vencimento.' },
+          { emoji: '🎚️', titulo: 'Limite', texto: 'O limite é opcional — serve para controle de gastos e alerta de uso.' },
+          { emoji: '🧾', titulo: 'Pagar Fatura', texto: 'Toque em "Pagar Fatura" para ver o total do mês e quitar os lançamentos do cartão.' },
+          { emoji: '✅', titulo: 'Baixa automática', texto: '"Pagar fatura" marca todas as parcelas do mês como pagas.' },
+          { emoji: '🔢', titulo: 'Parcelamento', texto: 'Ao lançar uma despesa no Crédito, o app pede o cartão e o número de parcelas.' },
+          { emoji: '📊', titulo: 'Extrato Excel', texto: 'Use o botão Extrato para exportar o histórico do cartão em Excel.' },
+          { emoji: '🗑️', titulo: 'Excluir', texto: 'Toque na lixeira para excluir um cartão.' },
         ]}
       />
     </View>

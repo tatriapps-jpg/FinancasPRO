@@ -12,6 +12,19 @@ const LIMITE_GRATIS          = 150;
 const LIMITE_DIAS            = 30;
 const DESBLOQUEADO_KEY       = '@faladinheiro:desbloqueado';
 const PRIMEIRO_LANCAMENTO_KEY = '@faladinheiro:primeiroLancamento';
+const MODO_RESUMIDO_KEY      = '@faladinheiro:vozModoResumido';
+const VOZ_FALADA_KEY         = '@faladinheiro:vozFalada';
+const MARCOS_PREMIUM_KEY     = '@faladinheiro:marcosPremiumVistos';
+
+// Lembretes discretos de Premium — aparecem 1x cada, nesses marcos de dias
+// de uso. Card dispensável (nunca bloqueia a tela), some para sempre depois
+// de fechado. Tom fica mais direto conforme o período gratuito se aproxima do fim.
+const MARCOS_PREMIUM = [
+  { dias: 10, titulo: '10 dias com o Fala, Dinheiro!', texto: 'Conheça os benefícios do Premium: relatórios completos, cartões ilimitados e backup automático.' },
+  { dias: 15, titulo: 'Metade do período gratuito', texto: 'Já são 15 dias de controle financeiro. Desbloqueie tudo com um pagamento único, sem mensalidade.' },
+  { dias: 20, titulo: 'Faltam 10 dias do período gratuito', texto: 'Garanta o Premium agora e continue sem interrupções quando o período acabar.' },
+  { dias: 25, titulo: 'Só faltam 5 dias!', texto: 'O período gratuito está quase no fim. Não perca o acesso aos seus dados — confira o Premium.' },
+];
 
 export default function LancamentosScreen() {
   const { colors } = useTheme();
@@ -30,23 +43,50 @@ export default function LancamentosScreen() {
   const [diasDecorridos, setDiasDecorridos] = useState(0);
   const [mesFiltro, setMesFiltro] = useState(_hoje.getMonth() + 1);
   const [anoFiltro, setAnoFiltro] = useState(_hoje.getFullYear());
-  const [todosMeses, setTodosMeses] = useState(false);
+  const [todosMeses, setTodosMeses] = useState(true);
+  const [modoResumido, setModoResumido] = useState(false);
+  const [vozFalada, setVozFalada] = useState(true);
+  const [marcoAtivo, setMarcoAtivo] = useState<typeof MARCOS_PREMIUM[number] | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       carregarLancamentos();
+      AsyncStorage.getItem(MODO_RESUMIDO_KEY).then(v => setModoResumido(v === 'true'));
+      AsyncStorage.getItem(VOZ_FALADA_KEY).then(v => setVozFalada(v === null ? true : v === 'true'));
     }, [])
   );
 
+  async function toggleModoResumido() {
+    const novo = !modoResumido;
+    setModoResumido(novo);
+    await AsyncStorage.setItem(MODO_RESUMIDO_KEY, String(novo));
+  }
+
+  async function toggleVozFalada() {
+    const novo = !vozFalada;
+    setVozFalada(novo);
+    await AsyncStorage.setItem(VOZ_FALADA_KEY, String(novo));
+  }
+
   async function carregarLancamentos(mes = mesFiltro, ano = anoFiltro, todos = todosMeses) {
-    const [saved, primLancStr] = await Promise.all([
+    const [saved, primLancStr, marcosVistosStr] = await Promise.all([
       AsyncStorage.getItem(DESBLOQUEADO_KEY),
       AsyncStorage.getItem(PRIMEIRO_LANCAMENTO_KEY),
+      AsyncStorage.getItem(MARCOS_PREMIUM_KEY),
     ]);
-    setDesbloqueado(saved === 'true');
+    const jaDesbloqueado = saved === 'true';
+    setDesbloqueado(jaDesbloqueado);
     if (primLancStr) {
       const dias = Math.floor((Date.now() - parseInt(primLancStr, 10)) / 86400000);
       setDiasDecorridos(Math.min(dias, LIMITE_DIAS));
+
+      if (!jaDesbloqueado) {
+        const vistos: number[] = marcosVistosStr ? JSON.parse(marcosVistosStr) : [];
+        const candidatos = MARCOS_PREMIUM.filter(m => dias >= m.dias && !vistos.includes(m.dias));
+        setMarcoAtivo(candidatos.length > 0 ? candidatos[candidatos.length - 1] : null);
+      } else {
+        setMarcoAtivo(null);
+      }
     }
 
     const parsData = (d: string) => {
@@ -82,13 +122,22 @@ export default function LancamentosScreen() {
     if (novoMes > 12) { novoMes = 1; novoAno++; }
     setMesFiltro(novoMes);
     setAnoFiltro(novoAno);
-    carregarLancamentos(novoMes, novoAno, todosMeses);
+    setTodosMeses(false);
+    carregarLancamentos(novoMes, novoAno, false);
   }
 
   function toggleTodos() {
     const novo = !todosMeses;
     setTodosMeses(novo);
     carregarLancamentos(mesFiltro, anoFiltro, novo);
+  }
+
+  // Toca no nome do mês para sair do modo "Todos" e voltar à navegação por mês —
+  // é o gesto mais intuitivo pra quem já está vendo "Todos".
+  function sairDeTodos() {
+    if (!todosMeses) return;
+    setTodosMeses(false);
+    carregarLancamentos(mesFiltro, anoFiltro, false);
   }
 
   function vinculoLabel(l: any): string {
@@ -150,6 +199,20 @@ export default function LancamentosScreen() {
   const pctDias = diasDecorridos / LIMITE_DIAS;
   const showDiasProgress = diasDecorridos > 0 && pctDias >= pctLanc;
   const atingiuLimite = !desbloqueado && (totalGeral >= LIMITE_GRATIS || diasDecorridos >= LIMITE_DIAS);
+
+  async function dispensarMarcoPremium() {
+    if (!marcoAtivo) return;
+    const marcosVistosStr = await AsyncStorage.getItem(MARCOS_PREMIUM_KEY);
+    const vistos: number[] = marcosVistosStr ? JSON.parse(marcosVistosStr) : [];
+    if (!vistos.includes(marcoAtivo.dias)) vistos.push(marcoAtivo.dias);
+    await AsyncStorage.setItem(MARCOS_PREMIUM_KEY, JSON.stringify(vistos));
+    setMarcoAtivo(null);
+  }
+
+  function verPremiumDoMarco() {
+    dispensarMarcoPremium();
+    router.push('/paywall' as any);
+  }
 
   function tentarAdicionar() {
     if (atingiuLimite) {
@@ -259,6 +322,37 @@ export default function LancamentosScreen() {
         </View>
       </View>
 
+      <View style={styles.vozConfigRow}>
+        <TouchableOpacity
+          style={[styles.vozConfigPill, modoResumido && styles.vozConfigPillOn]}
+          onPress={toggleModoResumido}
+        >
+          <Text style={[styles.vozConfigPillTxt, modoResumido && styles.vozConfigPillTxtOn]}>
+            {modoResumido ? '⚡ Lançamento resumido' : '🗣️ Lançamento completo'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.vozConfigIcon} onPress={toggleVozFalada}>
+          <Text style={{ fontSize: 16 }}>{vozFalada ? '🔊' : '🔇'}</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.vozConfigHint}>👆 Toque para trocar entre lançamento completo/resumido, e para ligar ou desligar a voz das perguntas</Text>
+
+      {marcoAtivo && !desbloqueado && (
+        <View style={styles.premiumAvisoCard}>
+          <Text style={styles.premiumAvisoIco}>✨</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.premiumAvisoTitulo}>{marcoAtivo.titulo}</Text>
+            <Text style={styles.premiumAvisoTxt}>{marcoAtivo.texto}</Text>
+            <TouchableOpacity onPress={verPremiumDoMarco}>
+              <Text style={styles.premiumAvisoCta}>Ver Premium →</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity onPress={dispensarMarcoPremium} style={styles.premiumAvisoFechar}>
+            <Text style={styles.premiumAvisoFecharTxt}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {!desbloqueado && (
         <View style={styles.progressBox}>
           <View style={styles.progressTrack}>
@@ -276,14 +370,16 @@ export default function LancamentosScreen() {
       )}
 
       <View style={styles.mesNavBar}>
-        <TouchableOpacity style={styles.mesNavBtn} onPress={() => navMesFiltro(-1)} disabled={todosMeses}>
-          <Text style={[styles.mesNavArrow, todosMeses && { color: colors.textMuted }]}>◀</Text>
+        <TouchableOpacity style={styles.mesNavBtn} onPress={() => navMesFiltro(-1)}>
+          <Text style={styles.mesNavArrow}>◀</Text>
         </TouchableOpacity>
-        <Text style={[styles.mesNavTxt, todosMeses && { color: colors.textMuted }]}>
-          {MESES[mesFiltro - 1]} {anoFiltro}
-        </Text>
-        <TouchableOpacity style={styles.mesNavBtn} onPress={() => navMesFiltro(1)} disabled={todosMeses}>
-          <Text style={[styles.mesNavArrow, todosMeses && { color: colors.textMuted }]}>▶</Text>
+        <TouchableOpacity onPress={sairDeTodos}>
+          <Text style={[styles.mesNavTxt, todosMeses && { color: colors.textMuted }]}>
+            {MESES[mesFiltro - 1]} {anoFiltro}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.mesNavBtn} onPress={() => navMesFiltro(1)}>
+          <Text style={styles.mesNavArrow}>▶</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.todosBtnNav, todosMeses && styles.todosBtnNavOn]} onPress={toggleTodos}>
           <Text style={[styles.todosBtnNavTxt, todosMeses && styles.todosBtnNavTxtOn]}>Todos</Text>
@@ -437,15 +533,18 @@ export default function LancamentosScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como ver seus lançamentos"
         tips={[
-          { titulo: 'Ordenação', texto: 'Lançamentos são listados do mais recente ao mais antigo.' },
-          { titulo: 'Filtro de mês', texto: 'Use as setas ‹ › para navegar entre os períodos.' },
-          { titulo: 'Editar', texto: 'Toque em um lançamento para editar.' },
-          { titulo: 'Excluir', texto: 'Pressione e segure para excluir (pede confirmação).' },
-          { titulo: 'Em atraso', texto: 'Lançamentos em atraso aparecem em destaque no topo.' },
-          { titulo: 'Busca', texto: 'Use o campo de busca para encontrar por descrição ou categoria.' },
-          { titulo: 'Ver todos os meses', texto: 'O botão "Todos" exibe lançamentos de todos os meses. Toque nele para ativar ou desativar. Quando ativo, as setas de mês ficam desabilitadas.' },
-          { titulo: 'Lançamento por voz', texto: 'Toque no microfone 🎤 para registrar um lançamento por voz.' },
-          { titulo: 'Lançamento digitado', texto: 'Use o botão + para adicionar.' },
+          { emoji: '🔽', titulo: 'Ordenação', texto: 'Lançamentos são listados do mais recente ao mais antigo.' },
+          { emoji: '📆', titulo: 'Por padrão, mostra Todos', texto: 'A tela abre mostrando lançamentos de todos os meses — assim uma compra parcelada no cartão aparece de cara, mesmo que a fatura só feche em outro mês.' },
+          { emoji: '📅', titulo: 'Filtro de mês', texto: 'Use as setas ‹ › para navegar entre os meses, ou toque no nome do mês para sair do modo "Todos" e voltar à visão por mês. Toque no botão "Todos" para ver tudo de novo.' },
+          { emoji: '✏️', titulo: 'Editar', texto: 'Toque em um lançamento para editar.' },
+          { emoji: '🗑️', titulo: 'Excluir', texto: 'Pressione e segure para excluir (pede confirmação).' },
+          { emoji: '⏰', titulo: 'Em atraso', texto: 'Lançamentos em atraso aparecem em destaque no topo.' },
+          { emoji: '💳', titulo: '"Pendente" x "Parc."', texto: 'Uma compra no crédito lançada pelo modo resumido (sem escolher o cartão) fica "Pendente" até você editá-la e indicar o cartão e as parcelas — aí ela passa para "Parc.", porque a dívida sai da loja e vai para a fatura do cartão.' },
+          { emoji: '🔍', titulo: 'Busca', texto: 'Use o campo de busca para encontrar por descrição ou categoria.' },
+          { emoji: '🎤', titulo: 'Lançamento por voz', texto: 'Toque no microfone 🎤 para registrar um lançamento por voz.' },
+          { emoji: '⚡', titulo: 'Completo ou Resumido', texto: 'O botão no topo alterna entre o lançamento por voz completo (pergunta tudo) e o resumido (só tipo, descrição, valor e forma de pagamento — mais rápido).' },
+          { emoji: '🔊', titulo: 'Voz das perguntas', texto: 'O ícone de alto-falante liga ou desliga o app falando as perguntas em voz alta. Desligado, só aparece o texto na tela — no seu ritmo.' },
+          { emoji: '⌨️', titulo: 'Lançamento digitado', texto: 'Use o botão + para adicionar.' },
         ]}
       />
     </View>
@@ -462,6 +561,20 @@ function makeStyles(c: Colors) {
     contadorBadgeRed: { backgroundColor: 'rgba(242,85,85,0.15)', borderColor: 'rgba(242,85,85,0.3)' },
     contadorTxt: { fontSize: 11, color: '#5294ff', fontWeight: '600' },
     contadorTxtRed: { color: '#f25555' },
+    vozConfigRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 22, paddingBottom: 10 },
+    vozConfigPill: { flex: 1, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 16, backgroundColor: c.input, borderWidth: 1, borderColor: c.border, alignItems: 'center' },
+    vozConfigPillOn: { backgroundColor: 'rgba(82,148,255,0.15)', borderColor: '#5294ff' },
+    vozConfigPillTxt: { fontSize: 12, fontWeight: '600', color: c.textSec },
+    vozConfigPillTxtOn: { color: '#5294ff' },
+    vozConfigIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: c.input, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
+    vozConfigHint: { fontSize: 10.5, color: c.textMuted, paddingHorizontal: 22, paddingBottom: 10, textAlign: 'center' },
+    premiumAvisoCard: { flexDirection: 'row', alignItems: 'flex-start', marginHorizontal: 22, marginBottom: 12, padding: 14, backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(82,148,255,0.4)' },
+    premiumAvisoIco: { fontSize: 20, marginRight: 10 },
+    premiumAvisoTitulo: { fontSize: 13, fontWeight: '700', color: c.text, marginBottom: 3 },
+    premiumAvisoTxt: { fontSize: 12, color: c.textMuted, lineHeight: 17, marginBottom: 6 },
+    premiumAvisoCta: { fontSize: 12.5, fontWeight: '700', color: '#5294ff' },
+    premiumAvisoFechar: { padding: 4, marginLeft: 6 },
+    premiumAvisoFecharTxt: { fontSize: 14, color: c.textMuted },
     progressBox: { paddingHorizontal: 22, paddingBottom: 12 },
     progressTrack: { height: 4, backgroundColor: c.barTrack2, borderRadius: 4, overflow: 'hidden', marginBottom: 4 },
     progressFill: { height: 4, borderRadius: 4 },

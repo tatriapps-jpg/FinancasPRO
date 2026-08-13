@@ -15,6 +15,9 @@ const DESBLOQUEADO_KEY = '@faladinheiro:desbloqueado';
 const LIMITE_GRATIS = 150;
 const PRIMEIRO_LANCAMENTO_KEY = '@faladinheiro:primeiroLancamento';
 const LIMITE_DIAS = 30;
+const MODO_RESUMIDO_KEY = '@faladinheiro:vozModoResumido';
+const VOZ_FALADA_KEY = '@faladinheiro:vozFalada';
+const DICAS_AUTO_KEY = '@faladinheiro:vozDicasAutoVistas';
 
 type Cartao = { id: string; apelido: string; bandeira: string; ultimos4: string; fechamento: string; vencimento: string; limite: string; };
 type Conta = { id: string; nome: string; banco: string; tipo: string; saldo: string; };
@@ -311,6 +314,7 @@ const DICAS = [
   { titulo: '🎙 Aguarde um instante', texto: 'O app precisa de um momento para ativar o microfone. Aguarde antes de falar.' },
   { titulo: '💰 Valores por extenso', texto: 'Diga o valor por extenso: "cinquenta reais", "cento e vinte reais e cinquenta centavos", "dois mil e trezentos". Evite falar apenas números isolados.' },
   { titulo: '💳 Formas de pagamento', texto: 'Diga: "pix", "crédito", "débito", "dinheiro", "boleto", "transferência" ou "depósito". O app reconhece variações como "cartão", "cartão de crédito", "à vista".' },
+  { titulo: '⚡ Truque do Pix', texto: 'Se o celular não reconhecer "Pix" (ou entender "pics"), diga "é Pix" — o reconhecimento de voz entende muito melhor assim.' },
   { titulo: '🏷️ Cartões e contas', texto: 'Use apelidos simples como "Nubank" ou "Itaú" — não é necessário informar número, bandeira ou dados reais. O app busca pelo nome que você cadastrou.' },
   { titulo: '📂 Categorias', texto: 'Na etapa de categoria, diga o nome da categoria (ex: "Supermercado", "Saúde") ou diga "automático" para o app detectar pela descrição. Ex: "mercado" já sugere Supermercado.' },
   { titulo: '🔢 Parcelas', texto: 'Diga o número de parcelas por extenso: "três", "seis", "doze". Para pagamento único diga "um" ou "à vista". Parcelamento só funciona com cartão de crédito.' },
@@ -337,8 +341,10 @@ export default function VozScreen() {
   const [categoriasRec, setCategoriasRec] = useState<string[]>([]);
   const [falando, setFalando] = useState(false);
   const [dicasExpandidas, setDicasExpandidas] = useState(false);
+  const [dicasAutoVisible, setDicasAutoVisible] = useState(false);
 
   const jaProcessou = useRef(false);
+  const brutoRef = useRef<string[]>([]);
 
   const [lancamento, setLancamento] = useState<Lancamento>({
     tipo: 'despesa', descricao: '', valor: '', categoria: '',
@@ -357,6 +363,8 @@ export default function VozScreen() {
   const vozVelocidadeRef = useRef(1.3);
   const vozPedirCategoriaRef = useRef(true);
   const vozPedirObservacaoRef = useRef(true);
+  const modoResumidoRef = useRef(false);
+  const vozFaladaRef = useRef(true);
   const gravacaoAtiva = useRef(false);
   const historicoEtapas = useRef<Etapa[]>([]);
 
@@ -377,14 +385,28 @@ export default function VozScreen() {
     buscarContas().then(cs2 => { setContas(cs2); contasRef.current = cs2; });
     carregarCategorias('despesa').then(setCategoriasDisp);
     carregarCategorias('receita').then(setCategoriasRec);
-    setTimeout(() => falar(getPergunta('tipo')), 200);
     AsyncStorage.getItem('@faladinheiro:vozPedirCategoria').then(v => { if (v !== null) vozPedirCategoriaRef.current = v === 'true'; });
     AsyncStorage.getItem('@faladinheiro:vozPedirObservacao').then(v => { if (v !== null) vozPedirObservacaoRef.current = v === 'true'; });
+    AsyncStorage.getItem(MODO_RESUMIDO_KEY).then(v => { modoResumidoRef.current = v === 'true'; });
+    AsyncStorage.getItem(VOZ_FALADA_KEY).then(v => { if (v !== null) vozFaladaRef.current = v === 'true'; });
+    AsyncStorage.getItem(DICAS_AUTO_KEY).then(v => {
+      if (!v) {
+        setDicasAutoVisible(true);
+      } else {
+        setTimeout(() => falar(getPergunta('tipo')), 200);
+      }
+    });
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
       Speech.stop();
     };
   }, []);
+
+  function fecharDicasAuto() {
+    setDicasAutoVisible(false);
+    AsyncStorage.setItem(DICAS_AUTO_KEY, '1');
+    setTimeout(() => falar(getPergunta('tipo')), 300);
+  }
 
   function getPergunta(e: Etapa): string {
     if (e === 'descricao') return lancamentoRef.current.tipo === 'receita' ? 'De onde ou de quem recebeu?' : 'Descrição?';
@@ -397,6 +419,12 @@ export default function VozScreen() {
   }
 
   function falar(texto: string) {
+    if (!vozFaladaRef.current) {
+      // Voz muda: pergunta só aparece na tela, escuta já começa — no ritmo da pessoa.
+      setFalando(false);
+      setTimeout(() => iniciarGravacao(), 250);
+      return;
+    }
     setFalando(true);
     Speech.speak(texto, {
       language: 'pt-BR',
@@ -495,6 +523,7 @@ export default function VozScreen() {
   function processarResposta(texto: string) {
     const t = normalizar(texto);
     const l = lancamentoRef.current;
+    brutoRef.current.push(texto);
 
     switch (etapaRef.current) {
       case 'tipo': {
@@ -519,6 +548,12 @@ export default function VozScreen() {
       case 'valor': {
         const valor = interpretarValor(texto);
         if (!valor || valor === '0') { falar('Não entendi, repita. Qual o valor?'); return; }
+
+        if (modoResumidoRef.current) {
+          // Resumido: Tipo → Origem → Valor → Forma. Sem categoria, sem cartão/conta, sem observação.
+          avancarEtapa('formaPag', { valor, categoria: detectarCategoria(l.descricao) || l.categoria || 'Outros' });
+          break;
+        }
 
         if (l.tipo === 'receita') {
           // Receita: após valor → forma de pagamento (Pix/Depósito/Transferência/Dinheiro)
@@ -555,7 +590,11 @@ export default function VozScreen() {
           setLancamento(lancamentoRef.current);
           setEtapa('formaPag');
           etapaRef.current = 'formaPag';
-          Speech.speak(`Categoria ${categoria} não cadastrada. Continuando assim mesmo.`, { language: 'pt-BR', rate: vozVelocidadeRef.current, onDone: () => setTimeout(() => falar(getPergunta('formaPag')), 300) });
+          if (!vozFaladaRef.current) {
+            setTimeout(() => falar(getPergunta('formaPag')), 200);
+          } else {
+            Speech.speak(`Categoria ${categoria} não cadastrada. Continuando assim mesmo.`, { language: 'pt-BR', rate: vozVelocidadeRef.current, onDone: () => { setTimeout(() => falar(getPergunta('formaPag')), 300); } });
+          }
           return;
         }
         avancarEtapa('formaPag', { categoria });
@@ -565,14 +604,25 @@ export default function VozScreen() {
       case 'formaPag': {
         let formaPag = '';
 
+        if (modoResumidoRef.current) {
+          formaPag = l.tipo === 'receita' ? interpretarFormaPagReceita(t) : interpretarFormaPag(t);
+          if (!formaPag) { falar('Não entendi, repita. ' + getPergunta('formaPag')); return; }
+          avancarEtapa('confirmacao', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1', contaId: '', contaNome: '' });
+          return;
+        }
+
         if (l.tipo === 'receita') {
           // Receita: aceita Pix, Depósito, Transferência, Dinheiro, Crédito
           formaPag = interpretarFormaPagReceita(t);
           if (!formaPag) { falar('Não entendi, repita. Forma de recebimento? Pix, Depósito, Transferência ou Dinheiro.'); return; }
 
           // Após forma de pagamento na receita → pergunta conta onde foi recebido
+          // (mas só pergunta se houver mais de uma opção — com 1 só, usa direto)
           if (formaPag === 'Dinheiro') {
             avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1', contaId: '', contaNome: '' });
+          } else if (contasRef.current.length === 1) {
+            const unica = contasRef.current[0];
+            avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1', contaId: unica.id, contaNome: unica.nome });
           } else if (contasRef.current.length > 0) {
             avancarEtapa('contaReceita', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1' });
           } else {
@@ -586,12 +636,25 @@ export default function VozScreen() {
         if (!formaPag) { falar('Não entendi, repita. ' + getPergunta('formaPag')); return; }
 
         if (formaPag === 'Credito') {
-          if (cartoesRef.current.length > 0) avancarEtapa('cartao', { formaPag });
-          else avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1' });
+          // Só um cartão cadastrado? Usa direto, sem perguntar qual é.
+          if (cartoesRef.current.length === 1) {
+            const unico = cartoesRef.current[0];
+            avancarEtapa('parcelas', { formaPag, cartaoId: unico.id, cartaoNome: unico.apelido });
+          } else if (cartoesRef.current.length > 1) {
+            avancarEtapa('cartao', { formaPag });
+          } else {
+            avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1' });
+          }
           return;
         }
         if ((formaPag === 'Debito' || formaPag === 'Pix' || formaPag === 'Transferência') && contasRef.current.length > 0) {
-          avancarEtapa('conta', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1' });
+          // Só uma conta cadastrada? Usa direto, sem perguntar qual é.
+          if (contasRef.current.length === 1) {
+            const unica = contasRef.current[0];
+            avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1', contaId: unica.id, contaNome: unica.nome });
+          } else {
+            avancarEtapa('conta', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1' });
+          }
           return;
         }
         avancarEtapa(vozPedirObservacaoRef.current ? 'obs' : 'confirmacao', { formaPag, cartaoId: '', cartaoNome: '', parcelas: '1', contaId: '', contaNome: '' });
@@ -711,6 +774,12 @@ export default function VozScreen() {
     const valorNum = parseFloat(l.valor.replace(',', '.'));
     const totalParcelas = parseInt(l.parcelas) || 1;
 
+    // Guarda o que foi realmente reconhecido pela voz na observação — ajuda a
+    // conferir depois se algo saiu errado (mesma ideia do "[VOZ] ..." que vimos
+    // no concorrente).
+    const bruto = brutoRef.current.join(' · ');
+    const obsComBruto = bruto ? (l.obs ? `${l.obs}\n[voz] ${bruto}` : `[voz] ${bruto}`) : l.obs;
+
     if (l.formaPag === 'Credito' && l.cartaoId) {
       const cartao = cartoesRef.current.find(c => c.id === l.cartaoId);
       inserirLancamentosParcelados({
@@ -720,7 +789,7 @@ export default function VozScreen() {
         totalParcelas, dataCompra: hoje(),
         diaVencimento: parseInt(cartao?.vencimento || '20'),
         diaFechamento: parseInt(cartao?.fechamento || '10'),
-        status: 'parcelado', obs: l.obs, tipo: l.tipo,
+        status: 'parcelado', obs: obsComBruto, tipo: l.tipo,
       });
     } else {
       inserirLancamento({
@@ -731,9 +800,10 @@ export default function VozScreen() {
         parcelas: totalParcelas,
         parcelaAtual: 1, totalParcelas, data: hoje(), dataVencimento: hoje(),
         status: (l.formaPag === 'Credito' || l.formaPag === 'Boleto') ? 'pendente' : 'pago',
-        obs: l.obs, grupoId: '',
+        obs: obsComBruto, grupoId: '',
       });
     }
+    brutoRef.current = [];
 
     if (l.tipo === 'despesa' && l.formaPag === 'Dinheiro') {
       await debitarConta('especie_fixa', valorNum);
@@ -749,16 +819,21 @@ export default function VozScreen() {
     await agendarNotificacoesVencimento();
     verificarAlertaOrcamento().catch(() => {});
     resetarLembreteMotivacional().catch(() => {});
-    Speech.speak('Salvo!', {
-      language: 'pt-BR', rate: vozVelocidadeRef.current,
-      onDone: () => router.replace('/(tabs)/lancamentos'),
-      onError: () => router.replace('/(tabs)/lancamentos'),
-    });
+    if (!vozFaladaRef.current) {
+      router.replace('/(tabs)/lancamentos');
+    } else {
+      Speech.speak('Salvo!', {
+        language: 'pt-BR', rate: vozVelocidadeRef.current,
+        onDone: () => router.replace('/(tabs)/lancamentos'),
+        onError: () => router.replace('/(tabs)/lancamentos'),
+      });
+    }
   }
 
   function reiniciar() {
     Speech.stop();
     historicoEtapas.current = [];
+    brutoRef.current = [];
     setEtapa('tipo'); etapaRef.current = 'tipo';
     setTranscricao(''); setErro(''); jaProcessou.current = false;
     setLancamento({
@@ -974,13 +1049,23 @@ export default function VozScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como usar o lançamento por voz"
         tips={[
-          { titulo: 'Tipo', texto: 'Diga "despesa" ou "receita" para escolher o tipo.' },
-          { titulo: 'Pix', texto: 'Para Pix, diga "é Pix" — funciona melhor do que só "Pix".' },
-          { titulo: 'Valor', texto: 'Fale o valor por extenso: "dez mil reais", "cinquenta e cinco reais".' },
-          { titulo: 'Voltar etapa', texto: 'Toque em "◀ Voltar" para refazer a etapa anterior sem recomeçar tudo.' },
-          { titulo: 'Não entendi', texto: 'Se ouvir "Não entendi, repita", fale mais devagar e com clareza, ou toque em ◀ Voltar para refazer a etapa.' },
-          { titulo: 'Categoria e Observação', texto: 'Nas Configurações você pode desativar a pergunta de categoria e observação para agilizar o lançamento.' },
+          { emoji: '🔀', titulo: 'Tipo', texto: 'Diga "despesa" ou "receita" para escolher o tipo.' },
+          { emoji: '⚡', titulo: 'Pix', texto: 'Para Pix, diga "é Pix" — funciona melhor do que só "Pix".' },
+          { emoji: '💰', titulo: 'Valor', texto: 'Fale o valor por extenso: "dez mil reais", "cinquenta e cinco reais".' },
+          { emoji: '◀️', titulo: 'Voltar etapa', texto: 'Toque em "◀ Voltar" para refazer a etapa anterior sem recomeçar tudo.' },
+          { emoji: '🔁', titulo: 'Não entendi', texto: 'Se ouvir "Não entendi, repita", fale mais devagar e com clareza, ou toque em ◀ Voltar para refazer a etapa.' },
+          { emoji: '⚙️', titulo: 'Categoria e Observação', texto: 'Na aba Lançamentos você pode trocar entre modo Completo e Resumido, e ligar ou desligar a voz das perguntas.' },
         ]}
+      />
+      {/* Card de dicas automático — abre sozinho só na primeira vez que a pessoa usa a voz */}
+      <HelpModal
+        visible={dicasAutoVisible}
+        onClose={fecharDicasAuto}
+        title="Como falar com o app"
+        tips={DICAS.map(d => {
+          const [emoji, ...resto] = d.titulo.split(' ');
+          return { emoji, titulo: resto.join(' '), texto: d.texto };
+        })}
       />
     </View>
   );

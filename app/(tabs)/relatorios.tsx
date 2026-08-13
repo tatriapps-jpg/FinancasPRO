@@ -284,11 +284,11 @@ export default function RelatoriosScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como usar os relatórios"
         tips={[
-          { titulo: 'Navegação', texto: 'Use as setas ‹ › para navegar entre os meses.' },
-          { titulo: 'Resumo', texto: 'Mostra total de receitas, despesas e saldo do período selecionado.' },
-          { titulo: 'Gráfico', texto: 'O gráfico de barras exibe os gastos por categoria.' },
-          { titulo: 'Comparativo', texto: 'A tabela compara os gastos do mês atual com o mês anterior — verde significa que gastou menos, vermelho que gastou mais.' },
-          { titulo: 'Exportar Excel', texto: 'Toque em "Mês atual" para exportar o mês. Toque em "Trimestre" para os últimos 3 meses. Toque em "Ano 2026" para o ano completo.' },
+          { emoji: '🔄', titulo: 'Navegação', texto: 'Use as setas ‹ › para navegar entre os meses.' },
+          { emoji: '📋', titulo: 'Resumo', texto: 'Mostra total de receitas, despesas e saldo do período selecionado.' },
+          { emoji: '📊', titulo: 'Gráfico', texto: 'O gráfico de barras exibe os gastos por categoria.' },
+          { emoji: '⚖️', titulo: 'Comparativo', texto: 'A tabela compara os gastos do mês atual com o mês anterior — verde significa que gastou menos, vermelho que gastou mais.' },
+          { emoji: '📤', titulo: 'Exportar Excel', texto: 'Toque em "Mês atual" para exportar o mês. Toque em "Trimestre" para os últimos 3 meses. Toque em "Ano 2026" para o ano completo.' },
         ]}
       />
     </View>

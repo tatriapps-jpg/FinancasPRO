@@ -129,7 +129,7 @@ export default function EditarLancamentoScreen() {
   const [totalParcelas, setTotalParcelas]   = useState(1);
   const [helpVisible, setHelpVisible] = useState(false);
   const [aplicarAoGrupo, setAplicarAoGrupo] = useState(false);
-  const [cartoes, setCartoes]               = useState<{ id: string; apelido: string }[]>([]);
+  const [cartoes, setCartoes]               = useState<any[]>([]);
   const [categoriasDesp, setCategoriasDesp] = useState<string[]>([]);
   const [categoriasRec, setCategoriasRec]   = useState<string[]>([]);
 
@@ -355,6 +355,11 @@ export default function EditarLancamentoScreen() {
           {formaPag === 'Credito' && cartoes.length > 0 && (
             <>
               <Text style={styles.sectionLbl}>CARTÃO</Text>
+              {!cartaoId && (
+                <Text style={styles.cartaoHint}>
+                  💡 Este lançamento está como "Pendente" porque ainda não tem cartão vinculado. Ao indicar um cartão (e as parcelas), ele passa para "Parc." — a dívida sai da loja e vai para a fatura do cartão.
+                </Text>
+              )}
               <Text style={styles.lbl}>Cartão vinculado</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.cartaoChipRow}>
@@ -429,7 +434,7 @@ export default function EditarLancamentoScreen() {
                   </Text>
                 </TouchableOpacity>
                 {mostrarPickerPag && (
-                  <DateTimePicker value={dataPagObj} mode="date" display="calendar" locale="pt-BR"
+                  <DateTimePicker value={dataPagObj} mode="date" display="calendar"
                     onChange={(_, d) => { setMostrarPickerPag(false); if (d) { setDataPagObj(d); setDataPagamento(dateToStr(d)); } }} />
                 )}
                 <Text style={styles.pagamentoHint}>Preenchido automaticamente com a data de hoje. Altere se necessário.</Text>
@@ -448,7 +453,7 @@ export default function EditarLancamentoScreen() {
                 <Text style={[styles.dateBtnTxt, { color: data ? colors.text : colors.textMuted }]}>{data || 'DD/MM/AAAA'}</Text>
               </TouchableOpacity>
               {mostrarPickerData && (
-                <DateTimePicker value={dataObj} mode="date" display="calendar" locale="pt-BR"
+                <DateTimePicker value={dataObj} mode="date" display="calendar"
                   onChange={(_, d) => { setMostrarPickerData(false); if (d) { setDataObj(d); setData(dateToStr(d)); } }} />
               )}
             </View>
@@ -459,7 +464,7 @@ export default function EditarLancamentoScreen() {
                 <Text style={[styles.dateBtnTxt, { color: dataVencimento ? colors.text : colors.textMuted }]}>{dataVencimento || 'DD/MM/AAAA'}</Text>
               </TouchableOpacity>
               {mostrarPickerVenc && (
-                <DateTimePicker value={dataVencObj} mode="date" display="calendar" locale="pt-BR"
+                <DateTimePicker value={dataVencObj} mode="date" display="calendar"
                   onChange={(_, d) => { setMostrarPickerVenc(false); if (d) { setDataVencObj(d); setDataVencimento(dateToStr(d)); } }} />
               )}
             </View>
@@ -537,11 +542,11 @@ export default function EditarLancamentoScreen() {
         onClose={() => setHelpVisible(false)}
         title="Editar Lançamento"
         tips={[
-          { titulo: 'O que editar', texto: 'Edite descrição, valor, categoria, status ou data do lançamento.' },
-          { titulo: 'Parcelado no crédito', texto: 'Para despesas parceladas no crédito, você pode aplicar as alterações a todas as parcelas do grupo.' },
-          { titulo: 'Aplicar ao grupo', texto: 'Atualiza categoria e valor em todas as parcelas restantes do mesmo grupo.' },
-          { titulo: 'Parcela individual', texto: 'Se não ativar essa opção, apenas a parcela atual será alterada.' },
-          { titulo: 'Status', texto: 'O status "Pago" indica que o valor já saiu da conta. "Pendente" ainda não foi debitado.' },
+          { emoji: '✏️', titulo: 'O que editar', texto: 'Edite descrição, valor, categoria, status ou data do lançamento.' },
+          { emoji: '💳', titulo: 'Parcelado no crédito', texto: 'Para despesas parceladas no crédito, você pode aplicar as alterações a todas as parcelas do grupo.' },
+          { emoji: '🔗', titulo: 'Aplicar ao grupo', texto: 'Atualiza categoria e valor em todas as parcelas restantes do mesmo grupo.' },
+          { emoji: '1️⃣', titulo: 'Parcela individual', texto: 'Se não ativar essa opção, apenas a parcela atual será alterada.' },
+          { emoji: '✅', titulo: 'Status', texto: 'O status "Pago" indica que o valor já saiu da conta. "Pendente" ainda não foi debitado.' },
         ]}
       />
     </KeyboardAvoidingView>
@@ -575,6 +580,7 @@ function makeStyles(c: Colors) {
     dateCol: { flex:1 },
     contaInfo: { backgroundColor:'rgba(37,208,126,0.08)', borderRadius:11, padding:12, marginTop:6, borderWidth:1, borderColor:'rgba(37,208,126,0.25)' },
     contaInfoTxt: { fontSize:12, color:'#25d07e', fontWeight:'500' },
+    cartaoHint: { fontSize:11.5, color:c.textMuted, lineHeight:16, marginBottom:10 },
     cartaoChipRow: { flexDirection:'row', gap:8, paddingVertical:4 },
     cartaoChip: { paddingHorizontal:14, paddingVertical:8, backgroundColor:c.input, borderRadius:16, borderWidth:1, borderColor:c.border },
     cartaoChipOn: { backgroundColor:'rgba(82,148,255,0.18)', borderColor:'#5294ff' },

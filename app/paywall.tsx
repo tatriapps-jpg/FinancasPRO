@@ -13,12 +13,15 @@ import {
 } from 'react-native';
 import {
   endConnection,
-  getProducts,
+  fetchProducts,
+  finishTransaction,
+  getAvailablePurchases,
   initConnection,
   Purchase,
   purchaseErrorListener,
   purchaseUpdatedListener,
   requestPurchase,
+  restorePurchases,
 } from 'react-native-iap';
 import { Colors, useTheme } from './theme';
 
@@ -57,14 +60,22 @@ export default function PaywallScreen() {
         await initConnection();
 
         purchaseUpdateSub = purchaseUpdatedListener(async (purchase: Purchase) => {
-          if (purchase.transactionId) {
-            await AsyncStorage.setItem(DESBLOQUEADO_KEY, 'true');
-            Alert.alert(
-              '🎉 Compra realizada!',
-              'Fala, Dinheiro! Premium foi desbloqueado. Obrigado!',
-              [{ text: 'Continuar', onPress: () => router.replace('/(tabs)') }],
-            );
+          // App tem um único produto à venda — qualquer evento de compra aqui só pode ser ele.
+          // (Não filtramos por productId/ids porque o formato desses campos varia entre versões
+          // da lib, e um falso negativo aqui deixaria o usuário cobrado sem desbloquear.)
+          await AsyncStorage.setItem(DESBLOQUEADO_KEY, 'true');
+          try {
+            // Reconhece a compra junto à loja (obrigatório no Android em até 3 dias, senão é reembolsada automaticamente)
+            await finishTransaction({ purchase, isConsumable: false });
+          } catch {
+            // mesmo se o reconhecimento falhar agora, o usuário já está desbloqueado localmente;
+            // "Restaurar compra" tenta reconciliar novamente depois.
           }
+          Alert.alert(
+            '🎉 Compra realizada!',
+            'Fala, Dinheiro! Premium foi desbloqueado. Obrigado!',
+            [{ text: 'Continuar', onPress: () => router.replace('/(tabs)') }],
+          );
         });
 
         purchaseErrorSub = purchaseErrorListener(err => {
@@ -74,9 +85,9 @@ export default function PaywallScreen() {
           }
         });
 
-        const produtos = await getProducts({ skus: [SKU_PREMIUM] });
-        if (produtos.length > 0) {
-          setPreco(produtos[0].localizedPrice);
+        const produtos = await fetchProducts({ skus: [SKU_PREMIUM], type: 'in-app' });
+        if (produtos && produtos.length > 0) {
+          setPreco((produtos[0] as any).displayPrice ?? null);
         }
       } catch {
         // sem conexão com a loja — continua sem exibir preço
@@ -97,7 +108,13 @@ export default function PaywallScreen() {
   async function comprar() {
     try {
       setProcessando(true);
-      await requestPurchase({ skus: [SKU_PREMIUM] });
+      await requestPurchase({
+        request: {
+          google: { skus: [SKU_PREMIUM] },
+          apple: { sku: SKU_PREMIUM },
+        },
+        type: 'in-app',
+      });
     } catch {
       setProcessando(false);
     }
@@ -106,11 +123,15 @@ export default function PaywallScreen() {
   async function restaurar() {
     try {
       setProcessando(true);
-      const { getPurchaseHistory } = await import('react-native-iap');
-      const hist = await getPurchaseHistory();
-      const temCompra = hist.some(p => p.productId === SKU_PREMIUM);
-      if (temCompra) {
+      await restorePurchases();
+      const compras = await getAvailablePurchases();
+      // App tem um único produto — qualquer compra disponível aqui é o Premium.
+      if (compras.length > 0) {
         await AsyncStorage.setItem(DESBLOQUEADO_KEY, 'true');
+        // Garante que a compra fica reconhecida junto à Google (evita reembolso automático em 3 dias)
+        for (const p of compras) {
+          try { await finishTransaction({ purchase: p, isConsumable: false }); } catch {}
+        }
         Alert.alert(
           '✅ Compra restaurada!',
           'Seu acesso premium foi reativado.',
@@ -151,7 +172,7 @@ export default function PaywallScreen() {
         <Text style={styles.heroIco}>💰</Text>
         <Text style={styles.heroTitle}>Fala, Dinheiro!{'\n'}Premium</Text>
         <Text style={styles.heroSub}>
-          Você atingiu o limite de <Text style={styles.destaque}>100 lançamentos</Text> do plano gratuito.
+          Você atingiu o limite do plano gratuito.
           {'\n'}Desbloqueie tudo por um único pagamento.
         </Text>
 

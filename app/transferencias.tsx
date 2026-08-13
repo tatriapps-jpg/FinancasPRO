@@ -119,11 +119,11 @@ export default function TransferenciasScreen() {
         onClose={() => setHelpVisible(false)}
         title="Transferências"
         tips={[
-          { titulo: 'O que é', texto: 'Registre transferências de dinheiro entre suas contas bancárias ou para Dinheiro em Espécie.' },
-          { titulo: 'Como usar', texto: 'Selecione a conta de origem, a conta de destino, o valor e a data.' },
-          { titulo: 'Extrato', texto: 'As transferências aparecem no extrato de cada conta envolvida.' },
-          { titulo: 'Sem impacto no orçamento', texto: 'Transferências não são contadas como despesa nem receita — apenas movimentam saldo entre contas.' },
-          { titulo: 'Botão não responde?', texto: 'Role a tela para cima para deixar o botão Transferir totalmente visível antes de tocar.' },
+          { emoji: '🔁', titulo: 'O que é', texto: 'Registre transferências de dinheiro entre suas contas bancárias ou para Dinheiro em Espécie.' },
+          { emoji: '📝', titulo: 'Como usar', texto: 'Selecione a conta de origem, a conta de destino, o valor e a data.' },
+          { emoji: '📄', titulo: 'Extrato', texto: 'As transferências aparecem no extrato de cada conta envolvida.' },
+          { emoji: '🚫', titulo: 'Sem impacto no orçamento', texto: 'Transferências não são contadas como despesa nem receita — apenas movimentam saldo entre contas.' },
+          { emoji: '👆', titulo: 'Botão não responde?', texto: 'Role a tela para cima para deixar o botão Transferir totalmente visível antes de tocar.' },
         ]}
       />
     </View>

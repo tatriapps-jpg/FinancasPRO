@@ -2,7 +2,7 @@
   "expo": {
     "name": "Fala, Dinheiro!",
     "slug": "FinancasPRO",
-    "version": "1.0.0",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "faladinheiro",
@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
-        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone."
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone.",
+        "NSFaceIDUsageDescription": "Use Face ID para desbloquear o app com mais rapidez e segurança."
       }
     },
     "android": {
@@ -51,6 +52,13 @@
       "expo-sqlite",
       "@react-native-community/datetimepicker",
       "react-native-iap",
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Use Face ID para desbloquear o app com mais rapidez e segurança."
+        }
+      ],
       [
         "expo-notifications",
         {

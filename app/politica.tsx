@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Colors, useTheme } from './theme';
@@ -52,7 +53,7 @@ export default function PoliticaScreen() {
           {'tatriapps@gmail.com'}
         </Section>
 
-        <Text style={styles.rodape}>TaTri Apps © 2026 · Versão 1.0.0</Text>
+        <Text style={styles.rodape}>TaTri Apps © 2026 · Versão {Constants.expoConfig?.version ?? '1.0.1'}</Text>
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>

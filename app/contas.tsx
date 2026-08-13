@@ -398,13 +398,13 @@ export default function ContasScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como cadastrar contas"
         tips={[
-          { titulo: 'Adicionar conta', texto: 'Toque em + para adicionar uma conta bancária.' },
-          { titulo: 'Cadastro', texto: 'Preencha nome, banco, tipo (Corrente, Poupança ou Investimento) e saldo inicial.' },
-          { titulo: 'Saldo automático', texto: 'O saldo é atualizado automaticamente ao registrar despesas em Débito ou Pix.' },
-          { titulo: 'Receitas', texto: 'Receitas também creditam automaticamente a conta selecionada.' },
-          { titulo: 'Editar e excluir', texto: 'Toque em uma conta para editar o saldo. Toque na lixeira para excluir.' },
-          { titulo: 'Extrato Excel', texto: 'Use o botão Extrato para exportar o histórico da conta em Excel.' },
-          { titulo: 'Transferências', texto: 'Registre transferências entre contas em Configurações → Transferências.' },
+          { emoji: '➕', titulo: 'Adicionar conta', texto: 'Toque em + para adicionar uma conta bancária.' },
+          { emoji: '📝', titulo: 'Cadastro', texto: 'Preencha nome, banco, tipo (Corrente, Poupança ou Investimento) e saldo inicial.' },
+          { emoji: '🔄', titulo: 'Saldo automático', texto: 'O saldo é atualizado automaticamente ao registrar despesas em Débito ou Pix.' },
+          { emoji: '💰', titulo: 'Receitas', texto: 'Receitas também creditam automaticamente a conta selecionada.' },
+          { emoji: '✏️', titulo: 'Editar e excluir', texto: 'Toque em uma conta para editar o saldo. Toque na lixeira para excluir.' },
+          { emoji: '📊', titulo: 'Extrato Excel', texto: 'Use o botão Extrato para exportar o histórico da conta em Excel.' },
+          { emoji: '🔁', titulo: 'Transferências', texto: 'Registre transferências entre contas em Configurações → Transferências.' },
         ]}
       />
     </View>

@@ -162,12 +162,12 @@ export default function CategoriasScreen() {
         onClose={() => setHelpVisible(false)}
         title="Categorias"
         tips={[
-          { titulo: 'Para que servem', texto: 'As categorias ajudam a entender onde seu dinheiro está sendo gasto.' },
-          { titulo: 'Categorias padrão', texto: 'São sugestões — exclua as que não usa e crie as que precisar.' },
-          { titulo: 'Renomear', texto: 'Toque no lápis para renomear uma categoria existente.' },
-          { titulo: 'Excluir', texto: 'Toque na lixeira para excluir. Categorias em uso não podem ser excluídas.' },
-          { titulo: 'Nova categoria', texto: 'Use o botão + para criar uma nova categoria personalizada.' },
-          { titulo: 'Dica', texto: 'Organize bem suas categorias — elas aparecem nos relatórios e no orçamento.' },
+          { emoji: '🏷️', titulo: 'Para que servem', texto: 'As categorias ajudam a entender onde seu dinheiro está sendo gasto.' },
+          { emoji: '📂', titulo: 'Categorias padrão', texto: 'São sugestões — exclua as que não usa e crie as que precisar.' },
+          { emoji: '✏️', titulo: 'Renomear', texto: 'Toque no lápis para renomear uma categoria existente.' },
+          { emoji: '🗑️', titulo: 'Excluir', texto: 'Toque na lixeira para excluir. Categorias em uso não podem ser excluídas.' },
+          { emoji: '➕', titulo: 'Nova categoria', texto: 'Use o botão + para criar uma nova categoria personalizada.' },
+          { emoji: '💡', titulo: 'Dica', texto: 'Organize bem suas categorias — elas aparecem nos relatórios e no orçamento.' },
         ]}
       />
     </View>

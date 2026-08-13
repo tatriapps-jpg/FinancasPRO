@@ -495,7 +495,7 @@ export default function NovoLancamentoScreen() {
               <Text style={styles.dataBtnTxt}>{dataVencBoleto}</Text>
             </TouchableOpacity>
             {mostrarCalendarioBoleto && (
-              <DateTimePicker value={dataVencBoletoObj} mode="date" display="calendar" onChange={onDataCalendarioBoleto} locale="pt-BR" />
+              <DateTimePicker value={dataVencBoletoObj} mode="date" display="calendar" onChange={onDataCalendarioBoleto} />
             )}
             <Text style={styles.lbl}>Parcelas do boleto</Text>
             <Dropdown
@@ -636,12 +636,12 @@ export default function NovoLancamentoScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como fazer um lançamento"
         tips={[
-          { titulo: 'Tipo', texto: 'Escolha Despesa ou Receita nas abas no topo da tela.' },
-          { titulo: 'Descrição e valor', texto: 'Preencha a descrição, o valor e selecione a categoria.' },
-          { titulo: 'Crédito', texto: 'Para pagamento no Crédito, escolha o cartão e o número de parcelas.' },
-          { titulo: 'Débito ou Pix', texto: 'Para Débito ou Pix, selecione a conta que será debitada.' },
-          { titulo: 'Data', texto: 'A data de vencimento é opcional — útil para contas futuras.' },
-          { titulo: 'Lançamento por voz', texto: 'Toque em 🎤 para registrar o lançamento por voz.' },
+          { emoji: '🔀', titulo: 'Tipo', texto: 'Escolha Despesa ou Receita nas abas no topo da tela.' },
+          { emoji: '📝', titulo: 'Descrição e valor', texto: 'Preencha a descrição, o valor e selecione a categoria.' },
+          { emoji: '💳', titulo: 'Crédito', texto: 'Para pagamento no Crédito, escolha o cartão e o número de parcelas.' },
+          { emoji: '🏦', titulo: 'Débito ou Pix', texto: 'Para Débito ou Pix, selecione a conta que será debitada.' },
+          { emoji: '📅', titulo: 'Data', texto: 'A data de vencimento é opcional — útil para contas futuras.' },
+          { emoji: '🎤', titulo: 'Lançamento por voz', texto: 'Toque em 🎤 para registrar o lançamento por voz.' },
         ]}
       />
     </View>

@@ -1,0 +1,44 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .body { fill: #25D07E; }
+      .dark { fill: #1BB068; }
+      .outline { stroke: #14824C; }
+    </style>
+  </defs>
+
+  <!-- speech-bubble tail (brand identity link to the app icon) -->
+  <path class="body" d="M 420 615 C 402 682 345 742 282 782 C 362 764 436 722 468 654 Z"/>
+
+  <!-- left arm (resting / holding coin) -->
+  <path fill="none" class="outline" stroke-width="46" stroke-linecap="round" d="M 268 460 C 205 480 165 540 155 600"/>
+  <circle class="dark" cx="150" cy="612" r="46"/>
+  <circle fill="#FFE9A8" stroke="#D9A93C" stroke-width="8" cx="150" cy="612" r="30"/>
+  <text x="150" y="624" font-family="DejaVu Sans, sans-serif" font-weight="bold" font-size="30" fill="#B9862C" text-anchor="middle">$</text>
+
+  <!-- right arm (waving) -->
+  <path fill="none" class="outline" stroke-width="46" stroke-linecap="round" d="M 756 460 C 826 430 862 350 858 274"/>
+  <circle class="dark" cx="860" cy="256" r="46"/>
+
+  <!-- main body -->
+  <ellipse class="body" cx="512" cy="420" rx="300" ry="258"/>
+
+  <!-- blush -->
+  <ellipse cx="368" cy="452" rx="34" ry="19" fill="#FF6F91" opacity="0.85"/>
+  <ellipse cx="656" cy="452" rx="34" ry="19" fill="#FF6F91" opacity="0.85"/>
+
+  <!-- eyes -->
+  <circle cx="412" cy="380" r="50" fill="#FFFFFF"/>
+  <circle cx="612" cy="380" r="50" fill="#FFFFFF"/>
+  <circle cx="424" cy="388" r="22" fill="#12331F"/>
+  <circle cx="624" cy="388" r="22" fill="#12331F"/>
+  <circle cx="416" cy="380" r="7" fill="#FFFFFF"/>
+  <circle cx="616" cy="380" r="7" fill="#FFFFFF"/>
+
+  <!-- smile -->
+  <path d="M 430 470 Q 512 522 594 470" fill="none" stroke="#12331F" stroke-width="15" stroke-linecap="round"/>
+
+  <!-- chest badge -->
+  <circle cx="512" cy="592" r="78" fill="#FFFFFF"/>
+  <text x="512" y="627" font-family="DejaVu Sans, sans-serif" font-weight="bold" font-size="104" fill="#1A5C3A" text-anchor="middle">$</text>
+</svg>

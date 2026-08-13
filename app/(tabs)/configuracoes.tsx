@@ -1,14 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
-import { router } from 'expo-router';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { router, useFocusEffect } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Linking, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { buscarCartoes, buscarTodosLancamentos, buscarTransferencias, restaurarCartoes, restaurarLancamentos, restaurarTransferencias, zerarLancamentos } from '../database';
+import { conectarDrive, desconectarDrive, driveDisponivel, enviarBackupAgora, statusDrive } from '../driveBackup';
 import HelpModal, { helpBtnStyle, helpTxtStyle } from '../HelpModal';
 import { Colors, useTheme } from '../theme';
 
 const ORC_KEY = '@financaspro:orcamento';
+const DESBLOQUEADO_KEY = '@faladinheiro:desbloqueado';
+const BIO_KEY = '@financaspro:biometriaAtiva';
 
 export default function ConfiguracoesScreen() {
   const { colors, isDark, toggleTheme } = useTheme();
@@ -28,6 +33,19 @@ export default function ConfiguracoesScreen() {
   const [nomeInput, setNomeInput] = useState('');
   const [vozPedirCategoria, setVozPedirCategoria] = useState(true);
   const [vozPedirObservacao, setVozPedirObservacao] = useState(true);
+  const [premiumAtivo, setPremiumAtivo] = useState(false);
+  const [bioDisponivel, setBioDisponivel] = useState(false);
+  const [bioAtiva, setBioAtiva] = useState(false);
+  const [driveStatus, setDriveStatus] = useState<{ conectado: boolean; email: string | null; ultimoBackup: string | null }>({ conectado: false, email: null, ultimoBackup: null });
+  const [driveCarregando, setDriveCarregando] = useState(false);
+  const [avisoDriveVisto, setAvisoDriveVisto] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem(DESBLOQUEADO_KEY).then(v => setPremiumAtivo(v === 'true'));
+      statusDrive().then(setDriveStatus);
+    }, [])
+  );
 
   useEffect(() => {
     AsyncStorage.getItem('@financaspro:vozVelocidade').then(v => {
@@ -38,7 +56,32 @@ export default function ConfiguracoesScreen() {
     });
     AsyncStorage.getItem('@faladinheiro:vozPedirCategoria').then(v => { if (v !== null) setVozPedirCategoria(v === 'true'); });
     AsyncStorage.getItem('@faladinheiro:vozPedirObservacao').then(v => { if (v !== null) setVozPedirObservacao(v === 'true'); });
+    AsyncStorage.getItem('@faladinheiro:avisoDriveVisto').then(v => setAvisoDriveVisto(v === 'true'));
+    (async () => {
+      const hardware = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = hardware ? await LocalAuthentication.isEnrolledAsync() : false;
+      setBioDisponivel(hardware && enrolled);
+      const pref = await AsyncStorage.getItem(BIO_KEY);
+      setBioAtiva(pref === 'true');
+    })();
   }, []);
+
+  async function toggleBiometria(v: boolean) {
+    if (v) {
+      const hardware = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = hardware ? await LocalAuthentication.isEnrolledAsync() : false;
+      if (!hardware || !enrolled) {
+        Alert.alert('Biometria indisponível', 'Configure a digital ou reconhecimento facial nas configurações do seu celular primeiro.');
+        return;
+      }
+      const resultado = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Confirme para ativar o desbloqueio biométrico',
+      });
+      if (!resultado.success) return;
+    }
+    setBioAtiva(v);
+    await AsyncStorage.setItem(BIO_KEY, String(v));
+  }
 
   async function salvarNome() {
     const nome = nomeInput.trim();
@@ -130,6 +173,70 @@ export default function ConfiguracoesScreen() {
     }
   }
 
+  async function dispensarAvisoDrive() {
+    setAvisoDriveVisto(true);
+    await AsyncStorage.setItem('@faladinheiro:avisoDriveVisto', 'true');
+  }
+
+  async function handleConectarDrive() {
+    if (!driveDisponivel()) {
+      Alert.alert('Indisponível', 'O backup no Google Drive não está disponível nesta versão do app.');
+      return;
+    }
+    setDriveCarregando(true);
+    try {
+      const resultado = await conectarDrive();
+      if (resultado.sucesso) {
+        const status = await statusDrive();
+        setDriveStatus(status);
+        dispensarAvisoDrive();
+        if (resultado.erro) {
+          Alert.alert('Conectado', 'Sua conta foi conectada, mas o primeiro backup ainda não foi enviado. O app tenta de novo automaticamente.');
+        } else {
+          Alert.alert('✅ Conectado!', `Backup automático ativado${resultado.email ? ` para ${resultado.email}` : ''}. Seus dados agora ficam protegidos mesmo se o celular for perdido ou danificado.`);
+        }
+      } else {
+        Alert.alert('Não foi possível conectar', resultado.erro || 'Tente novamente mais tarde.');
+      }
+    } finally {
+      setDriveCarregando(false);
+    }
+  }
+
+  async function handleBackupAgoraDrive() {
+    setDriveCarregando(true);
+    try {
+      const resultado = await enviarBackupAgora();
+      const status = await statusDrive();
+      setDriveStatus(status);
+      if (resultado.sucesso) {
+        Alert.alert('✅ Backup enviado!', 'Seus dados foram salvos no Google Drive.');
+      } else {
+        Alert.alert('Não foi possível enviar', resultado.erro || 'Tente novamente mais tarde.');
+      }
+    } finally {
+      setDriveCarregando(false);
+    }
+  }
+
+  function handleDesconectarDrive() {
+    Alert.alert(
+      'Desconectar do Google Drive?',
+      'O backup automático será desativado. Seus dados no aparelho continuam intactos.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Desconectar',
+          style: 'destructive',
+          onPress: async () => {
+            await desconectarDrive();
+            setDriveStatus(await statusDrive());
+          },
+        },
+      ]
+    );
+  }
+
   async function confirmarRestauracao() {
     try {
       if (!backupInfo) return;
@@ -181,13 +288,16 @@ export default function ConfiguracoesScreen() {
   };
 
   const ajudaItens = [
+    { ico: '❓', titulo: 'Ajuda em cada tela', desc: 'Toque no botão (?) no topo de qualquer tela do app para ver instruções específicas daquela tela.' },
     { ico: '←', titulo: 'Voltar às telas', desc: 'Use o botão Voltar no canto superior esquerdo para retornar à tela anterior.' },
-    { ico: '📋', titulo: 'Lançamentos', desc: 'Toque em + para adicionar. Toque para editar, pressione e segure para excluir.' },
+    { ico: '📋', titulo: 'Lançamentos', desc: 'Toque em + para adicionar. Toque em um lançamento para editar, pressione e segure para excluir. A lista mostra "Todos" os meses por padrão, pra você não perder compras parceladas que ainda não fecharam fatura.' },
+    { ico: '🗣️', titulo: 'Pix por voz', desc: 'Se o app não reconhecer "Pix" ao falar, diga "é Pix" — funciona melhor que só "Pix".' },
     { ico: '💳', titulo: 'Parcelamento', desc: 'Selecione Crédito, escolha o cartão e as parcelas. O app calcula os vencimentos automaticamente.' },
     { ico: '📊', titulo: 'Orçamento', desc: 'Define o limite mensal de gastos. Só despesas são descontadas — receitas não interferem.' },
     { ico: '🔔', titulo: 'Alertas', desc: 'Na tela inicial toque no banner verde para configurar o prazo de aviso de vencimentos.' },
     { ico: '💾', titulo: 'Backup', desc: 'Em Configurações → Dados → Fazer Backup. Guarde o arquivo em local seguro.' },
-    { ico: '🔐', titulo: 'PIN', desc: 'Em Configurações → Alterar PIN. Anote seu PIN em local seguro.' },
+    { ico: '☁️', titulo: 'Backup automático no Google Drive', desc: 'Em Configurações → Dados → "Backup automático no Google Drive", conecte sua conta Google uma vez. A partir daí, o app salva uma cópia dos seus dados no Drive sozinho, sem precisar fazer nada. Mesmo que o celular se perca ou dê problema, seus dados ficam protegidos — é só conectar a mesma conta Google em um novo aparelho.' },
+    { ico: '🔐', titulo: 'PIN', desc: 'Em Configurações → Alterar PIN. Anote seu PIN em local seguro. Você também pode ativar o desbloqueio por digital/rosto, e na tela de PIN existe a opção "Esqueci meu PIN" caso precise recomeçar.' },
     { ico: '🏷️', titulo: 'Categorias', desc: 'Personalize suas categorias em Configurações → Gerenciar Categorias.' },
     { ico: '📈', titulo: 'Relatórios', desc: 'Use as setas para navegar entre meses e ver comparativos de gastos por categoria.' },
   ];
@@ -202,6 +312,28 @@ export default function ConfiguracoesScreen() {
         <TouchableOpacity onPress={() => setHelpVisible(true)} style={helpBtnStyle}>
           <Text style={helpTxtStyle}>?</Text>
         </TouchableOpacity>
+      </View>
+
+      <Text style={styles.sectionTitle}>PREMIUM</Text>
+      <View style={styles.group}>
+        {premiumAtivo ? (
+          <View style={styles.row}>
+            <Text style={styles.rowIco}>👑</Text>
+            <View style={styles.rowInfo}>
+              <Text style={styles.rowTitle}>Premium ativo</Text>
+              <Text style={styles.rowSub}>Obrigado por apoiar o Fala, Dinheiro!</Text>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.row} onPress={() => router.push('/paywall' as any)}>
+            <Text style={styles.rowIco}>🚀</Text>
+            <View style={styles.rowInfo}>
+              <Text style={styles.rowTitle}>Desbloquear Premium</Text>
+              <Text style={styles.rowSub}>Lançamentos ilimitados — pagamento único de R$ 14,90</Text>
+            </View>
+            <Text style={styles.rowArrow}>›</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <Text style={styles.sectionTitle}>APARÊNCIA</Text>
@@ -272,6 +404,23 @@ export default function ConfiguracoesScreen() {
           <Text style={styles.rowArrow}>›</Text>
         </TouchableOpacity>
         <View style={styles.divider} />
+        <View style={styles.row}>
+          <Text style={styles.rowIco}>🫆</Text>
+          <View style={styles.rowInfo}>
+            <Text style={styles.rowTitle}>Desbloqueio biométrico</Text>
+            <Text style={styles.rowSub}>
+              {bioDisponivel ? 'Usar digital ou reconhecimento facial do celular' : 'Configure a biometria nos ajustes do celular para ativar'}
+            </Text>
+          </View>
+          <Switch
+            value={bioAtiva}
+            onValueChange={toggleBiometria}
+            disabled={!bioDisponivel}
+            trackColor={{ false: '#d1d5db', true: 'rgba(82,148,255,0.4)' }}
+            thumbColor={bioAtiva ? '#5294ff' : '#f4f4f4'}
+          />
+        </View>
+        <View style={styles.divider} />
         <TouchableOpacity style={styles.row} onPress={() => router.replace('/pin')}>
           <Text style={styles.rowIco}>🔒</Text>
           <View style={styles.rowInfo}>
@@ -333,8 +482,51 @@ export default function ConfiguracoesScreen() {
         </TouchableOpacity>
       </View>
 
+      {!avisoDriveVisto && !driveStatus.conectado && (
+        <View style={styles.avisoCard}>
+          <Text style={styles.avisoIco}>☁️</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.avisoTitulo}>Novidade: backup automático no Google Drive</Text>
+            <Text style={styles.avisoTxt}>Agora seus dados podem ser salvos sozinhos no seu Google Drive, além do backup local. Ative em Dados, logo abaixo.</Text>
+          </View>
+          <TouchableOpacity onPress={dispensarAvisoDrive} style={styles.avisoFechar}>
+            <Text style={styles.avisoFecharTxt}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <Text style={styles.sectionTitle}>DADOS</Text>
       <View style={styles.group}>
+        <TouchableOpacity
+          style={styles.row}
+          disabled={driveCarregando}
+          onPress={driveStatus.conectado ? handleBackupAgoraDrive : handleConectarDrive}
+        >
+          <Text style={styles.rowIco}>☁️</Text>
+          <View style={styles.rowInfo}>
+            <Text style={styles.rowTitle}>Backup automático no Google Drive</Text>
+            <Text style={styles.rowSub}>
+              {driveCarregando
+                ? 'Enviando...'
+                : driveStatus.conectado
+                ? `Conectado${driveStatus.email ? ` (${driveStatus.email})` : ''}${driveStatus.ultimoBackup ? ' · último backup ' + fmt(driveStatus.ultimoBackup) : ' · toque para enviar agora'}`
+                : 'Mantém seus dados seguros mesmo se perder o celular'}
+            </Text>
+          </View>
+          <Text style={styles.rowArrow}>›</Text>
+        </TouchableOpacity>
+        {driveStatus.conectado && (
+          <>
+            <View style={styles.divider} />
+            <TouchableOpacity style={styles.row} onPress={handleDesconectarDrive}>
+              <Text style={styles.rowIco}>🔌</Text>
+              <View style={styles.rowInfo}>
+                <Text style={[styles.rowTitle, { color: '#f25555' }]}>Desconectar do Google Drive</Text>
+              </View>
+            </TouchableOpacity>
+          </>
+        )}
+        <View style={styles.divider} />
         <TouchableOpacity style={styles.row} onPress={fazerBackup}>
           <Text style={styles.rowIco}>💾</Text>
           <View style={styles.rowInfo}>
@@ -414,7 +606,7 @@ export default function ConfiguracoesScreen() {
           <Text style={styles.rowIco}>💰</Text>
           <View style={styles.rowInfo}>
             <Text style={styles.rowTitle}>Fala, Dinheiro!</Text>
-            <Text style={styles.rowSub}>Versão 1.0.0 · TaTri Apps © 2026</Text>
+            <Text style={styles.rowSub}>Versão {Constants.expoConfig?.version ?? '1.0.1'} · TaTri Apps © 2026</Text>
           </View>
         </View>
       </View>
@@ -541,14 +733,14 @@ export default function ConfiguracoesScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como usar as Configurações"
         tips={[
-          { titulo: 'Aparência', texto: 'Alterne entre tema claro e escuro. Ajuste a velocidade da voz (Lenta, Normal ou Rápida) para o lançamento por voz.' },
-          { titulo: 'Lançamento por voz', texto: 'Ative ou desative a pergunta de categoria e observação durante o lançamento por voz. Quando desativado, o app pula a etapa automaticamente.' },
-          { titulo: 'Conta e Segurança', texto: 'Altere o PIN ou bloqueie o app imediatamente.' },
-          { titulo: 'Cartões e Contas', texto: 'Cadastre cartões de crédito, contas bancárias, controle o Dinheiro em Espécie e registre transferências entre contas.' },
-          { titulo: 'Categorias', texto: 'Crie, edite ou exclua categorias personalizadas de despesa e receita.' },
-          { titulo: 'Dados', texto: 'Faça backup de todos os dados em JSON, restaure um backup anterior ou apague todos os lançamentos.' },
-          { titulo: 'Resetar Aplicativo', texto: 'Apaga todos os dados e volta o app ao estado inicial — use com cautela.' },
-          { titulo: 'Sobre', texto: 'Acesse a ajuda rápida, envie feedback por e-mail ou leia a política de privacidade.' },
+          { emoji: '🎨', titulo: 'Aparência', texto: 'Alterne entre tema claro e escuro. Ajuste a velocidade da voz (Lenta, Normal ou Rápida) para o lançamento por voz.' },
+          { emoji: '🎤', titulo: 'Lançamento por voz', texto: 'Ative ou desative a pergunta de categoria e observação durante o lançamento por voz. Quando desativado, o app pula a etapa automaticamente.' },
+          { emoji: '🔒', titulo: 'Conta e Segurança', texto: 'Altere o PIN, ative o desbloqueio por digital/rosto ou bloqueie o app imediatamente.' },
+          { emoji: '💳', titulo: 'Cartões e Contas', texto: 'Cadastre cartões de crédito, contas bancárias, controle o Dinheiro em Espécie e registre transferências entre contas.' },
+          { emoji: '🏷️', titulo: 'Categorias', texto: 'Crie, edite ou exclua categorias personalizadas de despesa e receita.' },
+          { emoji: '💾', titulo: 'Dados', texto: 'Faça backup de todos os dados em JSON, restaure um backup anterior ou apague todos os lançamentos.' },
+          { emoji: '⚠️', titulo: 'Resetar Aplicativo', texto: 'Apaga todos os dados e volta o app ao estado inicial — use com cautela.' },
+          { emoji: 'ℹ️', titulo: 'Sobre', texto: 'Acesse a ajuda rápida, envie feedback por e-mail ou leia a política de privacidade.' },
         ]}
       />
 
@@ -595,6 +787,12 @@ function makeStyles(c: Colors) {
     rowSub: { fontSize:12, color:c.textMuted, marginTop:2 },
     rowArrow: { fontSize:20, color:c.textMuted },
     divider: { height:1, backgroundColor:c.borderLight, marginLeft:52 },
+    avisoCard: { flexDirection:'row', alignItems:'flex-start', marginHorizontal:16, marginTop:20, padding:14, backgroundColor:c.card, borderRadius:14, borderWidth:1, borderColor:'rgba(82,148,255,0.4)' },
+    avisoIco: { fontSize:20, marginRight:10 },
+    avisoTitulo: { fontSize:13, fontWeight:'700', color:c.text, marginBottom:3 },
+    avisoTxt: { fontSize:12, color:c.textMuted, lineHeight:17 },
+    avisoFechar: { padding:4, marginLeft:6 },
+    avisoFecharTxt: { fontSize:14, color:c.textMuted },
     modalBg: { flex:1, backgroundColor:'rgba(0,0,0,0.75)', justifyContent:'center', padding:24 },
     modalBox: { backgroundColor:c.card, borderRadius:20, padding:24, borderWidth:1, borderColor:c.border },
     modalIco: { fontSize:36, textAlign:'center', marginBottom:8 },

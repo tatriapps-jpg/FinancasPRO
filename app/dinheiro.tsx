@@ -222,11 +222,11 @@ export default function DinheiroScreen() {
         onClose={() => setHelpVisible(false)}
         title="Dinheiro em Espécie"
         tips={[
-          { titulo: 'Dinheiro em Espécie', texto: 'Aqui você controla o dinheiro físico que tem em mãos.' },
-          { titulo: 'Saldo automático', texto: 'O saldo é atualizado automaticamente quando você registra lançamentos com forma "Dinheiro".' },
-          { titulo: 'Transferências', texto: 'Transferências envolvendo Dinheiro em Espécie também aparecem nesta tela.' },
-          { titulo: 'Histórico', texto: 'A tela mostra apenas as movimentações do mês atual. Para ver todo o histórico, exporte o Extrato Excel.' },
-          { titulo: 'Editar saldo', texto: 'Use "Editar saldo" para corrigir o valor manualmente sempre que necessário.' },
+          { emoji: '💵', titulo: 'Dinheiro em Espécie', texto: 'Aqui você controla o dinheiro físico que tem em mãos.' },
+          { emoji: '🔄', titulo: 'Saldo automático', texto: 'O saldo é atualizado automaticamente quando você registra lançamentos com forma "Dinheiro".' },
+          { emoji: '🔁', titulo: 'Transferências', texto: 'Transferências envolvendo Dinheiro em Espécie também aparecem nesta tela.' },
+          { emoji: '🕘', titulo: 'Histórico', texto: 'A tela mostra apenas as movimentações do mês atual. Para ver todo o histórico, exporte o Extrato Excel.' },
+          { emoji: '✏️', titulo: 'Editar saldo', texto: 'Use "Editar saldo" para corrigir o valor manualmente sempre que necessário.' },
         ]}
       />
     </View>

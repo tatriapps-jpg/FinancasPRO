@@ -296,12 +296,12 @@ export default function OrcamentoScreen() {
         onClose={() => setHelpVisible(false)}
         title="Como definir seu orçamento"
         tips={[
-          { titulo: 'Definir limite', texto: 'Toque em ✏️ Editar para definir ou alterar o limite mensal de gastos.' },
-          { titulo: 'Desativar', texto: 'Digite 0 para desativar o orçamento.' },
-          { titulo: 'Barra de progresso', texto: 'Verde: menos de 70%. Amarelo: 70–90%. Vermelho: acima de 90%.' },
-          { titulo: 'Gráfico de rosca', texto: 'Mostra os gastos divididos por categoria.' },
-          { titulo: 'Renovação automática', texto: 'O orçamento é mensal e se renova automaticamente todo mês.' },
-          { titulo: 'Notificações', texto: 'Você receberá uma notificação ao atingir 80% e 100% do limite.' },
+          { emoji: '✏️', titulo: 'Definir limite', texto: 'Toque em ✏️ Editar para definir ou alterar o limite mensal de gastos.' },
+          { emoji: '🚫', titulo: 'Desativar', texto: 'Digite 0 para desativar o orçamento.' },
+          { emoji: '📶', titulo: 'Barra de progresso', texto: 'Verde: menos de 70%. Amarelo: 70–90%. Vermelho: acima de 90%.' },
+          { emoji: '🍩', titulo: 'Gráfico de rosca', texto: 'Mostra os gastos divididos por categoria.' },
+          { emoji: '🔄', titulo: 'Renovação automática', texto: 'O orçamento é mensal e se renova automaticamente todo mês.' },
+          { emoji: '🔔', titulo: 'Notificações', texto: 'Você receberá uma notificação ao atingir 80% e 100% do limite.' },
         ]}
       />
     </View>
