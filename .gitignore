@@ -41,3 +41,10 @@ yarn-error.log*
 .cache/
 .parcel-cache/
 *.bak
+
+# Notas internas (ficam so no computador)
+CONTEXTO_*.md
+.context/
+.claude/
+_arquivo/
+.backup_*/
